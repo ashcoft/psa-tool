@@ -34,10 +34,14 @@ jobs:
             echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Install Vercel CLI
+        if: steps.credentials.outputs.configured == 'true'
+        run: npm install --global vercel@66.6.0 --ignore-scripts
+
       - name: Deploy to Vercel
         if: steps.credentials.outputs.configured == 'true'
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-        run: npx vercel@latest deploy --prod --yes --token "$VERCEL_TOKEN"
+        run: vercel deploy --prod --yes --token "$VERCEL_TOKEN"
