@@ -52,6 +52,7 @@ export default function Home() {
   const [selection, setSelection] = useState<Selection>({ type: null, id: null });
   const [tool, setTool] = useState<CanvasTool>('select');
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [revision, setRevision] = useState(0);
   const [activeTab, setActiveTab] = useState('home');
   const [runs, setRuns] = useState<StudyRun[]>([]);
@@ -71,7 +72,6 @@ export default function Home() {
 
   const canvasRef = useRef<CanvasHandle>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const settingsLoaded = useRef(false);
 
   const log = useCallback((text: string) => {
     setMessages(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${text}`].slice(-400));
@@ -81,12 +81,12 @@ export default function Home() {
     // Settings live in localStorage, which is only available after hydration.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSettings(loadSettings());
-    settingsLoaded.current = true;
+    setSettingsLoaded(true);
   }, []);
 
   useEffect(() => {
-    if (settingsLoaded.current) saveSettings(settings);
-  }, [settings]);
+    if (settingsLoaded) saveSettings(settings);
+  }, [settings, settingsLoaded]);
 
   useEffect(() => {
     if (!toast) return;
