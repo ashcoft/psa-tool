@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file. This file is generated automatically by [semantic-release](https://github.com/semantic-release/semantic-release) from the commit history.
 
+# [1.2.0](https://github.com/ashcoft/psat-web/compare/v1.1.2...v1.2.0) (2026-11-24)
+
+### Features
+
+* complete the PSAT component library ([91907bb](https://github.com/ashcoft/psat-web/commit/91907bb4bc95174ba5076813bda0ef106f1c5b2b))
+
 ## [1.1.2](https://github.com/ashcoft/psat-web/compare/v1.1.1...v1.1.2) (2026-11-24)
 
 ### Bug Fixes
