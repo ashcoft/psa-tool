@@ -1,0 +1,7 @@
+---
+exclude_paths:
+  - 'psat-converted/**'
+  - 'playwright/**'
+  - 'public/**'
+  - '.next/**'
+  - 'node_modules/**'
