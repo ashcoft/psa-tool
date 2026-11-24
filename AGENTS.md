@@ -11,6 +11,8 @@
 - `src/lib/*` contains pure numerical engines and data utilities. Keep UI code out of these modules.
 - `src/lib/studies.ts` is the study facade. A new study should return a `StudyRun` variant and be
   rendered by `ResultsDialog`, exported by `results-export`, and described in `results-export` reports.
+- Specialty calculators live in `src/lib/arcflash.ts`, `motor-starting.ts`, `harmonics.ts`,
+  `protection.ts` and `groundgrid.ts`, and are presented by `SpecialtyDialog`.
 - `src/lib/useProject.ts` owns the system state, undo/redo history and element editing actions.
 - `src/components/Canvas.tsx` draws the one-line diagram and handles selection, dragging, connection
   and view transforms. Bus coordinates are grid units where 1 unit = 100 px at 100 % zoom.
@@ -36,6 +38,8 @@
   the step is halved when a solution is lost.
 - Optimal power flow: merit-order/equal-incremental-cost economic dispatch with AC verification;
   branch overloads are reported rather than optimised away.
+- Specialty studies are screening calculations: Lee arc-flash model, IEEE 519 harmonic limits,
+  IEC/IEEE relay curves, and IEEE 80 simplified ground-grid equations.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

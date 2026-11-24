@@ -8,6 +8,7 @@ import Sidebar from '@/components/Sidebar';
 import PropertiesPanel from '@/components/PropertiesPanel';
 import OutputWindow from '@/components/OutputWindow';
 import SettingsDialog from '@/components/SettingsDialog';
+import SpecialtyDialog, { SpecialtyTab } from '@/components/SpecialtyDialog';
 import SampleDialog from '@/components/SampleDialog';
 import ResultsDialog from '@/components/ResultsDialog';
 import ReportDialog from '@/components/ReportDialog';
@@ -56,6 +57,7 @@ export default function Home() {
   const [runs, setRuns] = useState<StudyRun[]>([]);
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<DialogKind>(null);
+  const [specialtyTab, setSpecialtyTab] = useState<SpecialtyTab | null>(null);
   const [reportRunId, setReportRunId] = useState<string | null>(null);
   const [messages, setMessages] = useState<string[]>([
     'PSAT Web ready. Demo 4-bus system loaded.',
@@ -104,6 +106,8 @@ export default function Home() {
   const stats = useMemo(() => systemStats(project.system), [project.system]);
   const activeRun = runs.find(run => run.id === activeRunId) ?? runs[runs.length - 1] ?? null;
   const reportRun = runs.find(run => run.id === reportRunId) ?? null;
+  const latestFaultRun = [...runs].reverse().find(run => run.kind === 'fault');
+  const latestFaultStudy = latestFaultRun?.kind === 'fault' ? latestFaultRun.data : null;
   const errorCount = project.issues.filter(issue => issue.severity === 'error').length;
 
   const selectedBusId = useCallback((): string | null => {
@@ -526,6 +530,21 @@ export default function Home() {
       case 'print':
         if (typeof window !== 'undefined') window.print();
         break;
+      case 'specialty-arcflash':
+        setSpecialtyTab('arcflash');
+        break;
+      case 'specialty-motor':
+        setSpecialtyTab('motor');
+        break;
+      case 'specialty-harmonics':
+        setSpecialtyTab('harmonics');
+        break;
+      case 'specialty-protection':
+        setSpecialtyTab('protection');
+        break;
+      case 'specialty-groundgrid':
+        setSpecialtyTab('groundgrid');
+        break;
       case 'validate':
         setDialog('validation');
         log(
@@ -915,6 +934,15 @@ export default function Home() {
       )}
 
       {dialog === 'samples' && <SampleDialog onLoad={loadSample} onClose={() => setDialog(null)} />}
+
+      {specialtyTab && (
+        <SpecialtyDialog
+          system={project.system}
+          faultStudy={latestFaultStudy}
+          initialTab={specialtyTab}
+          onClose={() => setSpecialtyTab(null)}
+        />
+      )}
 
       {dialog === 'results' && (
         <ResultsDialog

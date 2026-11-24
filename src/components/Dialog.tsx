@@ -5,7 +5,7 @@ import Icon from './Icon';
 interface DialogProps {
   title: string;
   subtitle?: string;
-  icon?: 'settings' | 'results' | 'report' | 'folder' | 'about' | 'help' | 'warning' | 'check';
+  icon?: 'settings' | 'results' | 'report' | 'folder' | 'about' | 'help' | 'warning' | 'check' | 'fault';
   onClose: () => void;
   children: React.ReactNode;
   footer?: React.ReactNode;

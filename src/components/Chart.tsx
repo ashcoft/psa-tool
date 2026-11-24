@@ -27,6 +27,8 @@ interface ChartProps {
   referenceY?: { value: number; label: string; color?: string }[];
   showLegend?: boolean;
   emptyMessage?: string;
+  xLog?: boolean;
+  yLog?: boolean;
 }
 
 const WIDTH = 640;
@@ -73,6 +75,8 @@ export default function Chart({
   referenceY = [],
   showLegend = true,
   emptyMessage = 'No data to plot',
+  xLog = false,
+  yLog = false,
 }: ChartProps) {
   const id = useId().replace(/:/g, '');
   const allPoints = series.flatMap(item => item.points);
@@ -84,10 +88,14 @@ export default function Chart({
     );
   }
 
-  const domainXMin = xMin ?? Math.min(...allPoints.map(point => point.x));
-  const domainXMax = xMax ?? Math.max(...allPoints.map(point => point.x));
-  const domainYMin = yMin ?? Math.min(...allPoints.map(point => point.y));
-  const domainYMax = yMax ?? Math.max(...allPoints.map(point => point.y));
+  const tx = (value: number) => (xLog ? Math.log10(Math.max(value, 1e-9)) : value);
+  const ty = (value: number) => (yLog ? Math.log10(Math.max(value, 1e-9)) : value);
+  const tickLabel = (value: number) => (value === 0 ? '0' : `10^${Number.isInteger(value) ? value : value.toFixed(1)}`);
+
+  const domainXMin = tx(xMin ?? Math.min(...allPoints.map(point => point.x)));
+  const domainXMax = tx(xMax ?? Math.max(...allPoints.map(point => point.x)));
+  const domainYMin = ty(yMin ?? Math.min(...allPoints.map(point => point.y)));
+  const domainYMax = ty(yMax ?? Math.max(...allPoints.map(point => point.y)));
 
   const paddedYMin = domainYMin === domainYMax ? domainYMin - 1 : domainYMin;
   const paddedYMax = domainYMin === domainYMax ? domainYMax + 1 : domainYMax;
@@ -98,9 +106,9 @@ export default function Chart({
   const plotHeight = HEIGHT - PADDING.top - PADDING.bottom;
 
   const scaleX = (value: number) =>
-    PADDING.left + ((value - domainXMin) / Math.max(1e-9, domainXMax - domainXMin)) * plotWidth;
+    PADDING.left + ((tx(value) - domainXMin) / Math.max(1e-9, domainXMax - domainXMin)) * plotWidth;
   const scaleY = (value: number) =>
-    PADDING.top + plotHeight - ((value - paddedYMin) / Math.max(1e-9, paddedYMax - paddedYMin)) * plotHeight;
+    PADDING.top + plotHeight - ((ty(value) - paddedYMin) / Math.max(1e-9, paddedYMax - paddedYMin)) * plotHeight;
 
   return (
     <div className="rounded border border-[#dde4ec] bg-white p-2">
@@ -122,7 +130,7 @@ export default function Chart({
               strokeWidth={1}
             />
             <text x={PADDING.left - 6} y={scaleY(tick) + 3} textAnchor="end" fontSize={9} fill="#64748b">
-              {formatTick(tick)}
+              {yLog ? tickLabel(tick) : formatTick(tick)}
             </text>
           </g>
         ))}
@@ -137,7 +145,7 @@ export default function Chart({
               strokeWidth={1}
             />
             <text x={scaleX(tick)} y={HEIGHT - PADDING.bottom + 13} textAnchor="middle" fontSize={9} fill="#64748b">
-              {formatTick(tick)}
+              {xLog ? tickLabel(tick) : formatTick(tick)}
             </text>
           </g>
         ))}

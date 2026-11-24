@@ -222,6 +222,17 @@ export const ribbonTabs: RibbonTab[] = [
         ],
       },
       {
+        id: 'specialty',
+        label: 'Specialty Studies',
+        buttons: [
+          { id: 'arc-flash', label: 'Arc Flash', icon: 'fault', action: 'specialty-arcflash', size: 'large' },
+          { id: 'motor-start', label: 'Motor Start', icon: 'motor', action: 'specialty-motor', size: 'large' },
+          { id: 'harmonics', label: 'Harmonics', icon: 'facts', action: 'specialty-harmonics', size: 'large' },
+          { id: 'protection', label: 'Protection', icon: 'relay', action: 'specialty-protection', size: 'large' },
+          { id: 'ground-grid', label: 'Ground Grid', icon: 'area', action: 'specialty-groundgrid', size: 'large' },
+        ],
+      },
+      {
         id: 'data',
         label: 'Data',
         buttons: [

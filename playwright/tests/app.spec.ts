@@ -108,6 +108,20 @@ test.describe('PSAT Web workbench', () => {
     await expect(page.getByText('Ctrl + N')).toBeVisible();
   });
 
+  test('runs specialty studies from the Tools tab', async ({ page }) => {
+    await openApp(page);
+    await page.getByRole('tab', { name: 'Tools' }).click();
+    await page.getByTestId('ribbon').getByRole('button', { name: 'Arc Flash' }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByText('Specialty Studies')).toBeVisible();
+    await dialog.getByRole('button', { name: 'Calculate' }).click();
+    await expect(dialog.getByText('Incident energy', { exact: true })).toBeVisible();
+
+    await dialog.getByRole('button', { name: 'Ground Grid' }).click();
+    await dialog.getByRole('button', { name: 'Design Grid' }).click();
+    await expect(dialog.getByText('Grid resistance')).toBeVisible();
+  });
+
   test('does not log console errors on load', async ({ page }) => {
     const errors: string[] = [];
     page.on('console', message => {

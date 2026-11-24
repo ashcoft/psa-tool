@@ -39,6 +39,12 @@ study-case history and tabular/chart results.
 - **Time-domain simulation**: classical swing equations, balanced-fault
   disturbance, Euler/RK4/trapezoidal integration, rotor-angle and bus-voltage
   plots plus transient stability assessment.
+- **Specialty studies** (Tools tab):
+  - Arc flash screening (Lee method) with incident energy, boundary and PPE category
+  - Motor starting with locked-rotor current, terminal voltage and voltage dip
+  - Harmonic distortion with a 6-pulse spectrum and IEEE 519 THD check
+  - Protection coordination with IEC/IEEE inverse-time curves and TCC plots
+  - Ground grid screening (IEEE 80) with conductor sizing, GPR and touch/step voltages
 
 ### Results and reporting
 - Study-case history for the current session
