@@ -152,6 +152,7 @@ test.describe('PSAT Web workbench', () => {
     await openApp(page);
     const method = page.getByLabel('Power flow method');
     await method.selectOption('DC');
+    await page.waitForFunction(() => (localStorage.getItem('psat-web.settings.v1') ?? '').includes('DC'));
     await page.reload();
     await expect(page.getByLabel('Power flow method')).toHaveValue('DC');
   });
