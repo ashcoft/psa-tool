@@ -1,55 +1,30 @@
-# Use Node.js LTS as base image
-FROM node:26-alpine AS base
-
-# Install dependencies stage
-FROM base AS deps
-
+# Production container for PSAT Web (Next.js standalone output)
+FROM node:26-alpine AS deps
 WORKDIR /app
-
-# Copy package files
-COPY package.json package-lock.json* ./
-
-# Install dependencies
+COPY package.json package-lock.json ./
 RUN npm ci
 
-# Build stage
-FROM deps AS builder
-
+FROM node:26-alpine AS builder
 WORKDIR /app
-
-# Copy all source files
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NEXT_OUTPUT=standalone
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-
-# Build the application
 RUN npm run build
 
-# Production stage
-FROM base AS runner
-
+FROM node:26-alpine AS runner
 WORKDIR /app
-
-# Set environment for production
 ENV NODE_ENV=production
-
-# Create non-root user for security
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
-
-# Copy built application
-COPY --from=builder /app/public ./public
-
-# Set ownership
-RUN mkdir .next
-RUN chown nextjs:nodejs .next
-
-# Switch to non-root user
-USER nextjs
-
-# Expose port
-EXPOSE 3000
-
-# Start the application
+ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
+ENV HOSTNAME=0.0.0.0
 
-CMD ["npm", "start"]
+RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
+
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
+EXPOSE 3000
+CMD ["node", "server.js"]

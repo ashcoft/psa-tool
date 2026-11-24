@@ -18,7 +18,7 @@
 #
 # Copyright (C) 2002-2016 Federico Milano
 
-fm_inilf
+# fm_inilf
 
 Bus = restore(Bus)
 Line = restore(Line)

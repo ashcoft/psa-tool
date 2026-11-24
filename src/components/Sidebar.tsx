@@ -1,211 +1,234 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useMemo, useState } from 'react';
 import { PowerSystem } from '@/types';
-import {
-  SlackBusIcon, PVBusIcon, PQBusIcon,
-  GeneratorIcon, LoadIcon, ShuntIcon,
-  LineIcon, TransformerIcon, FactsIcon,
-  AvrIcon, GovernorIcon, PssIcon, LtciIcon,
-  AreaIcon, BatteryIcon
-} from './SymbolIcons';
+import { Selection } from '@/lib/useProject';
+import { systemStats } from '@/lib/project';
+import Icon, { IconName } from './Icon';
+
+interface PaletteItem {
+  id: string;
+  label: string;
+  icon: IconName;
+  action: string;
+  dragKind: string;
+  category: 'buses' | 'branches' | 'devices';
+  keywords: string;
+}
+
+const paletteItems: PaletteItem[] = [
+  { id: 'slack', label: 'Slack Bus', icon: 'busSlack', action: 'add-slack', dragKind: 'bus-slack', category: 'buses', keywords: 'swing reference generator' },
+  { id: 'pv', label: 'PV Bus', icon: 'busPV', action: 'add-pv', dragKind: 'bus-pv', category: 'buses', keywords: 'voltage controlled generator bus' },
+  { id: 'pq', label: 'PQ Bus', icon: 'busPQ', action: 'add-pq', dragKind: 'bus-pq', category: 'buses', keywords: 'load bus' },
+  { id: 'line', label: 'Line', icon: 'line', action: 'tool-line', dragKind: 'line', category: 'branches', keywords: 'branch cable overhead' },
+  { id: 'transformer', label: 'Transformer', icon: 'transformer', action: 'tool-transformer', dragKind: 'transformer', category: 'branches', keywords: 'two winding tap' },
+  { id: 'generator', label: 'Generator', icon: 'generator', action: 'add-generator', dragKind: 'generator', category: 'devices', keywords: 'unit machine source' },
+  { id: 'load', label: 'Load', icon: 'load', action: 'add-load', dragKind: 'load', category: 'devices', keywords: 'demand consumer' },
+  { id: 'shunt', label: 'Shunt', icon: 'shunt', action: 'add-shunt', dragKind: 'shunt', category: 'devices', keywords: 'capacitor reactor compensation' },
+  { id: 'motor', label: 'Motor', icon: 'motor', action: 'add-load', dragKind: 'load', category: 'devices', keywords: 'induction motor load' },
+  { id: 'breaker', label: 'Breaker', icon: 'breaker', action: 'add-note', dragKind: 'breaker', category: 'devices', keywords: 'protection switch' },
+  { id: 'relay', label: 'Relay', icon: 'relay', action: 'add-note', dragKind: 'relay', category: 'devices', keywords: 'protection coordination' },
+  { id: 'wind', label: 'Wind Turbine', icon: 'wind', action: 'add-generator', dragKind: 'generator', category: 'devices', keywords: 'renewable der' },
+  { id: 'solar', label: 'PV Array', icon: 'solar', action: 'add-generator', dragKind: 'generator', category: 'devices', keywords: 'solar renewable der' },
+  { id: 'battery', label: 'Battery', icon: 'battery', action: 'add-generator', dragKind: 'generator', category: 'devices', keywords: 'storage bess' },
+];
 
 interface SidebarProps {
   system: PowerSystem;
-  onAddBus: (type: 'slack' | 'pv' | 'pq') => void;
-  onAddLine: () => void;
-  onCollapse: () => void;
+  selection: Selection;
+  onSelect: (selection: Selection) => void;
+  onAction: (action: string) => void;
+  forceVisible?: boolean;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
-interface SectionProps {
-  id: string;
-  title: string;
-  icon: React.ReactNode;
-  expandedSection: string | null;
-  onToggle: (id: string) => void;
-  children: React.ReactNode;
-}
+const kindLabels: Record<string, string> = {
+  bus: 'Buses',
+  line: 'Lines',
+  transformer: 'Transformers',
+  generator: 'Generators',
+  load: 'Loads',
+  shunt: 'Shunts',
+};
 
-function Section({ id, title, icon, expandedSection, onToggle, children }: SectionProps) {
-  return (
-    <div className="border-b border-gray-200">
-      <button
-        onClick={() => onToggle(id)}
-        className="w-full flex items-center justify-between px-3 py-2 bg-gray-50 hover:bg-gray-100 text-sm font-medium"
-      >
-        <span className="flex items-center gap-2">
-          <span className="flex items-center">{icon}</span>
-          <span>{title}</span>
-        </span>
-        <span className="text-gray-400">{expandedSection === id ? '▼' : '▶'}</span>
-      </button>
-      {expandedSection === id && (
-        <div className="p-2 bg-white">
-          {children}
-        </div>
-      )}
-    </div>
+export default function Sidebar({ system, selection, onSelect, onAction, forceVisible = false }: SidebarProps) {
+  const [tab, setTab] = useState<'palette' | 'project'>('palette');
+  const [search, setSearch] = useState('');
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const stats = useMemo(() => systemStats(system), [system]);
+
+  const filtered = paletteItems.filter(item =>
+    `${item.label} ${item.keywords}`.toLowerCase().includes(search.toLowerCase())
   );
-}
 
-export default function Sidebar({ system, onAddBus, onAddLine, onCollapse }: SidebarProps) {
-  const [expandedSection, setExpandedSection] = useState<string | null>('buses');
-  
-  const handleToggle = useCallback((id: string) => {
-    setExpandedSection(prev => prev === id ? null : id);
-  }, []);
+  const categories: { id: PaletteItem['category']; label: string; icon: IconName }[] = [
+    { id: 'buses', label: 'Buses', icon: 'bus' },
+    { id: 'branches', label: 'Branches', icon: 'line' },
+    { id: 'devices', label: 'Devices', icon: 'generator' },
+  ];
+
+  const sections: { kind: keyof typeof kindLabels; items: { id: string; label: string; sub?: string }[] }[] = [
+    {
+      kind: 'bus',
+      items: system.buses.map(bus => ({ id: bus.id, label: bus.name, sub: bus.type })),
+    },
+    {
+      kind: 'line',
+      items: system.lines.map(line => ({ id: line.id, label: line.name ?? line.id, sub: `${line.fromBus}-${line.toBus}` })),
+    },
+    {
+      kind: 'transformer',
+      items: system.transformers.map(txf => ({ id: txf.id, label: txf.name ?? txf.id, sub: `${txf.fromBus}-${txf.toBus}` })),
+    },
+    {
+      kind: 'generator',
+      items: system.generators.map(gen => ({ id: gen.id, label: gen.name ?? gen.id, sub: `${gen.pg.toFixed(1)} MW` })),
+    },
+    {
+      kind: 'load',
+      items: system.loads.map(load => ({ id: load.id, label: load.name ?? load.id, sub: `${load.pl.toFixed(1)} MW` })),
+    },
+    {
+      kind: 'shunt',
+      items: (system.shunts ?? []).map(shunt => ({ id: shunt.id, label: shunt.name ?? shunt.id, sub: `${shunt.b.toFixed(3)} pu` })),
+    },
+  ];
+
+  const toggleSection = (kind: string) => {
+    setCollapsed(prev => ({ ...prev, [kind]: !prev[kind] }));
+  };
 
   return (
-    <div className="w-64 bg-gray-100 border-r border-gray-300 flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 bg-gray-200 border-b border-gray-300">
-        <span className="font-medium text-sm">Component Browser</span>
+    <aside className={`${forceVisible ? 'flex' : 'hidden'} w-[236px] shrink-0 flex-col border-r border-[#c9d2dd] bg-[#f7f9fc] md:flex`} data-testid="sidebar">
+      <div className="flex items-center gap-1 border-b border-[#d5dde7] bg-[#eef2f7] px-1 py-1">
         <button
-          onClick={onCollapse}
-          className="text-gray-500 hover:text-gray-700 text-lg"
-          title="Collapse"
+          className={`flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium ${
+            tab === 'palette' ? 'bg-white text-[#1f4d85] shadow-sm' : 'text-slate-600 hover:bg-slate-200'
+          }`}
+          onClick={() => setTab('palette')}
         >
-          ×
+          <Icon name="grid" size={12} /> Components
+        </button>
+        <button
+          className={`flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium ${
+            tab === 'project' ? 'bg-white text-[#1f4d85] shadow-sm' : 'text-slate-600 hover:bg-slate-200'
+          }`}
+          onClick={() => setTab('project')}
+        >
+          <Icon name="project" size={12} /> Project
         </button>
       </div>
-      
-      {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto">
-        {/* Buses Section */}
-        <Section id="buses" title="Buses" icon={<PQBusIcon size={16} />} expandedSection={expandedSection} onToggle={handleToggle}>
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              onClick={() => onAddBus('slack')}
-              className="flex flex-col items-center p-2 bg-green-50 rounded hover:bg-green-100"
-              title="Add Slack Bus"
-            >
-              <span className="text-green-600"><SlackBusIcon size={22} /></span>
-              <span className="text-xs mt-1">Slack</span>
-            </button>
-            <button
-              onClick={() => onAddBus('pv')}
-              className="flex flex-col items-center p-2 bg-blue-50 rounded hover:bg-blue-100"
-              title="Add PV Bus"
-            >
-              <span className="text-blue-600"><PVBusIcon size={22} /></span>
-              <span className="text-xs mt-1">PV</span>
-            </button>
-            <button
-              onClick={() => onAddBus('pq')}
-              className="flex flex-col items-center p-2 bg-gray-50 rounded hover:bg-gray-100"
-              title="Add PQ Bus"
-            >
-              <span className="text-gray-600"><PQBusIcon size={22} /></span>
-              <span className="text-xs mt-1">PQ</span>
-            </button>
-          </div>
-          <div className="mt-2 text-xs text-gray-500">
-            {system.buses.length} buses in system
-          </div>
-        </Section>
 
-        {/* Branches Section */}
-        <Section id="branches" title="Branches" icon={<LineIcon size={16} />} expandedSection={expandedSection} onToggle={handleToggle}>
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              onClick={onAddLine}
-              className="flex flex-col items-center p-2 bg-gray-50 rounded hover:bg-gray-100"
-              title="Add Line"
-            >
-              <span className="text-gray-600"><LineIcon size={22} /></span>
-              <span className="text-xs mt-1">Line</span>
-            </button>
-            <button
-              className="flex flex-col items-center p-2 bg-gray-50 rounded hover:bg-gray-100"
-              title="Add Transformer"
-            >
-              <span className="text-gray-600"><TransformerIcon size={22} /></span>
-              <span className="text-xs mt-1">Txfr</span>
-            </button>
-            <button
-              className="flex flex-col items-center p-2 bg-gray-50 rounded hover:bg-gray-100"
-              title="Add FACTS"
-            >
-              <span className="text-gray-600"><FactsIcon size={22} /></span>
-              <span className="text-xs mt-1">FACTS</span>
-            </button>
+      {tab === 'palette' && (
+        <>
+          <div className="border-b border-[#e2e8f0] p-1.5">
+            <div className="relative">
+              <span className="pointer-events-none absolute left-1.5 top-1.5 text-slate-400">
+                <Icon name="search" size={12} />
+              </span>
+              <input
+                value={search}
+                onChange={event => setSearch(event.target.value)}
+                placeholder="Search components"
+                className="w-full rounded border border-slate-300 bg-white py-1 pl-6 pr-2 text-[11px]"
+                aria-label="Search components"
+              />
+            </div>
           </div>
-          <div className="mt-2 text-xs text-gray-500">
-            {system.lines.length} lines, {system.transformers.length} transformers
-          </div>
-        </Section>
 
-        {/* Devices Section */}
-        <Section id="devices" title="Devices" icon={<GeneratorIcon size={16} />} expandedSection={expandedSection} onToggle={handleToggle}>
-          <div className="grid grid-cols-4 gap-2">
-            <button
-              className="flex flex-col items-center p-2 bg-gray-50 rounded hover:bg-gray-100"
-              title="Add Generator"
-            >
-              <span className="text-gray-600"><GeneratorIcon size={22} /></span>
-              <span className="text-xs">Gen</span>
-            </button>
-            <button
-              className="flex flex-col items-center p-2 bg-gray-50 rounded hover:bg-gray-100"
-              title="Add Load"
-            >
-              <span className="text-gray-600"><LoadIcon size={22} /></span>
-              <span className="text-xs">Load</span>
-            </button>
-            <button
-              className="flex flex-col items-center p-2 bg-gray-50 rounded hover:bg-gray-100"
-              title="Add Shunt"
-            >
-              <span className="text-gray-600"><ShuntIcon size={22} /></span>
-              <span className="text-xs">Shnt</span>
-            </button>
-            <button
-              className="flex flex-col items-center p-2 bg-gray-50 rounded hover:bg-gray-100"
-              title="Add Battery"
-            >
-              <span className="text-gray-600"><BatteryIcon size={22} /></span>
-              <span className="text-xs">Batt</span>
-            </button>
+          <div className="flex-1 overflow-y-auto p-1.5">
+            {categories.map(category => {
+              const items = filtered.filter(item => item.category === category.id);
+              if (items.length === 0) return null;
+              return (
+                <div key={category.id} className="mb-2">
+                  <div className="mb-1 flex items-center gap-1 px-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                    <Icon name={category.icon} size={11} />
+                    {category.label}
+                  </div>
+                  <div className="grid grid-cols-2 gap-1">
+                    {items.map(item => (
+                      <button
+                        key={item.id}
+                        draggable
+                        onDragStart={event => {
+                          event.dataTransfer.setData('application/x-psat-component', item.dragKind);
+                          event.dataTransfer.effectAllowed = 'copy';
+                        }}
+                        onClick={() => onAction(item.action)}
+                        className="group flex flex-col items-center gap-1 rounded border border-transparent bg-white px-1 py-2 text-slate-700 shadow-sm hover:border-[#7fa9d8] hover:bg-[#eaf2fb]"
+                        title={`Add ${item.label} (drag onto the diagram to place)`}
+                      >
+                        <Icon name={item.icon} size={22} className="text-[#1f4d85] group-hover:text-[#0f3a67]" />
+                        <span className="text-[10px] leading-tight">{item.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+            {filtered.length === 0 && (
+              <div className="px-2 py-6 text-center text-[11px] text-slate-400">No matching components</div>
+            )}
           </div>
-          <div className="mt-2 text-xs text-gray-500">
-            {system.generators.length} generators, {system.loads.length} loads
-          </div>
-        </Section>
+        </>
+      )}
 
-        {/* Controls Section */}
-        <Section id="controls" title="Controls" icon={<AvrIcon size={16} />} expandedSection={expandedSection} onToggle={handleToggle}>
-          <div className="grid grid-cols-4 gap-2">
-            <button className="flex flex-col items-center p-2 bg-gray-50 rounded hover:bg-gray-100" title="AVR">
-              <span className="text-gray-600"><AvrIcon size={22} /></span>
-              <span className="text-xs">AVR</span>
-            </button>
-            <button className="flex flex-col items-center p-2 bg-gray-50 rounded hover:bg-gray-100" title="Governor">
-              <span className="text-gray-600"><GovernorIcon size={22} /></span>
-              <span className="text-xs">Gov</span>
-            </button>
-            <button className="flex flex-col items-center p-2 bg-gray-50 rounded hover:bg-gray-100" title="PSS">
-              <span className="text-gray-600"><PssIcon size={22} /></span>
-              <span className="text-xs">PSS</span>
-            </button>
-            <button className="flex flex-col items-center p-2 bg-gray-50 rounded hover:bg-gray-100" title="LTC">
-              <span className="text-gray-600"><LtciIcon size={22} /></span>
-              <span className="text-xs">LTC</span>
-            </button>
-          </div>
-        </Section>
-
-        {/* Areas Section */}
-        <Section id="areas" title="Areas & Regions" icon={<AreaIcon size={16} />} expandedSection={expandedSection} onToggle={handleToggle}>
-          <div className="space-y-2">
-            {(system.areas || []).map(area => (
-              <div key={area.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                <span className="text-sm">{area.name}</span>
-                <span className="text-xs text-gray-500">#{area.id}</span>
+      {tab === 'project' && (
+        <div className="flex-1 overflow-y-auto py-1">
+          {sections.map(section => {
+            const isCollapsed = collapsed[section.kind];
+            return (
+              <div key={section.kind} className="mb-1">
+                <button
+                  className="flex w-full items-center gap-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500 hover:bg-slate-200/60"
+                  onClick={() => toggleSection(section.kind)}
+                >
+                  <Icon name={isCollapsed ? 'chevronRight' : 'chevronDown'} size={10} />
+                  {kindLabels[section.kind]}
+                  <span className="ml-auto rounded bg-slate-200 px-1 text-[9px] font-medium text-slate-600">
+                    {section.items.length}
+                  </span>
+                </button>
+                {!isCollapsed && (
+                  <div>
+                    {section.items.length === 0 && (
+                      <div className="px-5 py-1 text-[10.5px] italic text-slate-400">None</div>
+                    )}
+                    {section.items.map(item => {
+                      const selected = selection.type === section.kind && selection.id === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          className={`tree-item ${selected ? 'tree-item-selected' : ''}`}
+                          onClick={() => onSelect({ type: section.kind as Selection['type'], id: item.id })}
+                          title={`${item.label} (${item.id})`}
+                        >
+                          <Icon name={section.kind === 'bus' ? 'bus' : section.kind === 'line' ? 'line' : section.kind === 'transformer' ? 'transformer' : section.kind === 'generator' ? 'generator' : section.kind === 'load' ? 'load' : 'shunt'} size={11} className="shrink-0 text-slate-500" />
+                          <span className="truncate">{item.label}</span>
+                          {item.sub && <span className="ml-auto shrink-0 text-[9px] text-slate-400">{item.sub}</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            ))}
-          </div>
-        </Section>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="border-t border-[#d5dde7] bg-[#eef2f7] px-2 py-1.5 text-[10px] text-slate-600">
+        <div className="flex justify-between">
+          <span>{stats.buses} buses</span>
+          <span>{stats.lines + stats.transformers} branches</span>
+        </div>
+        <div className="flex justify-between">
+          <span>{stats.totalLoadMW.toFixed(1)} MW load</span>
+          <span>{stats.generators} gens</span>
+        </div>
       </div>
-    </div>
+    </aside>
   );
 }

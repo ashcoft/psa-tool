@@ -19,4 +19,4 @@
 
 command_line_psat = 1; #  command line initialization
 
-psat #  initialize PSAT
+# psat #  initialize PSAT

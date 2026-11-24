@@ -1,191 +1,263 @@
 'use client';
 
 import { useState } from 'react';
+import { PowerSystem } from '@/types';
+import { AppSettings } from '@/lib/settings';
+import Dialog from './Dialog';
 
 interface SettingsDialogProps {
+  settings: AppSettings;
+  system: PowerSystem;
+  onSave: (settings: AppSettings) => void;
+  onMetaChange: (changes: Partial<Pick<PowerSystem, 'baseMVA' | 'baseFreq'>>) => void;
   onClose: () => void;
 }
 
-export default function SettingsDialog({ onClose }: SettingsDialogProps) {
-  const [settings, setSettings] = useState({
-    baseFrequency: 50,
-    basePower: 100,
-    tolerance: 1e-6,
-    maxIterations: 100,
-    solutionMethod: 'nr',
-    flatStart: true,
-    beeps: false,
-    theme: 'light',
-    voltageMin: 0.9,
-    voltageMax: 1.1,
-  });
+function Section({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded border border-[#dde4ec] bg-white">
+      <div className="border-b border-[#e6ecf3] bg-[#f8fafc] px-2 py-1">
+        <div className="text-[11px] font-semibold text-slate-700">{title}</div>
+        {description && <div className="text-[9.5px] text-slate-400">{description}</div>}
+      </div>
+      <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 p-2">{children}</div>
+    </div>
+  );
+}
+
+function Field({ label, children, wide = false }: { label: string; children: React.ReactNode; wide?: boolean }) {
+  return (
+    <label className={`flex items-center justify-between gap-2 ${wide ? 'col-span-2' : ''}`}>
+      <span className="text-[11px] text-slate-600">{label}</span>
+      <div className="w-[132px]">{children}</div>
+    </label>
+  );
+}
+
+export default function SettingsDialog({ settings, system, onSave, onMetaChange, onClose }: SettingsDialogProps) {
+  const [draft, setDraft] = useState<AppSettings>({ ...settings });
+  const [baseMVA, setBaseMVA] = useState(system.baseMVA);
+  const [baseFreq, setBaseFreq] = useState(system.baseFreq);
+
+  const update = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
+    setDraft(prev => ({ ...prev, [key]: value }));
+  };
 
   const handleSave = () => {
-    // In a real app, this would save settings to localStorage or server
-    console.log('Saving settings:', settings);
+    onSave(draft);
+    if (baseMVA !== system.baseMVA || baseFreq !== system.baseFreq) {
+      onMetaChange({ baseMVA, baseFreq });
+    }
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-[500px] max-h-[80vh] overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 bg-blue-600 text-white">
-          <h2 className="text-lg font-medium">Settings</h2>
-          <button
-            onClick={onClose}
-            className="text-2xl hover:opacity-80"
-          >
-            ×
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="p-4 overflow-y-auto max-h-[60vh]">
-          <div className="space-y-6">
-            {/* General Section */}
-            <SettingsSection title="General">
-              <SettingsRow label="Base Frequency (Hz)">
-                <input
-                  type="number"
-                  value={settings.baseFrequency}
-                  onChange={(e) => setSettings({ ...settings, baseFrequency: parseFloat(e.target.value) })}
-                  className="w-24 px-2 py-1 border border-gray-300 rounded text-sm"
-                />
-              </SettingsRow>
-              <SettingsRow label="Base Power (MVA)">
-                <input
-                  type="number"
-                  value={settings.basePower}
-                  onChange={(e) => setSettings({ ...settings, basePower: parseFloat(e.target.value) })}
-                  className="w-24 px-2 py-1 border border-gray-300 rounded text-sm"
-                />
-              </SettingsRow>
-              <SettingsRow label="Theme">
-                <select
-                  value={settings.theme}
-                  onChange={(e) => setSettings({ ...settings, theme: e.target.value })}
-                  className="w-24 px-2 py-1 border border-gray-300 rounded text-sm"
-                >
-                  <option value="light">Light</option>
-                  <option value="dark">Dark</option>
-                  <option value="custom">Custom</option>
-                </select>
-              </SettingsRow>
-            </SettingsSection>
-
-            {/* Power Flow Section */}
-            <SettingsSection title="Power Flow">
-              <SettingsRow label="Solution Method">
-                <select
-                  value={settings.solutionMethod}
-                  onChange={(e) => setSettings({ ...settings, solutionMethod: e.target.value })}
-                  className="w-32 px-2 py-1 border border-gray-300 rounded text-sm"
-                >
-                  <option value="nr">Newton-Raphson</option>
-                  <option value="dc">DC Power Flow</option>
-                  <option value="fast-decoupled">Fast Decoupled</option>
-                </select>
-              </SettingsRow>
-              <SettingsRow label="Tolerance">
-                <input
-                  type="number"
-                  value={settings.tolerance}
-                  onChange={(e) => setSettings({ ...settings, tolerance: parseFloat(e.target.value) })}
-                  className="w-24 px-2 py-1 border border-gray-300 rounded text-sm"
-                  step="0.0001"
-                />
-              </SettingsRow>
-              <SettingsRow label="Max Iterations">
-                <input
-                  type="number"
-                  value={settings.maxIterations}
-                  onChange={(e) => setSettings({ ...settings, maxIterations: parseInt(e.target.value) })}
-                  className="w-24 px-2 py-1 border border-gray-300 rounded text-sm"
-                />
-              </SettingsRow>
-              <SettingsRow label="Flat Start">
-                <input
-                  type="checkbox"
-                  checked={settings.flatStart}
-                  onChange={(e) => setSettings({ ...settings, flatStart: e.target.checked })}
-                  className="w-4 h-4"
-                />
-              </SettingsRow>
-            </SettingsSection>
-
-            {/* Voltage Limits Section */}
-            <SettingsSection title="Voltage Limits">
-              <SettingsRow label="Vmin (pu)">
-                <input
-                  type="number"
-                  value={settings.voltageMin}
-                  onChange={(e) => setSettings({ ...settings, voltageMin: parseFloat(e.target.value) })}
-                  className="w-24 px-2 py-1 border border-gray-300 rounded text-sm"
-                  step="0.01"
-                />
-              </SettingsRow>
-              <SettingsRow label="Vmax (pu)">
-                <input
-                  type="number"
-                  value={settings.voltageMax}
-                  onChange={(e) => setSettings({ ...settings, voltageMax: parseFloat(e.target.value) })}
-                  className="w-24 px-2 py-1 border border-gray-300 rounded text-sm"
-                  step="0.01"
-                />
-              </SettingsRow>
-            </SettingsSection>
-
-            {/* Miscellaneous Section */}
-            <SettingsSection title="Miscellaneous">
-              <SettingsRow label="Beeps">
-                <input
-                  type="checkbox"
-                  checked={settings.beeps}
-                  onChange={(e) => setSettings({ ...settings, beeps: e.target.checked })}
-                  className="w-4 h-4"
-                />
-              </SettingsRow>
-            </SettingsSection>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex justify-end gap-2 px-4 py-3 bg-gray-50 border-t">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm bg-gray-200 rounded hover:bg-gray-300"
-          >
+    <Dialog
+      title="Study & Application Options"
+      subtitle="Settings apply to new studies and are saved in this browser"
+      icon="settings"
+      onClose={onClose}
+      width={720}
+      footer={
+        <>
+          <button className="rounded border border-slate-300 bg-white px-3 py-1 text-[11.5px] hover:bg-slate-50" onClick={onClose}>
             Cancel
           </button>
-          <button
-            onClick={handleSave}
-            className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            Save
+          <button className="rounded bg-[#1f4d85] px-3 py-1 text-[11.5px] font-medium text-white hover:bg-[#183c68]" onClick={handleSave}>
+            Save Settings
           </button>
-        </div>
-      </div>
-    </div>
-  );
-}
+        </>
+      }
+    >
+      <div className="space-y-2 p-2">
+        <Section title="General" description="System base values used by all calculations">
+          <Field label="Base power (MVA)">
+            <input
+              type="number"
+              className="field-input text-right"
+              value={baseMVA}
+              min={1}
+              step={1}
+              onChange={event => setBaseMVA(Number(event.target.value) || 100)}
+            />
+          </Field>
+          <Field label="Base frequency (Hz)">
+            <input
+              type="number"
+              className="field-input text-right"
+              value={baseFreq}
+              min={1}
+              step={1}
+              onChange={event => setBaseFreq(Number(event.target.value) || 50)}
+            />
+          </Field>
+        </Section>
 
-function SettingsSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <h3 className="text-sm font-medium text-gray-700 mb-2 border-b pb-1">{title}</h3>
-      <div className="space-y-2">
-        {children}
-      </div>
-    </div>
-  );
-}
+        <Section title="Load Flow" description="Solver selection, convergence and iteration limits">
+          <Field label="Method">
+            <select
+              className="field-input"
+              value={draft.method}
+              onChange={event => update('method', event.target.value as AppSettings['method'])}
+            >
+              <option>Newton-Raphson</option>
+              <option>Fast-Decoupled</option>
+              <option>DC</option>
+              <option>Gauss-Seidel</option>
+            </select>
+          </Field>
+          <Field label="Tolerance (pu)">
+            <input
+              type="number"
+              className="field-input text-right"
+              value={draft.tolerance}
+              step={0.000001}
+              min={1e-9}
+              onChange={event => update('tolerance', Number(event.target.value) || 1e-6)}
+            />
+          </Field>
+          <Field label="Max iterations">
+            <input
+              type="number"
+              className="field-input text-right"
+              value={draft.maxIterations}
+              min={1}
+              step={1}
+              onChange={event => update('maxIterations', Number(event.target.value) || 50)}
+            />
+          </Field>
+          <Field label="Optimal PF engine">
+            <select
+              className="field-input"
+              value={draft.opfUseAC ? 'ac' : 'dc'}
+              onChange={event => update('opfUseAC', event.target.value === 'ac')}
+            >
+              <option value="dc">DC OPF (fast)</option>
+              <option value="ac">AC OPF (iterative)</option>
+            </select>
+          </Field>
+        </Section>
 
-function SettingsRow({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-sm text-gray-600">{label}</span>
-      {children}
-    </div>
+        <Section title="Continuation Power Flow" description="Voltage stability loading range">
+          <Field label="Max loading (pu)">
+            <input
+              type="number"
+              className="field-input text-right"
+              value={draft.cpfLambdaMax}
+              step={0.1}
+              min={0.1}
+              onChange={event => update('cpfLambdaMax', Number(event.target.value) || 2)}
+            />
+          </Field>
+          <Field label="Step size (pu)">
+            <input
+              type="number"
+              className="field-input text-right"
+              value={draft.cpfStepSize}
+              step={0.01}
+              min={0.001}
+              onChange={event => update('cpfStepSize', Number(event.target.value) || 0.1)}
+            />
+          </Field>
+        </Section>
+
+        <Section title="Short Circuit" description="Fault types included in the study">
+          <label className="col-span-2 flex items-center gap-2 text-[11px] text-slate-600">
+            <input
+              type="checkbox"
+              className="h-4 w-4 accent-[#1f4d85]"
+              checked={draft.faultIncludeLineToGround}
+              onChange={event => update('faultIncludeLineToGround', event.target.checked)}
+            />
+            Include single line-to-ground faults
+          </label>
+          <label className="col-span-2 flex items-center gap-2 text-[11px] text-slate-600">
+            <input
+              type="checkbox"
+              className="h-4 w-4 accent-[#1f4d85]"
+              checked={draft.faultIncludeLineToLine}
+              onChange={event => update('faultIncludeLineToLine', event.target.checked)}
+            />
+            Include line-to-line faults
+          </label>
+        </Section>
+
+        <Section title="Time-Domain Simulation" description="Integration window and disturbance">
+          <Field label="End time (s)">
+            <input
+              type="number"
+              className="field-input text-right"
+              value={draft.simEnd}
+              step={0.5}
+              min={0.1}
+              onChange={event => update('simEnd', Number(event.target.value) || 5)}
+            />
+          </Field>
+          <Field label="Time step (s)">
+            <input
+              type="number"
+              className="field-input text-right"
+              value={draft.simStep}
+              step={0.001}
+              min={0.0001}
+              onChange={event => update('simStep', Number(event.target.value) || 0.01)}
+            />
+          </Field>
+          <Field label="Integrator">
+            <select
+              className="field-input"
+              value={draft.simMethod}
+              onChange={event => update('simMethod', event.target.value as AppSettings['simMethod'])}
+            >
+              <option value="euler">Euler</option>
+              <option value="rk4">Runge-Kutta 4</option>
+              <option value="trapezoidal">Trapezoidal</option>
+            </select>
+          </Field>
+          <Field label="Fault time (s)">
+            <input
+              type="number"
+              className="field-input text-right"
+              value={draft.simFaultTime}
+              step={0.1}
+              min={0}
+              onChange={event => update('simFaultTime', Number(event.target.value) || 0)}
+            />
+          </Field>
+          <Field label="Fault duration (s)">
+            <input
+              type="number"
+              className="field-input text-right"
+              value={draft.simFaultDuration}
+              step={0.01}
+              min={0}
+              onChange={event => update('simFaultDuration', Number(event.target.value) || 0.1)}
+            />
+          </Field>
+        </Section>
+
+        <Section title="Diagram Display" description="Overlays and editing aids">
+          {(
+            [
+              ['showGrid', 'Show grid'],
+              ['snapToGrid', 'Snap to grid'],
+              ['showBusNames', 'Show labels'],
+              ['showVoltageOverlay', 'Voltage overlay'],
+              ['showFlowOverlay', 'Branch loading overlay'],
+            ] as [keyof AppSettings, string][]
+          ).map(([key, label]) => (
+            <label key={key} className="flex items-center gap-2 text-[11px] text-slate-600">
+              <input
+                type="checkbox"
+                className="h-4 w-4 accent-[#1f4d85]"
+                checked={Boolean(draft[key])}
+                onChange={event => update(key, event.target.checked as AppSettings[typeof key])}
+              />
+              {label}
+            </label>
+          ))}
+        </Section>
+      </div>
+    </Dialog>
   );
 }

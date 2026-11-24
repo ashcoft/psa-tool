@@ -1,96 +1,86 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import Icon from './Icon';
 
 interface OutputWindowProps {
   messages: string[];
   onClear: () => void;
 }
 
-export default function OutputWindow({ messages, onClear }: OutputWindowProps) {
-  const [isExpanded, setIsExpanded] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'errors' | 'info'>('all');
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+type Filter = 'all' | 'errors' | 'studies';
 
-  const filteredMessages = messages.filter(msg => {
-    if (filter === 'errors') return msg.toLowerCase().includes('error') || msg.toLowerCase().includes('failed');
-    if (filter === 'info') return msg.toLowerCase().includes('result') || msg.toLowerCase().includes('converged');
+export default function OutputWindow({ messages, onClear }: OutputWindowProps) {
+  const [expanded, setExpanded] = useState(true);
+  const [filter, setFilter] = useState<Filter>('all');
+  const endRef = useRef<HTMLDivElement>(null);
+
+  const filtered = messages.filter(message => {
+    const lower = message.toLowerCase();
+    if (filter === 'errors') return lower.includes('error') || lower.includes('failed') || lower.includes('not converge');
+    if (filter === 'studies') return lower.includes('study') || lower.includes('converged') || lower.includes('complete');
     return true;
   });
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    endRef.current?.scrollIntoView?.({ block: 'end' });
+  }, [messages, expanded]);
 
   return (
-    <div className={`bg-gray-900 text-gray-300 border-t border-gray-300 transition-all ${isExpanded ? 'h-48' : 'h-8'}`}>
-      {/* Header */}
-      <div 
-        className="flex items-center justify-between px-3 py-1 bg-gray-800 cursor-pointer"
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
-        <div className="flex items-center gap-4">
-          <span className="text-sm font-medium text-white">Output</span>
-          {isExpanded && (
-            <div className="flex gap-2">
+    <div className="flex shrink-0 flex-col border-t border-[#c9d2dd] bg-[#fbfcfe]" data-testid="output-window">
+      <div className="flex items-center gap-2 border-b border-[#d5dde7] bg-[#eef2f7] px-2 py-0.5">
+        <button className="flex items-center gap-1 text-[11px] font-semibold text-slate-700" onClick={() => setExpanded(value => !value)}>
+          <Icon name={expanded ? 'chevronDown' : 'chevronRight'} size={11} />
+          Output
+        </button>
+        {expanded && (
+          <div className="flex items-center gap-0.5">
+            {(
+              [
+                ['all', 'All'],
+                ['studies', 'Studies'],
+                ['errors', 'Errors'],
+              ] as [Filter, string][]
+            ).map(([id, label]) => (
               <button
-                onClick={(e) => { e.stopPropagation(); setFilter('all'); }}
-                className={`px-2 py-0.5 text-xs rounded ${filter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-400'}`}
+                key={id}
+                onClick={() => setFilter(id)}
+                className={`rounded px-1.5 py-0.5 text-[10px] ${
+                  filter === id ? 'bg-[#1f4d85] text-white' : 'text-slate-500 hover:bg-slate-200'
+                }`}
               >
-                All
+                {label}
               </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); setFilter('errors'); }}
-                className={`px-2 py-0.5 text-xs rounded ${filter === 'errors' ? 'bg-red-600 text-white' : 'bg-gray-700 text-gray-400'}`}
-              >
-                Errors
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); setFilter('info'); }}
-                className={`px-2 py-0.5 text-xs rounded ${filter === 'info' ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-400'}`}
-              >
-                Info
-              </button>
-            </div>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500">{filteredMessages.length} messages</span>
-          <button
-            onClick={(e) => { e.stopPropagation(); onClear(); }}
-            className="px-2 py-0.5 text-xs bg-gray-700 rounded hover:bg-gray-600"
-          >
-            Clear
-          </button>
-          <span className="text-gray-400">{isExpanded ? '▼' : '▲'}</span>
-        </div>
+            ))}
+          </div>
+        )}
+        <div className="flex-1" />
+        <span className="text-[9.5px] text-slate-400">{filtered.length} messages</span>
+        <button className="rounded px-1.5 py-0.5 text-[10px] text-slate-600 hover:bg-slate-200" onClick={onClear}>
+          Clear
+        </button>
       </div>
-
-      {/* Messages */}
-      {isExpanded && (
-        <div className="h-36 overflow-y-auto p-2 font-mono text-xs">
-          {filteredMessages.length === 0 ? (
-            <div className="text-gray-500">No messages to display</div>
+      {expanded && (
+        <div className="h-[112px] overflow-y-auto px-2 py-1 font-mono text-[10.5px] leading-[1.45]">
+          {filtered.length === 0 ? (
+            <div className="text-slate-400">No messages. Run a study or edit the one-line diagram.</div>
           ) : (
-            filteredMessages.map((msg, idx) => {
-              const isError = msg.toLowerCase().includes('error');
-              const isSuccess = msg.toLowerCase().includes('converged') || msg.toLowerCase().includes('✓');
-              
+            filtered.map((message, index) => {
+              const lower = message.toLowerCase();
+              const tone =
+                lower.includes('error') || lower.includes('failed') || lower.includes('not converge')
+                  ? 'text-rose-600'
+                  : lower.includes('converged') || lower.includes('complete') || lower.includes('loaded')
+                    ? 'text-emerald-700'
+                    : 'text-slate-600';
               return (
-                <div 
-                  key={idx} 
-                  className={`py-0.5 ${
-                    isError ? 'text-red-400' : 
-                    isSuccess ? 'text-green-400' : 
-                    'text-gray-300'
-                  }`}
-                >
-                  {msg}
+                <div key={index} className={tone}>
+                  {message}
                 </div>
               );
             })
           )}
-          <div ref={messagesEndRef} />
+          <div ref={endRef} />
         </div>
       )}
     </div>
