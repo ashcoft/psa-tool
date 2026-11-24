@@ -39,6 +39,7 @@ interface CanvasProps {
   onContextMenu: (selection: Selection, clientX: number, clientY: number) => void;
   onCursorMove?: (world: { x: number; y: number } | null) => void;
   onDoubleClickElement?: (selection: Selection) => void;
+  fitKey?: number;
 }
 
 interface DeviceHit {
@@ -110,6 +111,7 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     onContextMenu,
     onCursorMove,
     onDoubleClickElement,
+    fitKey,
   },
   ref
 ) {
@@ -125,6 +127,7 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
   const panRef = useRef<{ x: number; y: number; offsetX: number; offsetY: number } | null>(null);
   const deviceHitsRef = useRef<DeviceHit[]>([]);
   const didFitRef = useRef(false);
+  const lastFitKey = useRef(fitKey);
 
   const busById = useMemo(() => new Map(system.buses.map(bus => [bus.id, bus])), [system.buses]);
 
@@ -238,6 +241,12 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
       fit();
     }
   }, [fit, size.width, system.buses.length]);
+
+  useEffect(() => {
+    if (fitKey === undefined || lastFitKey.current === fitKey) return;
+    lastFitKey.current = fitKey;
+    if (system.buses.length > 0) fit();
+  }, [fitKey, fit, system.buses.length]);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;

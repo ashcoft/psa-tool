@@ -58,6 +58,7 @@ export default function Home() {
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<DialogKind>(null);
   const [specialtyTab, setSpecialtyTab] = useState<SpecialtyTab | null>(null);
+  const [mobileSidebar, setMobileSidebar] = useState(false);
   const [reportRunId, setReportRunId] = useState<string | null>(null);
   const [messages, setMessages] = useState<string[]>([
     'PSAT Web ready. Demo 4-bus system loaded.',
@@ -716,6 +717,7 @@ export default function Home() {
           selection={selection}
           onSelect={setSelection}
           onAction={handleAction}
+          forceVisible={mobileSidebar}
         />
 
         <main className="flex min-w-0 flex-1 flex-col">
@@ -740,7 +742,15 @@ export default function Home() {
               onDoubleClickElement={() => {
                 /* selection already updates the properties panel */
               }}
+              fitKey={revision}
             />
+
+            <button
+              className="absolute bottom-2 left-2 z-30 rounded border border-[#c9d2dd] bg-white px-2 py-1 text-[10.5px] font-medium text-[#1f4d85] shadow md:hidden"
+              onClick={() => setMobileSidebar(value => !value)}
+            >
+              {mobileSidebar ? 'Hide components' : 'Components'}
+            </button>
 
             <div className="absolute left-2 top-2 flex items-center gap-1 rounded border border-[#d5dde7] bg-white/95 px-1 py-0.5 shadow-sm">
               <button

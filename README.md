@@ -88,8 +88,8 @@ npm run dev        # http://localhost:3000
 npm run build      # production build
 npm run start      # production server
 npm test           # unit and component tests (Vitest)
+npm run test:e2e   # end-to-end tests (Chromium)
 npm run lint       # ESLint
-npx playwright test  # end-to-end tests (Chromium)
 ```
 
 Playwright uses `BASE_URL` (default `http://localhost:3456`). To run the e2e
@@ -105,6 +105,10 @@ BASE_URL=http://localhost:3000 npx playwright test
 docker build -t psat-web .
 docker-compose up -d
 ```
+
+The image uses the Next.js standalone output, runs as a non-root user and
+serves on port 3000. Set `NEXT_TELEMETRY_DISABLED=1` if you do not want
+build telemetry.
 
 ## Architecture
 
@@ -160,6 +164,7 @@ src/
 | `npm run start` | Start the production server |
 | `npm test` | Run the Vitest suite |
 | `npm run test:run` | Run the Vitest suite once |
+| `npm run test:e2e` | Run the Playwright end-to-end suite |
 | `npm run test:coverage` | Coverage report |
 | `npm run lint` | ESLint |
 | `npm run release` | semantic-release (normally run by CI) |

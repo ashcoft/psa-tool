@@ -145,4 +145,13 @@ test.describe('Responsive layout', () => {
     await openApp(page);
     await expect(page.getByTestId('titlebar')).toBeVisible();
   });
+
+  test('opens the component palette on mobile', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await openApp(page);
+    await expect(page.getByTestId('sidebar')).toBeHidden();
+    await page.getByRole('button', { name: 'Components', exact: true }).click();
+    await expect(page.getByTestId('sidebar')).toBeVisible();
+    await expect(page.getByTestId('sidebar').getByRole('button', { name: 'PQ Bus' })).toBeVisible();
+  });
 });

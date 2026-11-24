@@ -38,6 +38,7 @@ interface SidebarProps {
   selection: Selection;
   onSelect: (selection: Selection) => void;
   onAction: (action: string) => void;
+  forceVisible?: boolean;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
 }
@@ -51,7 +52,7 @@ const kindLabels: Record<string, string> = {
   shunt: 'Shunts',
 };
 
-export default function Sidebar({ system, selection, onSelect, onAction }: SidebarProps) {
+export default function Sidebar({ system, selection, onSelect, onAction, forceVisible = false }: SidebarProps) {
   const [tab, setTab] = useState<'palette' | 'project'>('palette');
   const [search, setSearch] = useState('');
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -99,7 +100,7 @@ export default function Sidebar({ system, selection, onSelect, onAction }: Sideb
   };
 
   return (
-    <aside className="hidden w-[236px] shrink-0 flex-col border-r border-[#c9d2dd] bg-[#f7f9fc] md:flex" data-testid="sidebar">
+    <aside className={`${forceVisible ? 'flex' : 'hidden'} w-[236px] shrink-0 flex-col border-r border-[#c9d2dd] bg-[#f7f9fc] md:flex`} data-testid="sidebar">
       <div className="flex items-center gap-1 border-b border-[#d5dde7] bg-[#eef2f7] px-1 py-1">
         <button
           className={`flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium ${
