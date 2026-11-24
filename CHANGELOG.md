@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented in this file. This file is generated automatically by [semantic-release](https://github.com/semantic-release/semantic-release) from the commit history.
 
+# [1.1.0](https://github.com/ashcoft/psat-web/compare/v1.0.1...v1.1.0) (2026-11-24)
+
+### Bug Fixes
+
+* coordinate default relays and polish TCC log-axis labels ([6f813e6](https://github.com/ashcoft/psat-web/commit/6f813e6069aae04a4aafb10863c4bbae421a10c0))
+
+### Features
+
+* add ETAP-style specialty studies ([97f6aa2](https://github.com/ashcoft/psat-web/commit/97f6aa2b0d6200444ebfc1ab6f5fa0b4f21e83e5))
+* build a fully working ETAP-style PSAT workbench ([e941a4f](https://github.com/ashcoft/psat-web/commit/e941a4f939bd0bb9c38288dd4d0904f1742c44f2))
+
 ## [1.0.1](https://github.com/ashcoft/psat-web/compare/v1.0.0...v1.0.1) (2026-11-03)
 
 
