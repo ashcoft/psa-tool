@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file. This file is generated automatically by [semantic-release](https://github.com/semantic-release/semantic-release) from the commit history.
 
+## [1.1.1](https://github.com/ashcoft/psat-web/compare/v1.1.0...v1.1.1) (2026-11-24)
+
+### Bug Fixes
+
+* persist study settings immediately and harden reload test ([5682c69](https://github.com/ashcoft/psat-web/commit/5682c6902db4eabc831af6efa1dd1cab43e44d4f))
+
 # [1.1.0](https://github.com/ashcoft/psat-web/compare/v1.0.1...v1.1.0) (2026-11-24)
 
 ### Bug Fixes
