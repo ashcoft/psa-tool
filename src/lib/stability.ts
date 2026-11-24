@@ -4,6 +4,7 @@
  */
 
 import { PowerSystem, Generator } from '@/types';
+import { buildYBus, solveNewtonRaphson } from './powerflow-methods';
 
 /**
  * Eigenvalue result for a mode
@@ -61,232 +62,277 @@ export interface NetworkModel {
 /**
  * Calculate eigenvalues using QR algorithm (simplified)
  */
-function qrIteration(A: number[][], maxIter = 100): number[][] {
-  let Ak = A.map(row => [...row]);
-  const n = Ak.length;
-  
-  for (let iter = 0; iter < maxIter; iter++) {
-    // Compute QR decomposition (simplified for small matrices)
-    const Q: number[][] = [];
-    const R: number[][] = Array(n).fill(null).map(() => Array(n).fill(0));
-    
-    for (let i = 0; i < n; i++) {
-      Q[i] = [];
-      for (let j = 0; j < n; j++) {
-        if (j < i) {
-          Q[i][j] = 0;
-        } else if (j === i) {
-          let norm = 0;
-          for (let k = i; k < n; k++) norm += Ak[k][i] ** 2;
-          Q[i][j] = norm > 0 ? 1 : 0;
-        } else {
-          Q[i][j] = 0;
-        }
-      }
+interface ComplexValue {
+  re: number;
+  im: number;
+}
+
+const cv = (re: number, im = 0): ComplexValue => ({ re, im });
+const cvAdd = (a: ComplexValue, b: ComplexValue): ComplexValue => ({ re: a.re + b.re, im: a.im + b.im });
+const cvSub = (a: ComplexValue, b: ComplexValue): ComplexValue => ({ re: a.re - b.re, im: a.im - b.im });
+const cvMul = (a: ComplexValue, b: ComplexValue): ComplexValue => ({
+  re: a.re * b.re - a.im * b.im,
+  im: a.re * b.im + a.im * b.re,
+});
+const cvDiv = (a: ComplexValue, b: ComplexValue): ComplexValue => {
+  const denominator = b.re * b.re + b.im * b.im || 1e-30;
+  return { re: (a.re * b.re + a.im * b.im) / denominator, im: (a.im * b.re - a.re * b.im) / denominator };
+};
+const cvAbs = (a: ComplexValue): number => Math.hypot(a.re, a.im);
+const cvConj = (a: ComplexValue): ComplexValue => ({ re: a.re, im: -a.im });
+const cvSqrt = (a: ComplexValue): ComplexValue => {
+  const magnitude = cvAbs(a);
+  const real = Math.sqrt(Math.max(0, (magnitude + a.re) / 2));
+  const imag = Math.sqrt(Math.max(0, (magnitude - a.re) / 2)) * (a.im < 0 ? -1 : 1);
+  return { re: real, im: imag };
+};
+
+function invertComplexMatrix(matrix: ComplexValue[][]): ComplexValue[][] {
+  const n = matrix.length;
+  const augmented: ComplexValue[][] = matrix.map((row, i) => [
+    ...row.map(value => ({ ...value })),
+    ...Array.from({ length: n }, (_, j) => cv(i === j ? 1 : 0)),
+  ]);
+
+  for (let column = 0; column < n; column++) {
+    let pivot = column;
+    for (let row = column + 1; row < n; row++) {
+      if (cvAbs(augmented[row][column]) > cvAbs(augmented[pivot][column])) pivot = row;
     }
-    
-    // Simplified QR step
-    for (let i = 0; i < n - 1; i++) {
-      const aii = Ak[i][i];
-      const aij = Ak[i][i + 1];
-      if (Math.abs(aij) < 1e-10) continue;
-      
-      const theta = Math.atan2(aij, aii);
-      const c = Math.cos(theta);
-      const s = Math.sin(theta);
-      
-      // Update Ak
-      const temp1 = c * aii + s * aij;
-      const temp2 = -s * aii + c * aij;
-      Ak[i][i] = temp1;
-      Ak[i][i + 1] = 0;
-      Ak[i + 1][i] = temp2;
+    if (cvAbs(augmented[pivot][column]) < 1e-12) augmented[pivot][column] = cvAdd(augmented[pivot][column], cv(1e-9));
+    if (pivot !== column) {
+      const temp = augmented[pivot];
+      augmented[pivot] = augmented[column];
+      augmented[column] = temp;
+    }
+    const divisor = augmented[column][column];
+    for (let k = 0; k < 2 * n; k++) augmented[column][k] = cvDiv(augmented[column][k], divisor);
+    for (let row = 0; row < n; row++) {
+      if (row === column) continue;
+      const factor = augmented[row][column];
+      if (cvAbs(factor) < 1e-15) continue;
+      for (let k = 0; k < 2 * n; k++) augmented[row][k] = cvSub(augmented[row][k], cvMul(factor, augmented[column][k]));
     }
   }
-  
-  return Ak;
+
+  return augmented.map(row => row.slice(n));
 }
 
 /**
- * Build state matrix for eigenvalue analysis
- * Using classical generator model
- * 
- * State variables: [delta, omega] for each machine
+ * Builds the reduced multi-machine model M, D, K from the solved network.
+ *
+ * The generator buses are retained and the load buses are eliminated with a
+ * Kron reduction. Synchronising coefficients use the operating-point angles,
+ * so the result is deterministic and reflects the actual dispatch.
  */
 export function buildStateMatrix(system: PowerSystem): NetworkModel {
-  const generators = system.generators.filter(g => g.active);
+  const generators = system.generators.filter(gen => gen.active !== false);
   const n = generators.length;
-  
+  const busIndex = new Map<string, number>();
+  system.buses.forEach((bus, i) => busIndex.set(bus.id, i));
+
   if (n === 0) {
-    return {
-      M: [[]],
-      D: [[]],
-      K: [[]],
-      n: 0,
-      busMap: new Map()
-    };
+    return { M: [[]], D: [[]], K: [[]], n: 0, busMap: new Map() };
   }
-  
+
   const busMap = new Map<string, number>();
-  generators.forEach((g, i) => busMap.set(g.bus, i));
-  
-  // Build M, D, K matrices
-  const M: number[][] = Array(n).fill(null).map(() => Array(n).fill(0));
-  const D: number[][] = Array(n).fill(null).map(() => Array(n).fill(0));
-  const K: number[][] = Array(n).fill(null).map(() => Array(n).fill(0));
-  
-  // Diagonal elements
-  for (let i = 0; i < n; i++) {
-    const gen = generators[i];
-    const H = 3.0 + Math.random() * 2; // Inertia constant (s)
-    const D_i = 1.0 + Math.random(); // Damping coefficient
-    
-    M[i][i] = 2 * H; // M = 2H
-    D[i][i] = D_i;
-    
-    // Self-synchronizing torque coefficient
-    // K_ii = sum of transfer conductances with other buses
-    K[i][i] = 1.0; // Simplified
+  const generatorBusIndices: number[] = [];
+  generators.forEach((gen, i) => {
+    busMap.set(gen.bus, i);
+    generatorBusIndices.push(busIndex.get(gen.bus) ?? 0);
+  });
+
+  const powerFlow = solveNewtonRaphson(system);
+  const angles = new Map<string, number>();
+  const voltages = new Map<string, number>();
+  if (powerFlow.converged) {
+    powerFlow.busResults.forEach(bus => {
+      angles.set(bus.bus, (bus.angle * Math.PI) / 180);
+      voltages.set(bus.bus, bus.v);
+    });
+  } else {
+    system.buses.forEach(bus => {
+      angles.set(bus.id, bus.angle || 0);
+      voltages.set(bus.id, bus.voltage || 1);
+    });
   }
-  
-  // Off-diagonal elements (coupling)
-  // Use electrical distances from lines
-  for (let i = 0; i < n; i++) {
-    for (let j = 0; j < n; j++) {
-      if (i === j) continue;
-      
-      const genI = generators[i];
-      const genJ = generators[j];
-      
-      // Find electrical coupling through lines
-      system.lines.forEach(line => {
-        if (!line.active) return;
-        
-        const fromIdx = busMap.get(line.fromBus);
-        const toIdx = busMap.get(line.toBus);
-        
-        if ((fromIdx === i && toIdx === j) || (fromIdx === j && toIdx === i)) {
-          // Coupling through transmission line
-          const x = line.reactance;
-          const coupling = 1 / (x + 0.01); // Add small value to avoid div by 0
-          K[i][j] = -coupling * 0.1; // Negative coupling indicates electromechanical
+
+  const ybus = buildYBus(system);
+  const Y: ComplexValue[][] = ybus.g.map((row, i) => row.map((value, j) => cv(value, ybus.b[i][j])));
+  const generatorSet = new Set(generatorBusIndices);
+  const loadIndices = system.buses.map((_, i) => i).filter(i => !generatorSet.has(i));
+
+  let reduced: ComplexValue[][];
+  if (loadIndices.length === 0) {
+    reduced = generatorBusIndices.map(i => generatorBusIndices.map(j => ({ ...Y[i][j] })));
+  } else {
+    const Yll = loadIndices.map(i => loadIndices.map(j => ({ ...Y[i][j] })));
+    const invYll = invertComplexMatrix(Yll);
+    reduced = generatorBusIndices.map((i, row) =>
+      generatorBusIndices.map((j, column) => {
+        let value = { ...Y[i][j] };
+        for (let a = 0; a < loadIndices.length; a++) {
+          for (let b = 0; b < loadIndices.length; b++) {
+            value = cvSub(
+              value,
+              cvMul(cvMul(Y[i][loadIndices[a]], invYll[a][b]), Y[loadIndices[b]][j])
+            );
+          }
         }
-      });
+        return value;
+      })
+    );
+  }
+
+  const M: number[][] = Array.from({ length: n }, () => new Array(n).fill(0));
+  const D: number[][] = Array.from({ length: n }, () => new Array(n).fill(0));
+  const K: number[][] = Array.from({ length: n }, () => new Array(n).fill(0));
+
+  generators.forEach((gen, i) => {
+    const inertia = Math.max(2.5, Math.min(8, 2 + gen.pmax / 100));
+    M[i][i] = 2 * inertia;
+    D[i][i] = 1.5;
+  });
+
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      const susceptance = reduced[i][j].im;
+      const delta = (angles.get(generators[i].bus) ?? 0) - (angles.get(generators[j].bus) ?? 0);
+      const ei = voltages.get(generators[i].bus) ?? 1;
+      const ej = voltages.get(generators[j].bus) ?? 1;
+      const coefficient = ei * ej * susceptance * Math.cos(delta);
+      if (!Number.isFinite(coefficient)) continue;
+      K[i][j] -= coefficient;
+      K[j][i] -= coefficient;
+      K[i][i] += coefficient;
+      K[j][j] += coefficient;
     }
   }
-  
+
   return { M, D, K, n, busMap };
 }
 
-/**
- * Compute eigenvalues from state matrix
- */
-function computeEigenvalues(A: number[][]): ComplexNumber[] {
-  const n = A.length;
-  
-  // For small matrices, use characteristic polynomial
-  if (n <= 4) {
-    return computeEigenvaluesSmall(A);
-  }
-  
-  // For larger matrices, use QR iteration
-  const upperTriangular = qrIteration(A);
-  const eigenvalues: ComplexNumber[] = [];
-  
-  for (let i = 0; i < n; i++) {
-    if (i < n - 1 && Math.abs(upperTriangular[i][i + 1]) > 1e-6) {
-      // Complex conjugate pair from 2x2 block
-      const a = upperTriangular[i][i];
-      const b = upperTriangular[i][i + 1];
-      const c = upperTriangular[i + 1][i];
-      const d = upperTriangular[i + 1][i + 1];
-      
-      const trace = a + d;
-      const det = a * d - b * c;
-      const discriminant = trace * trace - 4 * det;
-      
-      if (discriminant < 0) {
-        const real = trace / 2;
-        const imag = Math.sqrt(-discriminant) / 2;
-        eigenvalues.push({ real, imag });
-        eigenvalues.push({ real, imag: -imag });
-        i++;
-      } else {
-        eigenvalues.push({ real: (trace + Math.sqrt(discriminant)) / 2, imag: 0 });
-        eigenvalues.push({ real: (trace - Math.sqrt(discriminant)) / 2, imag: 0 });
-        i++;
-      }
+/** Complex QR decomposition using modified Gram-Schmidt with reorthogonalisation. */
+function complexQR(matrix: ComplexValue[][]): { Q: ComplexValue[][]; R: ComplexValue[][] } {
+  const n = matrix.length;
+  const Q: ComplexValue[][] = Array.from({ length: n }, () => new Array(n).fill(null).map(() => cv(0)));
+  const R: ComplexValue[][] = Array.from({ length: n }, () => new Array(n).fill(null).map(() => cv(0)));
+
+  for (let column = 0; column < n; column++) {
+    const v = matrix.map(row => ({ ...row[column] }));
+    for (let previous = 0; previous < column; previous++) {
+      let dot = cv(0);
+      for (let k = 0; k < n; k++) dot = cvAdd(dot, cvMul(cvConj(Q[k][previous]), v[k]));
+      R[previous][column] = dot;
+      for (let k = 0; k < n; k++) v[k] = cvSub(v[k], cvMul(dot, Q[k][previous]));
+    }
+    for (let previous = 0; previous < column; previous++) {
+      let dot = cv(0);
+      for (let k = 0; k < n; k++) dot = cvAdd(dot, cvMul(cvConj(Q[k][previous]), v[k]));
+      R[previous][column] = cvAdd(R[previous][column], dot);
+      for (let k = 0; k < n; k++) v[k] = cvSub(v[k], cvMul(dot, Q[k][previous]));
+    }
+    const norm = Math.sqrt(v.reduce((sum, value) => sum + value.re * value.re + value.im * value.im, 0));
+    R[column][column] = cv(norm);
+    if (norm < 1e-14) {
+      for (let k = 0; k < n; k++) Q[k][column] = cv(k === column ? 1 : 0);
     } else {
-      eigenvalues.push({ real: upperTriangular[i][i], imag: 0 });
+      for (let k = 0; k < n; k++) Q[k][column] = cvDiv(v[k], cv(norm));
     }
   }
-  
-  return eigenvalues;
+
+  return { Q, R };
 }
 
 /**
- * Compute eigenvalues for small matrices using characteristic polynomial
+ * Complex shifted QR eigenvalue solver.
  */
-function computeEigenvaluesSmall(A: number[][]): ComplexNumber[] {
-  const n = A.length;
-  
-  if (n === 1) {
-    return [{ real: A[0][0], imag: 0 }];
-  }
-  
-  if (n === 2) {
-    const a = A[0][0];
-    const b = A[0][1];
-    const c = A[1][0];
-    const d = A[1][1];
-    
-    const trace = a + d;
-    const det = a * d - b * c;
-    const discriminant = trace * trace - 4 * det;
-    
-    if (discriminant >= 0) {
-      const sqrtD = Math.sqrt(discriminant);
-      return [
-        { real: (trace + sqrtD) / 2, imag: 0 },
-        { real: (trace - sqrtD) / 2, imag: 0 }
-      ];
-    } else {
-      const real = trace / 2;
-      const imag = Math.sqrt(-discriminant) / 2;
-      return [
-        { real, imag },
-        { real, imag: -imag }
-      ];
+export function computeEigenvalues(A: number[][]): ComplexNumber[] {
+  const size = A.length;
+  if (size === 0) return [];
+  if (size === 1) return [{ real: A[0][0], imag: 0 }];
+
+  const H: ComplexValue[][] = A.map(row => row.map(value => cv(value)));
+
+  // Reduce to upper Hessenberg form with a similarity transformation so that
+  // the shifted QR iteration deflates correctly.
+  for (let k = 0; k < size - 2; k++) {
+    let pivot = k + 1;
+    for (let i = k + 2; i < size; i++) {
+      if (cvAbs(H[i][k]) > cvAbs(H[pivot][k])) pivot = i;
     }
-  }
-  
-  // For n=3,4 use numerical method (power iteration approximation)
-  const eigenvalues: ComplexNumber[] = [];
-  const A_copy = A.map(row => [...row]);
-  
-  for (let i = 0; i < n; i++) {
-    // Power iteration for dominant eigenvalue
-    let v = Array(n).fill(1).map(() => Math.random() - 0.5);
-    let lambda = 0;
-    
-    for (let iter = 0; iter < 50; iter++) {
-      const Av = Array(n).fill(0);
-      for (let j = 0; j < n; j++) {
-        for (let k = 0; k < n; k++) {
-          Av[j] += A_copy[j][k] * v[k];
-        }
+    if (pivot !== k + 1) {
+      const row = H[pivot];
+      H[pivot] = H[k + 1];
+      H[k + 1] = row;
+      for (let i = 0; i < size; i++) {
+        const temp = H[i][pivot];
+        H[i][pivot] = H[i][k + 1];
+        H[i][k + 1] = temp;
       }
-      
-      const norm = Math.sqrt(Av.reduce((sum, x) => sum + x * x, 0));
-      if (norm < 1e-10) break;
-      
-      v = Av.map(x => x / norm);
-      lambda = v.reduce((sum, vi, j) => sum + vi * Av[j], 0);
     }
-    
-    eigenvalues.push({ real: lambda, imag: 0 });
+    const pivotValue = H[k + 1][k];
+    if (cvAbs(pivotValue) < 1e-14) continue;
+    for (let i = k + 2; i < size; i++) {
+      const factor = cvDiv(H[i][k], pivotValue);
+      if (cvAbs(factor) < 1e-15) continue;
+      for (let j = k; j < size; j++) H[i][j] = cvSub(H[i][j], cvMul(factor, H[k + 1][j]));
+      for (let j = 0; j < size; j++) H[j][k + 1] = cvAdd(H[j][k + 1], cvMul(factor, H[j][i]));
+    }
   }
-  
+
+  const eigenvalues: ComplexNumber[] = [];
+  let active = size;
+  let iterations = 0;
+  const maxIterations = 5000;
+
+  while (active > 0) {
+    if (active === 1) {
+      eigenvalues.push({ real: H[0][0].re, imag: H[0][0].im });
+      break;
+    }
+
+    const a = H[active - 2][active - 2];
+    const b = H[active - 2][active - 1];
+    const c = H[active - 1][active - 2];
+    const d = H[active - 1][active - 1];
+
+    if (cvAbs(c) <= 1e-12 * (cvAbs(a) + cvAbs(d) + 1e-12)) {
+      eigenvalues.push({ real: d.re, imag: d.im });
+      H[active - 1][active - 2] = cv(0);
+      active -= 1;
+      continue;
+    }
+
+    if (iterations++ > maxIterations) {
+      for (let i = 0; i < active; i++) eigenvalues.push({ real: H[i][i].re, imag: H[i][i].im });
+      break;
+    }
+
+    const traceHalf = cvDiv(cvAdd(a, d), cv(2));
+    const delta = cvSqrt(cvAdd(cvMul(cvDiv(cvSub(a, d), cv(2)), cvDiv(cvSub(a, d), cv(2))), cvMul(b, c)));
+    const lambda1 = cvAdd(traceHalf, delta);
+    const lambda2 = cvSub(traceHalf, delta);
+    const shift = cvAbs(cvSub(lambda1, d)) < cvAbs(cvSub(lambda2, d)) ? lambda1 : lambda2;
+
+    const shifted: ComplexValue[][] = Array.from({ length: active }, (_, i) =>
+      Array.from({ length: active }, (_, j) => (i === j ? cvSub(H[i][j], shift) : { ...H[i][j] }))
+    );
+
+    const { Q, R } = complexQR(shifted);
+    for (let i = 0; i < active; i++) {
+      for (let j = 0; j < active; j++) {
+        let value = cv(0);
+        for (let k = 0; k < active; k++) value = cvAdd(value, cvMul(R[i][k], Q[k][j]));
+        H[i][j] = i === j ? cvAdd(value, shift) : value;
+      }
+    }
+
+    for (let i = 1; i < active; i++) {
+      if (cvAbs(H[i][i - 1]) < 1e-14) H[i][i - 1] = cv(0);
+    }
+  }
+
   return eigenvalues;
 }
 
@@ -333,21 +379,32 @@ export function analyzeSmallSignalStability(system: PowerSystem): StabilityAnaly
   const eigenvalueResults: EigenvalueResult[] = eigenvalues.map((ev, idx) => {
     const sigma = ev.real;
     const omega = ev.imag;
-    const freq = Math.sqrt(sigma * sigma + omega * omega) / (2 * Math.PI);
-    const dampingRatio = sigma / Math.sqrt(sigma * sigma + omega * omega) || 0;
-    const period = omega > 0 ? 2 * Math.PI / omega : Infinity;
+    const magnitude = Math.sqrt(sigma * sigma + omega * omega);
+    const isZeroMode = magnitude < 1e-6;
+    const freq = isZeroMode || Math.abs(omega) < 1e-9 ? 0 : magnitude / (2 * Math.PI);
+    const dampingRatio = isZeroMode
+      ? 0
+      : Math.abs(omega) < 1e-9
+        ? sigma < 0
+          ? 1
+          : sigma > 0
+            ? -1
+            : 0
+        : -sigma / magnitude;
+    const period = Math.abs(omega) > 1e-9 ? (2 * Math.PI) / Math.abs(omega) : Infinity;
     
     // Classify mode type based on frequency
     let modeType: EigenvalueResult['modeType'] = 'local';
     if (freq < 0.1) modeType = 'swing';
-    else if (freq < 0.8) modeType = 'local';
-    else if (freq < 2) modeType = 'interarea';
+    else if (freq < 0.8) modeType = 'interarea';
+    else if (freq < 2) modeType = 'local';
     else modeType = 'control';
     
     // Classify damping
     let damping: EigenvalueResult['damping'] = 'stable';
-    if (dampingRatio < 0.05) damping = 'poorly_damped';
-    if (sigma > 0) damping = 'unstable';
+    if (isZeroMode) damping = 'stable';
+    else if (sigma > 1e-9) damping = 'unstable';
+    else if (dampingRatio < 0.05) damping = 'poorly_damped';
     
     return {
       eigenvalue: ev,
@@ -364,8 +421,11 @@ export function analyzeSmallSignalStability(system: PowerSystem): StabilityAnaly
   const unstableModes = eigenvalueResults.filter(r => r.damping === 'unstable');
   const poorlyDamped = eigenvalueResults.filter(r => r.damping === 'poorly_damped');
   
-  // Sort by damping ratio
+  // Sort by damping ratio; ignore the rigid-body zero mode for the summary.
   eigenvalueResults.sort((a, b) => a.dampingRatio - b.dampingRatio);
+  const modalModes = eigenvalueResults.filter(
+    mode => Math.hypot(mode.eigenvalue.real, mode.eigenvalue.imag) >= 1e-6
+  );
   
   // Determine overall system damping
   let systemDamping: StabilityAnalysisResult['systemDamping'] = 'good';
@@ -376,7 +436,7 @@ export function analyzeSmallSignalStability(system: PowerSystem): StabilityAnaly
   return {
     eigenvalues: eigenvalueResults,
     modeShapes: [],
-    leastDampedMode: eigenvalueResults[0],
+    leastDampedMode: modalModes[0] ?? eigenvalueResults[0],
     criticallyDampedModes: poorlyDamped,
     unstableModes,
     systemDamping,

@@ -1,167 +1,179 @@
 # PSAT Web - Power System Analysis Toolbox
 
-A modern web-based power system analysis and simulation tool, ported from the original MATLAB-based PSAT.
+A browser-based power system analysis workbench derived from the MATLAB-based
+[PSAT](https://faraday1.ucd.ie/psat.html). The interface follows the ETAP style:
+a ribbon, a one-line diagram editor, a component browser, a property grid, a
+study-case history and tabular/chart results.
 
-![PSAT Web](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![PSAT Web](https://img.shields.io/badge/version-1.1.0-blue.svg)
 ![License](https://img.shields.io/badge/license-GPL--3.0-green.svg)
-![React](https://img.shields.io/badge/React-18.3.1-61dafb.svg)
-![Next.js](https://img.shields.io/badge/Next.js-14.2.35-000000.svg)
+![React](https://img.shields.io/badge/React-19-61dafb.svg)
+![Next.js](https://img.shields.io/badge/Next.js-16-000000.svg)
 
-## Features
+## Capabilities
 
-### Power System Analysis
-- **Power Flow Analysis**: Newton-Raphson, DC, and Fast Decoupled methods
-- **Time Domain Simulation**: Dynamic simulation of power system behavior
-- **Eigenvalue Analysis**: Small-signal stability assessment
-- **Continuation Power Flow**: Voltage stability analysis
+### One-line diagram editor
+- Ribbon with Home, Components, Analysis, Results and Tools tabs
+- Component palette with search and drag-and-drop placement
+- Project tree for buses, lines, transformers, generators, loads and shunts
+- Select, pan, zoom (cursor-centred), fit, grid and snap-to-grid
+- Click-to-connect line and transformer tools
+- Context menu, duplicate, copy/paste, delete and undo/redo
+- Full property editing with validation feedback
+- IEEE-style bus, generator, load, shunt and transformer symbols
+- Result overlays for voltage limits and branch loading
 
-### Visualization
-- **Interactive Canvas**: Drag-and-drop component placement
-- **Real-time Results**: Voltage, angle, and loading visualization
-- **Zoom and Pan**: Navigate large power systems easily
+### Studies
+- **Load flow**: Newton-Raphson (full Jacobian), fast-decoupled, DC and
+  Gauss-Seidel. PV reactive-limit enforcement, bus/branch/generator tables,
+  voltage profile and violation report.
+- **Continuation power flow**: PV curve, nose point, critical bus and loading
+  margin.
+- **Optimal power flow**: merit-order economic dispatch with polynomial cost
+  curves, AC power-flow verification and branch overload reporting.
+- **Short circuit**: three-phase, line-to-ground, line-to-line and double
+  line-to-ground faults from the bus impedance matrix. Results in kA, fault
+  MVA, CT ratings and breaker/relay requirements.
+- **Small-signal stability**: Kron-reduced multimachine model, complex shifted
+  QR eigenvalues, damping ratios, mode classification and eigenvalue plot.
+- **Time-domain simulation**: classical swing equations, balanced-fault
+  disturbance, Euler/RK4/trapezoidal integration, rotor-angle and bus-voltage
+  plots plus transient stability assessment.
 
-### UI/UX
-- **Ribbon Interface**: Similar to Microsoft Word/Etap for familiar experience
-- **Component Browser**: Sidebar for quick component insertion
-- **Properties Panel**: Detailed view of selected components
-- **Output Window**: Real-time analysis results and logs
+### Results and reporting
+- Study-case history for the current session
+- Sortable-looking result tables with engineering units
+- SVG charts (voltage profile, PV curve, dispatch, fault currents, eigenvalue
+  scatter, time-domain traces)
+- CSV export of every study, and HTML/CSV/JSON report export
+- Print support
 
-## Tech Stack
+### Project management
+- JSON project save/open with validation and normalization
+- Sample systems: Demo 4-bus, IEEE 9-bus, IEEE 14-bus and a distribution feeder
+- Settings persisted in the browser (solver, tolerances, simulation, overlays)
+- Model check with clickable issues
 
-- **Frontend**: React 18 with TypeScript
-- **Framework**: Next.js 14
-- **Styling**: Tailwind CSS
-- **Visualization**: HTML5 Canvas
-- **Containerization**: Docker & Docker Compose
+## Keyboard shortcuts
 
-## Getting Started
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+N` / `Ctrl+O` / `Ctrl+S` | New / open / save project |
+| `Ctrl+Z` / `Ctrl+Y` | Undo / redo |
+| `Ctrl+C` / `Ctrl+V` / `Ctrl+X` / `Ctrl+D` | Copy / paste / cut / duplicate |
+| `Delete` | Delete the selected element |
+| `F5` | Load flow |
+| `F6` | Continuation power flow |
+| `F7` | Short circuit |
+| `F8` | Optimal power flow |
+| `F9` | Time-domain simulation |
+| `F10` | Open results |
+| `Ctrl+0` | Fit diagram to window |
+| `Ctrl++` / `Ctrl+-` | Zoom in / out |
+| `Esc` | Cancel the current tool or dialog |
 
-### Prerequisites
+## Getting started
 
-- Node.js 18+
-- Docker (optional)
-
-### Installation
+Requirements: Node.js 20+ and npm.
 
 ```bash
-# Clone the repository
-git clone https://github.com/your-username/psat-web.git
-cd psat-web
-
-# Install dependencies
 npm install
-
-# Run development server
-npm run dev
-
-# Build for production
-npm run build
+npm run dev        # http://localhost:3000
+npm run build      # production build
+npm run start      # production server
+npm test           # unit and component tests (Vitest)
+npm run lint       # ESLint
+npx playwright test  # end-to-end tests (Chromium)
 ```
 
-### Docker Deployment
+Playwright uses `BASE_URL` (default `http://localhost:3456`). To run the e2e
+suite against an already running development server:
 
 ```bash
-# Build Docker image
+BASE_URL=http://localhost:3000 npx playwright test
+```
+
+### Docker
+
+```bash
 docker build -t psat-web .
-
-# Run with Docker Compose
 docker-compose up -d
-
-# Or run directly
-docker run -p 3000:3000 psat-web
 ```
 
 ## Architecture
 
 ```
 src/
-├── app/           # Next.js App Router pages
-├── components/     # React UI components
-│   ├── Canvas.tsx       # Power system visualization
-│   ├── Ribbon.tsx       # Microsoft-style ribbon menu
-│   ├── Sidebar.tsx      # Component browser
-│   ├── Toolbar.tsx      # Quick action toolbar
-│   ├── PropertiesPanel  # Component properties editor
-│   └── OutputWindow     # Analysis results display
-├── lib/           # Core algorithms
-│   └── powerflow.ts     # Power flow solver
-└── types/         # TypeScript definitions
-    └── index.ts         # System data structures
+├── app/                 # Next.js App Router (page shell, global styles)
+├── components/          # UI
+│   ├── TitleBar.tsx     # Project name, menus and quick access
+│   ├── Ribbon.tsx       # ETAP-style ribbon definition and renderer
+│   ├── Toolbar.tsx      # Study toolbar (method, run buttons, model state)
+│   ├── Sidebar.tsx      # Component palette and project tree
+│   ├── Canvas.tsx       # One-line diagram renderer and interaction
+│   ├── PropertiesPanel.tsx
+│   ├── ResultsDialog.tsx / ReportDialog.tsx / Chart.tsx
+│   ├── SettingsDialog.tsx / SampleDialog.tsx / InfoDialogs.tsx
+│   └── OutputWindow.tsx
+├── lib/
+│   ├── powerflow-methods.ts  # Ybus, NR, fast-decoupled, DC, Gauss-Seidel
+│   ├── cpf.ts                # Parameter-continuation PV curve
+│   ├── opf.ts                # Economic dispatch and OPF variants
+│   ├── fault.ts              # Zbus short-circuit engine
+│   ├── stability.ts          # Modal analysis and complex QR solver
+│   ├── timeseries.ts         # Classical time-domain simulation
+│   ├── studies.ts            # Study runner facade
+│   ├── results-export.ts     # Tables, CSV and report sections
+│   ├── project.ts            # Serialization, validation, statistics
+│   ├── samples.ts            # Ready-to-run systems
+│   ├── settings.ts           # Persisted application settings
+│   └── useProject.ts         # Project state, history and editing actions
+└── types/               # Shared TypeScript data structures
 ```
 
-## Available Scripts
+## Numerical notes
+
+- The network model stores engineering units (MW, Mvar, kV) and converts to
+  per-unit on the system MVA base inside the solvers.
+- Bus diagram coordinates are stored in grid units; one unit is 100 px at
+  100 % zoom.
+- The short-circuit engine assumes a generator subtransient reactance of
+  0.05 p.u. to provide a ground reference, and Z0 = 0.5 Z1 for unbalanced
+  faults because zero-sequence data is not part of the model.
+- The stability and time-domain studies use a classical multimachine model
+  with a Kron-reduced network and deterministic inertia/damping values.
+- Continuation power flow scales both load and non-slack generation by
+  `1 + lambda` and halves the step when a solution is lost.
+
+## Available scripts
 
 | Command | Description |
 |---------|-------------|
-| `npm run dev` | Start development server |
+| `npm run dev` | Start the development server |
 | `npm run build` | Build for production |
-| `npm run start` | Start production server |
-| `npm run lint` | Run ESLint |
-| `npm run release` | Run a release locally with semantic-release (normally done by CI) |
+| `npm run start` | Start the production server |
+| `npm test` | Run the Vitest suite |
+| `npm run test:run` | Run the Vitest suite once |
+| `npm run test:coverage` | Coverage report |
+| `npm run lint` | ESLint |
+| `npm run release` | semantic-release (normally run by CI) |
 
 ## Releases
 
-Releases are automated with [semantic-release](https://github.com/semantic-release/semantic-release) and driven by [Conventional Commits](https://www.conventionalcommits.org/).
-
-The `Release` workflow (`.github/workflows/release.yml`) runs on every push to `main` and can also be started manually. It:
-
-1. analyses the commits since the last release to work out the next version,
-2. updates `package.json`/`package-lock.json`, writes `CHANGELOG.md` and commits them back to `main`,
-3. creates the Git tag and the GitHub Release with generated release notes.
-
-Commit messages therefore determine the version bump:
-
-| Commit message | Release |
-|----------------|---------|
-| `fix: ...` | patch (`1.0.0` → `1.0.1`) |
-| `feat: ...` | minor (`1.0.0` → `1.1.0`) |
-| `feat!: ...` or `BREAKING CHANGE:` in the body | major (`1.0.0` → `2.0.0`) |
-| `chore: ...`, `docs: ...`, `test: ...`, `ci: ...` | no release |
-
-The configuration lives in `.releaserc.json`. Publishing to the npm registry is disabled (`npmPublish: false`) — this project is an application, not a library.
-
-## Power Flow Solver
-
-The application includes a Newton-Raphson power flow solver with:
-
-- Y-Bus matrix construction
-- Power mismatch calculation
-- Voltage initialization (flat start supported)
-- Convergence checking
-- Line loading calculation
-- System losses computation
-
-## Containerized Deployment
-
-The application is fully containerized for easy deployment:
-
-```yaml
-# docker-compose.yml
-services:
-  psat-web:
-    build: .
-    ports:
-      - "3000:3000"
-    restart: unless-stopped
-```
+Releases are automated with [semantic-release](https://github.com/semantic-release/semantic-release)
+and driven by [Conventional Commits](https://www.conventionalcommits.org/).
+The `Release` workflow runs on every push to `main`; commit messages determine
+the version bump (`fix:` patch, `feat:` minor, `feat!:`/`BREAKING CHANGE:` major).
 
 ## Original PSAT
 
-This project is a web-based port of the original [PSAT - Power System Analysis Toolbox](https://faraday1.ucd.ie/psat.html) developed by Federico Milano.
+This project is a web-based port of the original
+[PSAT - Power System Analysis Toolbox](https://faraday1.ucd.ie/psat.html)
+developed by Federico Milano.
 
-Original PSAT is:
-- Copyright (C) 2002-2016 Federico Milano
-- Free software under GNU General Public License v3
+Original PSAT is Copyright (C) 2002-2016 Federico Milano and is free software
+under the GNU General Public License v3.
 
 ## License
 
-This project maintains compatibility with the original GPL-3.0 license. See LICENSE file for details.
-
-## Contributing
-
-Contributions are welcome! Please read the contribution guidelines before submitting PRs.
-
-## Acknowledgments
-
-- Original PSAT by Federico Milano
-- Power system analysis algorithms from academic literature# Web Version
+GPL-3.0. See the LICENSE file for details.

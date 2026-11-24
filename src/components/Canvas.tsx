@@ -1,424 +1,825 @@
 'use client';
 
-import { useRef, useEffect, useState, useCallback } from 'react';
-import { Bus, Line, PowerSystem } from '@/types';
-import { renderSymbol } from '@/lib/symbols';
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { PowerFlowResult, PowerSystem } from '@/types';
+import { Selection } from '@/lib/useProject';
+
+export type CanvasTool = 'select' | 'pan' | 'line' | 'transformer';
+
+export interface CanvasHandle {
+  zoomIn: () => void;
+  zoomOut: () => void;
+  fit: () => void;
+  reset: () => void;
+  getScale: () => number;
+}
 
 interface CanvasProps {
   system: PowerSystem;
-  selectedBus: string | null;
-  selectedLine: string | null;
-  onSelectBus: (busId: string | null) => void;
-  onSelectLine: (lineId: string | null) => void;
-  onUpdateBusPosition?: (busId: string, x: number, y: number) => void;
-  powerFlowResults?: any;
+  selection: Selection;
+  tool: CanvasTool;
+  results?: PowerFlowResult | null;
+  showGrid: boolean;
+  snapToGrid: boolean;
+  showBusNames: boolean;
+  showVoltageOverlay: boolean;
+  showFlowOverlay: boolean;
+  onSelect: (selection: Selection) => void;
+  onMoveBus: (busId: string, x: number, y: number) => void;
+  onBranchConnect: (fromBus: string, toBus: string) => void;
+  onDropComponent: (kind: string, position: { x: number; y: number }) => void;
+  onContextMenu: (selection: Selection, clientX: number, clientY: number) => void;
+  onCursorMove?: (world: { x: number; y: number } | null) => void;
+  onDoubleClickElement?: (selection: Selection) => void;
 }
 
-export default function Canvas({
-  system,
-  selectedBus,
-  selectedLine,
-  onSelectBus,
-  onSelectLine,
-  onUpdateBusPosition,
-  powerFlowResults
-}: CanvasProps) {
+interface DeviceHit {
+  kind: 'generator' | 'load' | 'shunt';
+  id: string;
+  x: number;
+  y: number;
+}
+
+const GRID_UNIT = 100;
+const SNAP = 0.4;
+const BUS_HALF_WIDTH = 34;
+const MIN_SCALE = 0.2;
+const MAX_SCALE = 4;
+
+const colors = {
+  slack: '#15803d',
+  pv: '#1d4ed8',
+  pq: '#475569',
+  isolated: '#94a3b8',
+  line: '#64748b',
+  selected: '#ea580c',
+};
+
+function voltageColor(v: number, vmin: number, vmax: number): string {
+  if (v < vmin - 0.05 || v > vmax + 0.05) return '#dc2626';
+  if (v < vmin || v > vmax) return '#d97706';
+  return '#15803d';
+}
+
+function loadingColor(loading: number): string {
+  if (loading > 100) return '#dc2626';
+  if (loading > 80) return '#d97706';
+  return '#0f766e';
+}
+
+function pointSegmentDistance(
+  px: number,
+  py: number,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number
+): number {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const lengthSquared = dx * dx + dy * dy;
+  if (lengthSquared === 0) return Math.hypot(px - x1, py - y1);
+  let t = ((px - x1) * dx + (py - y1) * dy) / lengthSquared;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
+}
+
+const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
+  {
+    system,
+    selection,
+    tool,
+    results,
+    showGrid,
+    snapToGrid,
+    showBusNames,
+    showVoltageOverlay,
+    showFlowOverlay,
+    onSelect,
+    onMoveBus,
+    onBranchConnect,
+    onDropComponent,
+    onContextMenu,
+    onCursorMove,
+    onDoubleClickElement,
+  },
+  ref
+) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragTarget, setDragTarget] = useState<string | null>(null);
-  
+  const [size, setSize] = useState({ width: 800, height: 600 });
+  const [hover, setHover] = useState<Selection>({ type: null, id: null });
+  const [connectFrom, setConnectFrom] = useState<string | null>(null);
+  const [cursorWorld, setCursorWorld] = useState<{ x: number; y: number } | null>(null);
+  const dragRef = useRef<{ busId: string; dx: number; dy: number } | null>(null);
+  const panRef = useRef<{ x: number; y: number; offsetX: number; offsetY: number } | null>(null);
+  const deviceHitsRef = useRef<DeviceHit[]>([]);
+  const didFitRef = useRef(false);
+
+  const busById = useMemo(() => new Map(system.buses.map(bus => [bus.id, bus])), [system.buses]);
+
+  const toWorld = useCallback(
+    (clientX: number, clientY: number) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return { x: 0, y: 0 };
+      const rect = canvas.getBoundingClientRect();
+      const sx = clientX - rect.left;
+      const sy = clientY - rect.top;
+      return {
+        x: (sx - rect.width / 2 - offset.x) / scale,
+        y: (sy - rect.height / 2 - offset.y) / scale,
+      };
+    },
+    [offset, scale]
+  );
+
+  const fit = useCallback(() => {
+    if (system.buses.length === 0) {
+      setScale(1);
+      setOffset({ x: 0, y: 0 });
+      return;
+    }
+    const xs = system.buses.map(bus => bus.x * GRID_UNIT);
+    const ys = system.buses.map(bus => bus.y * GRID_UNIT);
+    const minX = Math.min(...xs) - 140;
+    const maxX = Math.max(...xs) + 140;
+    const minY = Math.min(...ys) - 140;
+    const maxY = Math.max(...ys) + 140;
+    const width = Math.max(1, maxX - minX);
+    const height = Math.max(1, maxY - minY);
+    const newScale = Math.max(
+      MIN_SCALE,
+      Math.min(MAX_SCALE, Math.min(size.width / width, size.height / height))
+    );
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+    setScale(newScale);
+    setOffset({ x: -centerX * newScale, y: -centerY * newScale });
+  }, [system.buses, size]);
+
+  const reset = useCallback(() => {
+    setScale(1);
+    setOffset({ x: 0, y: 0 });
+  }, []);
+
+  const zoomBy = useCallback((factor: number, anchor?: { x: number; y: number }) => {
+    setScale(current => {
+      const next = Math.max(MIN_SCALE, Math.min(MAX_SCALE, current * factor));
+      if (next === current) return current;
+      if (anchor) {
+        const rect = canvasRef.current?.getBoundingClientRect();
+        if (rect) {
+          const sx = anchor.x - rect.left;
+          const sy = anchor.y - rect.top;
+          setOffset(prev => {
+            const worldX = (sx - rect.width / 2 - prev.x) / current;
+            const worldY = (sy - rect.height / 2 - prev.y) / current;
+            return {
+              x: sx - rect.width / 2 - worldX * next,
+              y: sy - rect.height / 2 - worldY * next,
+            };
+          });
+        }
+      }
+      return next;
+    });
+  }, []);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      zoomIn: () => zoomBy(1.2),
+      zoomOut: () => zoomBy(1 / 1.2),
+      fit,
+      reset,
+      getScale: () => scale,
+    }),
+    [fit, reset, scale, zoomBy]
+  );
+
+  useEffect(() => {
+    const element = wrapRef.current;
+    if (!element) return;
+    if (typeof ResizeObserver === 'undefined') {
+      const measure = () =>
+        setSize({
+          width: Math.max(200, element.clientWidth || 800),
+          height: Math.max(200, element.clientHeight || 600),
+        });
+      measure();
+      window.addEventListener('resize', measure);
+      return () => window.removeEventListener('resize', measure);
+    }
+    const observer = new ResizeObserver(entries => {
+      const entry = entries[0];
+      if (!entry) return;
+      setSize({
+        width: Math.max(200, Math.floor(entry.contentRect.width)),
+        height: Math.max(200, Math.floor(entry.contentRect.height)),
+      });
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!didFitRef.current && system.buses.length > 0 && size.width > 0) {
+      didFitRef.current = true;
+      fit();
+    }
+  }, [fit, size.width, system.buses.length]);
+
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    
+    const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+    canvas.width = size.width * dpr;
+    canvas.height = size.height * dpr;
+    canvas.style.width = `${size.width}px`;
+    canvas.style.height = `${size.height}px`;
+
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    
-    const width = canvas.width;
-    const height = canvas.height;
-    
-    // Clear canvas
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, size.width, size.height);
+
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, width, height);
-    
-    // Draw grid
-    ctx.strokeStyle = '#e5e7eb';
-    ctx.lineWidth = 0.5;
-    const gridSize = 50 * scale;
-    const offsetX = offset.x % gridSize;
-    const offsetY = offset.y % gridSize;
-    
-    for (let x = offsetX; x < width; x += gridSize) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, height);
-      ctx.stroke();
-    }
-    for (let y = offsetY; y < height; y += gridSize) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(width, y);
-      ctx.stroke();
-    }
-    
-    ctx.save();
-    ctx.translate(width / 2 + offset.x, height / 2 + offset.y);
-    ctx.scale(scale, scale);
-    
-    // Draw lines
-    system.lines.forEach(line => {
-      const fromBus = system.buses.find(b => b.id === line.fromBus);
-      const toBus = system.buses.find(b => b.id === line.toBus);
-      
-      if (!fromBus || !toBus) return;
-      
-      const isSelected = line.id === selectedLine;
-      const loading = powerFlowResults?.lineResults?.find((r: any) => r.id === line.id)?.loading || 0;
-      
-      // Color based on loading
-      let color = isSelected ? '#2563eb' : '#6b7280';
-      if (loading > 80) color = '#dc2626';
-      else if (loading > 50) color = '#f59e0b';
-      
-      ctx.strokeStyle = color;
-      ctx.lineWidth = isSelected ? 3 : 2;
-      
-      ctx.beginPath();
-      ctx.moveTo(fromBus.x * 100, fromBus.y * 100);
-      ctx.lineTo(toBus.x * 100, toBus.y * 100);
-      ctx.stroke();
-      
-      // Draw loading label if results available
-      if (powerFlowResults && loading > 0) {
-        const midX = (fromBus.x + toBus.x) * 50;
-        const midY = (fromBus.y + toBus.y) * 50;
-        ctx.fillStyle = '#374151';
-        ctx.font = '10px sans-serif';
-        ctx.fillText(`${loading.toFixed(0)}%`, midX - 10, midY - 5);
-      }
-    });
-    
-    // Draw transformers with IEEE symbol
-    system.transformers.forEach(txf => {
-      const fromBus = system.buses.find(b => b.id === txf.fromBus);
-      const toBus = system.buses.find(b => b.id === txf.toBus);
-      
-      if (!fromBus || !toBus) return;
-      
-      ctx.strokeStyle = selectedLine === txf.id ? '#2563eb' : '#6b7280';
-      ctx.lineWidth = selectedLine === txf.id ? 3 : 2;
-      
-      ctx.beginPath();
-      ctx.moveTo(fromBus.x * 100, fromBus.y * 100);
-      ctx.lineTo(toBus.x * 100, toBus.y * 100);
-      ctx.stroke();
-      
-      // Draw IEEE 2-winding transformer symbol at midpoint
-      const midX = (fromBus.x + toBus.x) * 50;
-      const midY = (fromBus.y + toBus.y) * 50;
-      
-      ctx.save();
-      ctx.strokeStyle = selectedLine === txf.id ? '#2563eb' : '#6b7280';
-      ctx.fillStyle = '#ffffff';
-      ctx.lineWidth = 2;
-      
-      // Two concentric circles (IEEE 315 11-6-1 transformer)
-      ctx.beginPath();
-      ctx.arc(midX, midY, 9, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(midX, midY, 4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-      
-      ctx.restore();
-    });
-    
-    // Draw buses with PSAT/IEEE standard symbols (horizontal bus lines)
-    system.buses.forEach(bus => {
-      const x = bus.x * 100;
-      const y = bus.y * 100;
-      const isSelected = bus.id === selectedBus;
-      
-      const colors = {
-        slack: '#22c55e',
-        pv: '#3b82f6',
-        pq: '#6b7280'
-      };
-      const color = colors[bus.type as keyof typeof colors] || '#999';
-      
-      ctx.save();
-      ctx.strokeStyle = isSelected ? '#f59e0b' : color;
-      ctx.lineWidth = isSelected ? 4 : 3;
-      ctx.fillStyle = color;
-      
-      // PSAT bus: thick horizontal line (standard single-line diagram)
-      const busLength = 30;
-      ctx.beginPath();
-      ctx.moveTo(x - busLength / 2, y);
-      ctx.lineTo(x + busLength / 2, y);
-      ctx.stroke();
-      
-      // Additional markers per bus type
-      if (bus.type === 'slack') {
-        // Slack/Infinite bus: angled infinite bus marks
-        ctx.strokeStyle = isSelected ? '#f59e0b' : color;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(x - busLength / 2, y);
-        ctx.lineTo(x - busLength / 2 + 8, y - 10);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(x - busLength / 2, y);
-        ctx.lineTo(x - busLength / 2 + 8, y + 10);
-        ctx.stroke();
-      } else if (bus.type === 'pv') {
-        // PV bus: circle on bus line (voltage controlled)
-        ctx.strokeStyle = isSelected ? '#f59e0b' : color;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(x, y, 6, 0, Math.PI * 2);
-        ctx.stroke();
-      } else {
-        // PQ bus: small solid dot on bus line
-        ctx.beginPath();
-        ctx.arc(x, y, 3, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      
-      ctx.restore();
-      
-      // Draw voltage value if power flow results
-      if (powerFlowResults) {
-        const result = powerFlowResults.busResults.find((r: any) => r.id === bus.id);
-        if (result) {
-          ctx.fillStyle = '#374151';
-          ctx.font = 'bold 11px monospace';
-          ctx.textAlign = 'center';
-          ctx.fillText(result.voltage.toFixed(3), x, y - 12);
+    ctx.fillRect(0, 0, size.width, size.height);
+
+    if (showGrid) {
+      const step = 25 * scale;
+      if (step > 6) {
+        ctx.strokeStyle = '#eef2f7';
+        ctx.lineWidth = 1;
+        const startX = ((size.width / 2 + offset.x) % step + step) % step;
+        const startY = ((size.height / 2 + offset.y) % step + step) % step;
+        for (let x = startX; x < size.width; x += step) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, size.height);
+          ctx.stroke();
+        }
+        for (let y = startY; y < size.height; y += step) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(size.width, y);
+          ctx.stroke();
         }
       }
-      
-      // Draw bus name
-      ctx.fillStyle = '#1f2937';
-      ctx.font = '11px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(bus.name, x, y - 22);
-      
-      // Draw bus ID
-      ctx.fillStyle = '#6b7280';
-      ctx.font = '10px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(`#${bus.id}`, x, y + 18);
-    });
-    
-    // Draw generators attached to buses (PSAT standard: circle with G)
-    (system.generators || []).forEach(gen => {
-      const bus = system.buses.find(b => b.id === gen.bus);
-      if (!bus) return;
-      
-      const bx = bus.x * 100;
-      const by = bus.y * 100;
-      const gx = bx - 35;
-      const gy = by - 20;
-      
-      ctx.save();
-      ctx.strokeStyle = '#22c55e';
-      ctx.lineWidth = 2;
-      ctx.fillStyle = '#ffffff';
-      
-      // PSAT generator: circle with G inside
+      const major = 100 * scale;
+      if (major > 20) {
+        ctx.strokeStyle = '#e2e8f0';
+        const startX = ((size.width / 2 + offset.x) % major + major) % major;
+        const startY = ((size.height / 2 + offset.y) % major + major) % major;
+        for (let x = startX; x < size.width; x += major) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, size.height);
+          ctx.stroke();
+        }
+        for (let y = startY; y < size.height; y += major) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(size.width, y);
+          ctx.stroke();
+        }
+      }
+    }
+
+    ctx.save();
+    ctx.translate(size.width / 2 + offset.x, size.height / 2 + offset.y);
+    ctx.scale(scale, scale);
+
+    const selected = (type: Selection['type'], id: string) =>
+      selection.type === type && selection.id === id;
+
+    const lineResults = new Map((results?.lineResults ?? []).map(item => [item.line, item]));
+    const busResults = new Map((results?.busResults ?? []).map(item => [item.bus, item]));
+
+    const drawBranch = (
+      id: string,
+      fromId: string,
+      toId: string,
+      kind: 'line' | 'transformer'
+    ) => {
+      const from = busById.get(fromId);
+      const to = busById.get(toId);
+      if (!from || !to) return;
+      const x1 = from.x * GRID_UNIT;
+      const y1 = from.y * GRID_UNIT;
+      const x2 = to.x * GRID_UNIT;
+      const y2 = to.y * GRID_UNIT;
+      const isSelected = selected(kind, id);
+      const isHovered = hover.type === kind && hover.id === id;
+      const result = lineResults.get(id);
+      const loading = result?.loading ?? 0;
+
+      let stroke = colors.line;
+      if (result && showFlowOverlay) stroke = loadingColor(loading);
+      if (isSelected) stroke = colors.selected;
+      else if (isHovered) stroke = '#0f172a';
+
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = (isSelected ? 3.2 : 1.8) / Math.max(0.6, scale);
       ctx.beginPath();
-      ctx.arc(gx + 12, gy + 12, 12, 0, Math.PI * 2);
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+
+      if (kind === 'transformer') {
+        const angle = Math.atan2(y2 - y1, x2 - x1);
+        const midX = (x1 + x2) / 2;
+        const midY = (y1 + y2) / 2;
+        const gap = 9;
+        ctx.save();
+        ctx.translate(midX, midY);
+        ctx.rotate(angle);
+        ctx.fillStyle = '#ffffff';
+        ctx.lineWidth = 1.8 / Math.max(0.6, scale);
+        ctx.beginPath();
+        ctx.arc(-gap, 0, 11, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(gap, 0, 11, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      if (result && showFlowOverlay) {
+        const midX = (x1 + x2) / 2;
+        const midY = (y1 + y2) / 2;
+        const label = `${loading.toFixed(0)}%`;
+        ctx.font = `${11 / Math.max(0.7, scale)}px "Segoe UI", sans-serif`;
+        ctx.textAlign = 'center';
+        const metrics = ctx.measureText(label);
+        const boxWidth = metrics.width + 8;
+        const boxHeight = 14;
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        ctx.fillRect(midX - boxWidth / 2, midY - boxHeight - 4, boxWidth, boxHeight);
+        ctx.fillStyle = loadingColor(loading);
+        ctx.fillText(label, midX, midY - 6);
+      }
+    };
+
+    system.lines.forEach(line => drawBranch(line.id, line.fromBus, line.toBus, 'line'));
+    system.transformers.forEach(txf => drawBranch(txf.id, txf.fromBus, txf.toBus, 'transformer'));
+
+    if (connectFrom && cursorWorld) {
+      const from = busById.get(connectFrom);
+      if (from) {
+        ctx.save();
+        ctx.setLineDash([6 / scale, 4 / scale]);
+        ctx.strokeStyle = '#2563eb';
+        ctx.lineWidth = 1.6 / Math.max(0.6, scale);
+        ctx.beginPath();
+        ctx.moveTo(from.x * GRID_UNIT, from.y * GRID_UNIT);
+        ctx.lineTo(cursorWorld.x, cursorWorld.y);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    deviceHitsRef.current = [];
+    const deviceSlots = new Map<string, number>();
+
+    const nextSlot = (busId: string): number => {
+      const slot = deviceSlots.get(busId) ?? 0;
+      deviceSlots.set(busId, slot + 1);
+      return slot;
+    };
+
+    (system.generators ?? []).forEach(gen => {
+      const bus = busById.get(gen.bus);
+      if (!bus) return;
+      const slot = nextSlot(gen.bus);
+      const bx = bus.x * GRID_UNIT + slot * 26 - 13;
+      const by = bus.y * GRID_UNIT;
+      const gx = bx;
+      const gy = by - 46;
+      const isSelected = selected('generator', gen.id);
+      const isHovered = hover.type === 'generator' && hover.id === gen.id;
+      const color = isSelected ? colors.selected : isHovered ? '#0f172a' : '#15803d';
+
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.8 / Math.max(0.6, scale);
+      ctx.beginPath();
+      ctx.moveTo(bx, by);
+      ctx.lineTo(gx, gy + 13);
+      ctx.stroke();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(gx, gy, 13, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
-      
-      ctx.fillStyle = '#22c55e';
-      ctx.font = 'bold 13px sans-serif';
+
+      ctx.fillStyle = color;
+      ctx.font = 'bold 13px "Segoe UI", sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('G', gx + 12, gy + 13);
-      
-      // Generator label below
-      ctx.fillStyle = '#1f2937';
-      ctx.font = '8px sans-serif';
+      ctx.fillText('G', gx, gy + 1);
       ctx.textBaseline = 'alphabetic';
-      ctx.fillText(gen.name || 'Gen', gx + 12, gy + 32);
-      
-      ctx.restore();
-    });
-    
-    // Draw loads attached to buses (PSAT standard: downward arrow/line)
-    (system.loads || []).forEach(load => {
-      const bus = system.buses.find(b => b.id === load.bus);
-      if (!bus) return;
-      
-      const bx = bus.x * 100;
-      const by = bus.y * 100;
-      const lx = bx + 35;
-      const ly = by - 20;
-      
-      ctx.save();
-      ctx.strokeStyle = '#dc2626';
-      ctx.lineWidth = 2;
-      ctx.fillStyle = '#dc2626';
-      
-      // PSAT load: vertical line with thick horizontal crossbar (arrow/downward style)
-      ctx.beginPath();
-      ctx.moveTo(lx + 12, ly);
-      ctx.lineTo(lx + 12, ly + 24);
-      ctx.stroke();
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(lx + 4, ly + 12);
-      ctx.lineTo(lx + 20, ly + 12);
-      ctx.stroke();
-      
-      // Load label below
-      ctx.fillStyle = '#1f2937';
-      ctx.lineWidth = 1;
-      ctx.font = '8px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(load.name || 'Load', lx + 12, ly + 35);
-      
-      ctx.restore();
-    });
-    
-    ctx.restore();
-  }, [system, scale, offset, selectedBus, selectedLine, powerFlowResults]);
-  
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    
-    const resizeCanvas = () => {
-      canvas.width = canvas.parentElement?.clientWidth || 800;
-      canvas.height = canvas.parentElement?.clientHeight || 600;
-      draw();
-    };
-    
-    resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
-    
-    return () => window.removeEventListener('resize', resizeCanvas);
-  }, [draw]);
-  
-  const handleMouseDown = (e: React.MouseEvent) => {
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    
-    // Convert to world coordinates
-    const worldX = (x - rect.width / 2 - offset.x) / scale;
-    const worldY = (y - rect.height / 2 - offset.y) / scale;
-    
-    // Check if clicking on a bus
-    for (const bus of system.buses) {
-      const dx = worldX - bus.x * 100;
-      const dy = worldY - bus.y * 100;
-      if (Math.sqrt(dx * dx + dy * dy) < 20) {
-        setIsDragging(true);
-        setDragTarget(bus.id);
-        onSelectBus(bus.id);
-        return;
-      }
-    }
-    
-    // Check if clicking on a line
-    for (const line of system.lines) {
-      const fromBus = system.buses.find(b => b.id === line.fromBus);
-      const toBus = system.buses.find(b => b.id === line.toBus);
-      if (!fromBus || !toBus) continue;
-      
-      const dist = pointToLineDistance(
-        worldX, worldY,
-        fromBus.x * 100, fromBus.y * 100,
-        toBus.x * 100, toBus.y * 100
-      );
-      
-      if (dist < 10) {
-        onSelectLine(line.id);
-        onSelectBus(null);
-        return;
-      }
-    }
-    
-    onSelectBus(null);
-    onSelectLine(null);
-  };
-  
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging || !dragTarget || !onUpdateBusPosition) return;
-    
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    
-    const worldX = (x - rect.width / 2 - offset.x) / scale / 100;
-    const worldY = (y - rect.height / 2 - offset.y) / scale / 100;
-    
-    onUpdateBusPosition(dragTarget, worldX, worldY);
-  };
-  
-  const handleMouseUp = () => {
-    setIsDragging(false);
-    setDragTarget(null);
-  };
-  
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    setScale(s => Math.max(0.2, Math.min(5, s * delta)));
-  };
-  
-  return (
-    <canvas
-      ref={canvasRef}
-      className="w-full h-full cursor-crosshair"
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-      onWheel={handleWheel}
-    />
-  );
-}
 
-function pointToLineDistance(
-  px: number, py: number,
-  x1: number, y1: number,
-  x2: number, y2: number
-): number {
-  const A = px - x1;
-  const B = py - y1;
-  const C = x2 - x1;
-  const D = y2 - y1;
-  
-  const dot = A * C + B * D;
-  const lenSq = C * C + D * D;
-  let param = -1;
-  
-  if (lenSq !== 0) param = dot / lenSq;
-  
-  let xx, yy;
-  if (param < 0) {
-    xx = x1;
-    yy = y1;
-  } else if (param > 1) {
-    xx = x2;
-    yy = y2;
-  } else {
-    xx = x1 + param * C;
-    yy = y1 + param * D;
-  }
-  
-  const dx = px - xx;
-  const dy = py - yy;
-  return Math.sqrt(dx * dx + dy * dy);
-}
+      if (showBusNames) {
+        ctx.fillStyle = '#334155';
+        ctx.font = '9px "Segoe UI", sans-serif';
+        ctx.fillText(gen.id, gx, gy + 25);
+      }
+
+      deviceHitsRef.current.push({ kind: 'generator', id: gen.id, x: gx, y: gy });
+    });
+
+    (system.loads ?? []).forEach(load => {
+      const bus = busById.get(load.bus);
+      if (!bus) return;
+      const slot = nextSlot(load.bus);
+      const bx = bus.x * GRID_UNIT + slot * 26 - 13;
+      const by = bus.y * GRID_UNIT;
+      const ly = by + 30;
+      const isSelected = selected('load', load.id);
+      const isHovered = hover.type === 'load' && hover.id === load.id;
+      const color = isSelected ? colors.selected : isHovered ? '#0f172a' : '#b91c1c';
+
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = 1.8 / Math.max(0.6, scale);
+      ctx.beginPath();
+      ctx.moveTo(bx, by);
+      ctx.lineTo(bx, ly + 8);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(bx - 8, ly);
+      ctx.lineTo(bx + 8, ly);
+      ctx.lineTo(bx, ly + 12);
+      ctx.closePath();
+      ctx.fill();
+
+      if (showBusNames) {
+        ctx.fillStyle = '#7f1d1d';
+        ctx.font = '9px "Segoe UI", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${load.pl.toFixed(1)} MW`, bx, ly + 26);
+      }
+
+      deviceHitsRef.current.push({ kind: 'load', id: load.id, x: bx, y: ly + 4 });
+    });
+
+    (system.shunts ?? []).forEach(shunt => {
+      const bus = busById.get(shunt.bus);
+      if (!bus) return;
+      const slot = nextSlot(shunt.bus);
+      const bx = bus.x * GRID_UNIT + slot * 26 - 13;
+      const by = bus.y * GRID_UNIT;
+      const sy = by + 34;
+      const isSelected = selected('shunt', shunt.id);
+      const isHovered = hover.type === 'shunt' && hover.id === shunt.id;
+      const color = isSelected ? colors.selected : isHovered ? '#0f172a' : '#7c3aed';
+
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.8 / Math.max(0.6, scale);
+      ctx.beginPath();
+      ctx.moveTo(bx, by);
+      ctx.lineTo(bx, sy - 8);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(bx - 10, sy - 8);
+      ctx.lineTo(bx + 10, sy - 8);
+      ctx.moveTo(bx - 10, sy);
+      ctx.lineTo(bx + 10, sy);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(bx, sy);
+      ctx.lineTo(bx, sy + 10);
+      ctx.stroke();
+
+      if (showBusNames) {
+        ctx.fillStyle = '#5b21b6';
+        ctx.font = '9px "Segoe UI", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${shunt.b.toFixed(3)} pu`, bx, sy + 22);
+      }
+
+      deviceHitsRef.current.push({ kind: 'shunt', id: shunt.id, x: bx, y: sy - 4 });
+    });
+
+    system.buses.forEach(bus => {
+      const x = bus.x * GRID_UNIT;
+      const y = bus.y * GRID_UNIT;
+      const isSelected = selected('bus', bus.id);
+      const isHovered = hover.type === 'bus' && hover.id === bus.id;
+      const result = busResults.get(bus.id);
+      let color = colors[bus.type as keyof typeof colors] ?? colors.pq;
+      if (result && showVoltageOverlay) color = voltageColor(result.v, bus.vmin, bus.vmax);
+      if (isSelected) color = colors.selected;
+      else if (isHovered) color = '#0f172a';
+
+      ctx.strokeStyle = color;
+      ctx.lineWidth = (isSelected ? 5 : 3.6) / Math.max(0.6, scale);
+      ctx.beginPath();
+      ctx.moveTo(x - BUS_HALF_WIDTH, y);
+      ctx.lineTo(x + BUS_HALF_WIDTH, y);
+      ctx.stroke();
+
+      if (bus.type === 'slack') {
+        ctx.lineWidth = 1.6 / Math.max(0.6, scale);
+        ctx.beginPath();
+        ctx.moveTo(x - BUS_HALF_WIDTH, y);
+        ctx.lineTo(x - BUS_HALF_WIDTH + 9, y - 11);
+        ctx.moveTo(x - BUS_HALF_WIDTH, y);
+        ctx.lineTo(x - BUS_HALF_WIDTH + 9, y + 11);
+        ctx.stroke();
+      } else if (bus.type === 'pv') {
+        ctx.fillStyle = '#ffffff';
+        ctx.lineWidth = 1.8 / Math.max(0.6, scale);
+        ctx.beginPath();
+        ctx.arc(x, y, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      } else if (bus.type === 'pq') {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(x, y, 3.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      const labelX = x + BUS_HALF_WIDTH + 7;
+
+      if (showBusNames) {
+        ctx.fillStyle = isSelected ? colors.selected : '#1e293b';
+        ctx.font = '11px "Segoe UI", sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(bus.name, labelX, y - 2);
+      }
+
+      if (result && showVoltageOverlay) {
+        ctx.fillStyle = voltageColor(result.v, bus.vmin, bus.vmax);
+        ctx.font = 'bold 10px "Segoe UI", sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(`${result.v.toFixed(3)} pu`, labelX, y + 12);
+      }
+
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '8.5px "Segoe UI", sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText(`#${bus.id}`, x - BUS_HALF_WIDTH - 5, y - 2);
+    });
+
+    if (results && showVoltageOverlay) {
+      const legendX = -size.width / 2 / scale + 14 / scale;
+      const legendY = -size.height / 2 / scale + 14 / scale;
+      ctx.fillStyle = 'rgba(255,255,255,0.92)';
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.lineWidth = 1 / scale;
+      ctx.fillRect(legendX, legendY, 116, 58);
+      ctx.strokeRect(legendX, legendY, 116, 58);
+      ctx.textAlign = 'left';
+      ctx.font = '10px "Segoe UI", sans-serif';
+      const rows: [string, string][] = [
+        ['#15803d', 'Voltage within limits'],
+        ['#d97706', 'Voltage violation'],
+        ['#dc2626', 'Severe violation'],
+      ];
+      rows.forEach(([color, label], index) => {
+        ctx.fillStyle = color;
+        ctx.fillRect(legendX + 8, legendY + 10 + index * 14, 9, 9);
+        ctx.fillStyle = '#334155';
+        ctx.fillText(label, legendX + 22, legendY + 18 + index * 14);
+      });
+    }
+
+    if (system.buses.length === 0) {
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '13px "Segoe UI", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Add a bus from the component browser to start the one-line diagram', 0, 0);
+    }
+
+    ctx.restore();
+  }, [
+    busById,
+    connectFrom,
+    cursorWorld,
+    hover,
+    offset,
+    results,
+    scale,
+    selection,
+    showBusNames,
+    showFlowOverlay,
+    showGrid,
+    showVoltageOverlay,
+    size,
+    system,
+  ]);
+
+  useEffect(() => {
+    draw();
+  }, [draw]);
+
+  const hitTest = useCallback(
+    (worldX: number, worldY: number): Selection => {
+      for (const device of deviceHitsRef.current) {
+        if (Math.hypot(worldX - device.x, worldY - device.y) < 18) {
+          return { type: device.kind, id: device.id };
+        }
+      }
+      for (const bus of system.buses) {
+        if (Math.hypot(worldX - bus.x * GRID_UNIT, worldY - bus.y * GRID_UNIT) < 34) {
+          return { type: 'bus', id: bus.id };
+        }
+      }
+      for (const line of system.lines) {
+        const from = busById.get(line.fromBus);
+        const to = busById.get(line.toBus);
+        if (!from || !to) continue;
+        if (
+          pointSegmentDistance(
+            worldX,
+            worldY,
+            from.x * GRID_UNIT,
+            from.y * GRID_UNIT,
+            to.x * GRID_UNIT,
+            to.y * GRID_UNIT
+          ) < 12
+        ) {
+          return { type: 'line', id: line.id };
+        }
+      }
+      for (const txf of system.transformers) {
+        const from = busById.get(txf.fromBus);
+        const to = busById.get(txf.toBus);
+        if (!from || !to) continue;
+        if (
+          pointSegmentDistance(
+            worldX,
+            worldY,
+            from.x * GRID_UNIT,
+            from.y * GRID_UNIT,
+            to.x * GRID_UNIT,
+            to.y * GRID_UNIT
+          ) < 14
+        ) {
+          return { type: 'transformer', id: txf.id };
+        }
+      }
+      return { type: null, id: null };
+    },
+    [busById, system]
+  );
+
+  const handleMouseDown = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    if (event.button === 1 || tool === 'pan') {
+      panRef.current = { x: event.clientX, y: event.clientY, offsetX: offset.x, offsetY: offset.y };
+      event.preventDefault();
+      return;
+    }
+    if (event.button !== 0) return;
+
+    const world = toWorld(event.clientX, event.clientY);
+    const hit = hitTest(world.x, world.y);
+
+    if ((tool === 'line' || tool === 'transformer') && hit.type === 'bus' && hit.id) {
+      if (!connectFrom) {
+        setConnectFrom(hit.id);
+        onSelect(hit);
+      } else if (connectFrom !== hit.id) {
+        onBranchConnect(connectFrom, hit.id);
+        setConnectFrom(null);
+      } else {
+        setConnectFrom(null);
+      }
+      return;
+    }
+
+    if (hit.type === 'bus' && hit.id) {
+      const bus = busById.get(hit.id);
+      if (bus) {
+        dragRef.current = {
+          busId: hit.id,
+          dx: world.x - bus.x * GRID_UNIT,
+          dy: world.y - bus.y * GRID_UNIT,
+        };
+      }
+    }
+    onSelect(hit);
+  };
+
+  const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    const world = toWorld(event.clientX, event.clientY);
+    setCursorWorld(world);
+    onCursorMove?.(world);
+
+    if (panRef.current) {
+      setOffset({
+        x: panRef.current.offsetX + (event.clientX - panRef.current.x),
+        y: panRef.current.offsetY + (event.clientY - panRef.current.y),
+      });
+      return;
+    }
+
+    if (dragRef.current) {
+      let x = (world.x - dragRef.current.dx) / GRID_UNIT;
+      let y = (world.y - dragRef.current.dy) / GRID_UNIT;
+      if (snapToGrid) {
+        x = Math.round(x / SNAP) * SNAP;
+        y = Math.round(y / SNAP) * SNAP;
+      }
+      onMoveBus(dragRef.current.busId, x, y);
+      return;
+    }
+
+    const hit = hitTest(world.x, world.y);
+    setHover(prev => (prev.type === hit.type && prev.id === hit.id ? prev : hit));
+  };
+
+  const endInteraction = () => {
+    dragRef.current = null;
+    panRef.current = null;
+  };
+
+  const handleContextMenu = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    event.preventDefault();
+    const world = toWorld(event.clientX, event.clientY);
+    const hit = hitTest(world.x, world.y);
+    if (hit.type) onSelect(hit);
+    onContextMenu(hit, event.clientX, event.clientY);
+  };
+
+  const handleDrop = (event: React.DragEvent<HTMLCanvasElement>) => {
+    event.preventDefault();
+    const kind = event.dataTransfer.getData('application/x-psat-component');
+    if (!kind) return;
+    const world = toWorld(event.clientX, event.clientY);
+    let x = world.x / GRID_UNIT;
+    let y = world.y / GRID_UNIT;
+    if (snapToGrid) {
+      x = Math.round(x / SNAP) * SNAP;
+      y = Math.round(y / SNAP) * SNAP;
+    }
+    onDropComponent(kind, { x, y });
+  };
+
+  const handleDoubleClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    const world = toWorld(event.clientX, event.clientY);
+    const hit = hitTest(world.x, world.y);
+    if (hit.type && hit.id) {
+      onSelect(hit);
+      onDoubleClickElement?.(hit);
+    }
+  };
+
+  const cursor =
+    tool === 'pan'
+      ? 'grab'
+      : tool === 'line' || tool === 'transformer'
+        ? 'crosshair'
+        : hover.type
+          ? 'pointer'
+          : 'default';
+
+  return (
+    <div ref={wrapRef} className="relative h-full w-full overflow-hidden bg-white" data-testid="canvas">
+      <canvas
+        ref={canvasRef}
+        className="block"
+        style={{ cursor }}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={endInteraction}
+        onMouseLeave={() => {
+          endInteraction();
+          setHover({ type: null, id: null });
+          setCursorWorld(null);
+          onCursorMove?.(null);
+        }}
+        onWheel={event => {
+          event.preventDefault();
+          zoomBy(event.deltaY > 0 ? 0.9 : 1.1, { x: event.clientX, y: event.clientY });
+        }}
+        onContextMenu={handleContextMenu}
+        onDoubleClick={handleDoubleClick}
+        onDragOver={event => event.preventDefault()}
+        onDrop={handleDrop}
+      />
+      {connectFrom && (
+        <div className="pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 rounded bg-blue-600 px-3 py-1 text-xs font-medium text-white shadow">
+          Select the second bus to create the {tool === 'line' ? 'line' : 'transformer'} (Esc to cancel)
+        </div>
+      )}
+    </div>
+  );
+});
+
+export default Canvas;

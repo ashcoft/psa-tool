@@ -1,80 +1,71 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { forwardRef } from 'react';
 import HomePage from './page';
 
-// Mock the Canvas component
 vi.mock('@/components/Canvas', () => ({
-  default: () => <div data-testid="canvas">Canvas</div>,
+  default: forwardRef(function MockCanvas(_props: unknown, _ref: unknown) {
+    return <div data-testid="canvas">Canvas</div>;
+  }),
 }));
 
-// Mock the Ribbon component
-vi.mock('@/components/Ribbon', () => ({
-  default: () => <div data-testid="ribbon">Ribbon</div>,
-}));
-
-// Mock the Toolbar component
-vi.mock('@/components/Toolbar', () => ({
-  default: () => <div data-testid="toolbar">Toolbar</div>,
-}));
-
-// Mock the Sidebar component
-vi.mock('@/components/Sidebar', () => ({
-  default: () => <div data-testid="sidebar">Sidebar</div>,
-}));
-
-// Mock the PropertiesPanel component
-vi.mock('@/components/PropertiesPanel', () => ({
-  default: () => <div data-testid="properties-panel">Properties Panel</div>,
-}));
-
-// Mock the OutputWindow component
-vi.mock('@/components/OutputWindow', () => ({
-  default: () => <div data-testid="output-window">Output Window</div>,
-}));
-
-// Mock the SettingsDialog component
-vi.mock('@/components/SettingsDialog', () => ({
-  default: () => <div data-testid="settings-dialog">Settings Dialog</div>,
-}));
-
-describe('HomePage', () => {
-  it('should render without crashing', () => {
+describe('PSAT Web application shell', () => {
+  it('renders the ETAP-style workbench', () => {
     render(<HomePage />);
-    expect(screen.getByText('⚡ PSAT')).toBeInTheDocument();
-  });
-
-  it('should display the title', () => {
-    render(<HomePage />);
-    expect(screen.getByText('Power System Analysis Toolbox')).toBeInTheDocument();
-  });
-
-  it('should render all main components', () => {
-    render(<HomePage />);
+    expect(screen.getByTestId('titlebar')).toBeInTheDocument();
     expect(screen.getByTestId('ribbon')).toBeInTheDocument();
     expect(screen.getByTestId('toolbar')).toBeInTheDocument();
     expect(screen.getByTestId('sidebar')).toBeInTheDocument();
     expect(screen.getByTestId('canvas')).toBeInTheDocument();
-    expect(screen.getByTestId('output-window')).toBeInTheDocument();
     expect(screen.getByTestId('properties-panel')).toBeInTheDocument();
+    expect(screen.getByTestId('output-window')).toBeInTheDocument();
+    expect(screen.getByTestId('statusbar')).toBeInTheDocument();
   });
 
-  it('should display initial status bar information', () => {
+  it('shows the project name and ribbon tabs', () => {
     render(<HomePage />);
-    expect(screen.getByText(/Buses:/)).toBeInTheDocument();
-    expect(screen.getByText(/Lines:/)).toBeInTheDocument();
-    expect(screen.getByText(/Transformers:/)).toBeInTheDocument();
-    expect(screen.getByText(/Loads:/)).toBeInTheDocument();
-    expect(screen.getByText(/Generators:/)).toBeInTheDocument();
-    expect(screen.getByText(/Base: 100 MVA/)).toBeInTheDocument();
-    expect(screen.getByText(/Frequency: 50 Hz/)).toBeInTheDocument();
+    expect(screen.getByText('PSAT Web')).toBeInTheDocument();
+    expect(screen.getByText('Demo 4-Bus System')).toBeInTheDocument();
+    ['Home', 'Components', 'Analysis', 'Results', 'Tools'].forEach(tab => {
+      expect(screen.getByRole('tab', { name: tab })).toBeInTheDocument();
+    });
   });
 
-  it('should have menu items in title bar', () => {
+  it('shows system summary in the status bar', () => {
     render(<HomePage />);
-    expect(screen.getByText('File')).toBeInTheDocument();
-    expect(screen.getByText('Edit')).toBeInTheDocument();
-    expect(screen.getByText('View')).toBeInTheDocument();
-    expect(screen.getByText('Analysis')).toBeInTheDocument();
-    expect(screen.getByText('Help')).toBeInTheDocument();
+    expect(screen.getByText('Buses: 4')).toBeInTheDocument();
+    expect(screen.getByText('Lines: 3')).toBeInTheDocument();
+    expect(screen.getByText('Transformers: 0')).toBeInTheDocument();
+    expect(screen.getByText('Loads: 2')).toBeInTheDocument();
+    expect(screen.getByText('Generators: 2')).toBeInTheDocument();
+    expect(screen.getByText('Base: 100 MVA')).toBeInTheDocument();
+    expect(screen.getByText('Frequency: 50 Hz')).toBeInTheDocument();
+  });
+
+  it('adds a bus from the component palette', async () => {
+    const user = userEvent.setup();
+    render(<HomePage />);
+    await user.click(screen.getByRole('button', { name: /PQ Bus/i }));
+    expect(screen.getByText('Buses: 5')).toBeInTheDocument();
+  });
+
+  it('runs a load flow and opens the results dialog', async () => {
+    const user = userEvent.setup();
+    render(<HomePage />);
+    const runButtons = screen.getAllByRole('button', { name: /Run Load Flow/i });
+    await user.click(runButtons[0]);
+    await waitFor(() => {
+      expect(screen.getByText('Study Results')).toBeInTheDocument();
+    }, { timeout: 5000 });
+    expect(screen.getByText('COMPLETED')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Bus Results' })).toBeInTheDocument();
+  });
+
+  it('opens the options dialog', async () => {
+    const user = userEvent.setup();
+    render(<HomePage />);
+    await user.click(screen.getByRole('button', { name: /^Options$/i }));
+    expect(screen.getByText('Study & Application Options')).toBeInTheDocument();
   });
 });

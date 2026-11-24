@@ -1,277 +1,987 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
-import dynamic from 'next/dynamic';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import TitleBar from '@/components/TitleBar';
 import Ribbon from '@/components/Ribbon';
 import Toolbar from '@/components/Toolbar';
 import Sidebar from '@/components/Sidebar';
 import PropertiesPanel from '@/components/PropertiesPanel';
 import OutputWindow from '@/components/OutputWindow';
 import SettingsDialog from '@/components/SettingsDialog';
-import { PowerSystem, PowerFlowResult } from '@/types';
-import { createDefaultSystem } from '@/lib/powerflow';
+import SampleDialog from '@/components/SampleDialog';
+import ResultsDialog from '@/components/ResultsDialog';
+import ReportDialog from '@/components/ReportDialog';
+import { AboutDialog, ShortcutsDialog, ValidationDialog } from '@/components/InfoDialogs';
+import Canvas, { CanvasHandle, CanvasTool } from '@/components/Canvas';
+import Icon from '@/components/Icon';
+import { Bus } from '@/types';
+import { useProject, Selection } from '@/lib/useProject';
+import { AppSettings, defaultSettings, loadSettings, saveSettings } from '@/lib/settings';
+import { buildDemoSystem, buildSample } from '@/lib/samples';
+import {
+  deserializeProject,
+  downloadFile,
+  emptySystem,
+  safeFileName,
+  serializeProject,
+  systemStats,
+} from '@/lib/project';
+import { runStudy as executeStudy, StudyKind, StudyRun } from '@/lib/studies';
+import { studyToCSV } from '@/lib/results-export';
 import '@/app/globals.css';
 
-// Dynamically import Canvas to avoid SSR issues
-const Canvas = dynamic(() => import('@/components/Canvas'), { ssr: false });
+type DialogKind = 'settings' | 'samples' | 'results' | 'about' | 'shortcuts' | 'validation' | null;
+
+interface Toast {
+  type: 'success' | 'error' | 'info';
+  text: string;
+}
+
+const studyLabels: Record<StudyKind, string> = {
+  powerflow: 'Load Flow',
+  cpf: 'Continuation Power Flow',
+  opf: 'Optimal Power Flow',
+  fault: 'Short Circuit',
+  stability: 'Small-Signal Stability',
+  timeseries: 'Time-Domain Simulation',
+};
 
 export default function Home() {
-  const [system, setSystem] = useState<PowerSystem>(createDefaultSystem());
-  const [selectedBus, setSelectedBus] = useState<string | null>(null);
-  const [selectedLine, setSelectedLine] = useState<string | null>(null);
+  const project = useProject(buildDemoSystem());
+  const [selection, setSelection] = useState<Selection>({ type: null, id: null });
+  const [tool, setTool] = useState<CanvasTool>('select');
+  const [settings, setSettings] = useState<AppSettings>(defaultSettings);
+  const [revision, setRevision] = useState(0);
   const [activeTab, setActiveTab] = useState('home');
-  const [powerFlowResults, setPowerFlowResults] = useState<PowerFlowResult | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [output, setOutput] = useState<string[]>([]);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [propertiesPanelCollapsed, setPropertiesPanelCollapsed] = useState(false);
-  
-  // Store system ref for use in callbacks
-  const systemRef = useRef(system);
-  
-  // Update ref when system changes
-  useEffect(() => {
-    systemRef.current = system;
-  }, [system]);
-  
-  const addOutput = useCallback((message: string) => {
-    setOutput(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${message}`]);
+  const [runs, setRuns] = useState<StudyRun[]>([]);
+  const [activeRunId, setActiveRunId] = useState<string | null>(null);
+  const [dialog, setDialog] = useState<DialogKind>(null);
+  const [reportRunId, setReportRunId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<string[]>([
+    'PSAT Web ready. Demo 4-bus system loaded.',
+    'Use the Components tab or drag components onto the diagram to build a network.',
+  ]);
+  const [busy, setBusy] = useState(false);
+  const [toast, setToast] = useState<Toast | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; selection: Selection } | null>(null);
+  const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
+
+  const canvasRef = useRef<CanvasHandle>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const settingsLoaded = useRef(false);
+
+  const log = useCallback((text: string) => {
+    setMessages(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${text}`].slice(-400));
   }, []);
-  
-  const handleRunPowerFlow = useCallback(async () => {
-    setIsProcessing(true);
-    addOutput('Starting Power Flow analysis...');
-    
-    // Simulate calculation delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Import power flow solver
-    const { PowerFlowSolver } = await import('@/lib/powerflow');
-    const solver = new PowerFlowSolver(systemRef.current);
-    
-    try {
-      const results = solver.solve();
-      setPowerFlowResults(results);
-      addOutput(`Power Flow converged: ${results.converged}`);
-      addOutput(`Iterations: ${results.iterations}`);
-      addOutput(`Max Mismatch: ${results.maxMismatch.toExponential(3)}`);
-      addOutput(`Total Losses: ${results.losses.real.toFixed(4)} MW`);
-    } catch (error) {
-      addOutput(`Error: ${error}`);
-    }
-    
-    setIsProcessing(false);
-  }, [addOutput]);
-  
-  const handleAction = useCallback((action: string) => {
-    switch (action) {
-      case 'power-flow':
-        handleRunPowerFlow();
-        break;
-      case 'settings':
-        setShowSettings(true);
-        break;
-      case 'zoom-in':
-        // handled in canvas
-        break;
-      case 'add-bus':
-        // handled in sidebar
-        break;
-      default:
-        addOutput(`Action: ${action}`);
-    }
-  }, [handleRunPowerFlow, addOutput]);
-  
-  const handleUpdateBusPosition = (busId: string, x: number, y: number) => {
-    setSystem(prev => ({
-      ...prev,
-      buses: prev.buses.map(bus => 
-        bus.id === busId ? { ...bus, x, y } : bus
-      )
-    }));
-  };
-  
-  const handleAddBus = (type: 'slack' | 'pv' | 'pq') => {
-    const newId = `bus_${Date.now()}`;
-    const newBus = {
-      id: newId,
-      name: `Bus ${system.buses.length + 1}`,
-      type,
-      voltage: type === 'slack' ? 1.0 : type === 'pv' ? 1.05 : 1.0,
-      angle: 0,
-      vmin: 0.9,
-      vmax: 1.1,
-      area: 1,
-      region: 1,
-      x: Math.random() * 5 - 2.5,
-      y: Math.random() * 5 - 2.5,
-      active: true
+
+  useEffect(() => {
+    // Settings live in localStorage, which is only available after hydration.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSettings(loadSettings());
+    settingsLoaded.current = true;
+  }, []);
+
+  useEffect(() => {
+    if (settingsLoaded.current) saveSettings(settings);
+  }, [settings]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 4000);
+    return () => clearTimeout(timer);
+  }, [toast]);
+
+  useEffect(() => {
+    const close = () => setContextMenu(null);
+    window.addEventListener('mousedown', close);
+    window.addEventListener('blur', close);
+    return () => {
+      window.removeEventListener('mousedown', close);
+      window.removeEventListener('blur', close);
     };
-    
-    setSystem(prev => ({
-      ...prev,
-      buses: [...prev.buses, newBus]
-    }));
-    addOutput(`Added ${type} bus: ${newId}`);
-  };
-  
-  const handleAddLine = () => {
-    if (system.buses.length < 2) {
-      addOutput('Need at least 2 buses to create a line');
+  }, []);
+
+  const stats = useMemo(() => systemStats(project.system), [project.system]);
+  const activeRun = runs.find(run => run.id === activeRunId) ?? runs[runs.length - 1] ?? null;
+  const reportRun = runs.find(run => run.id === reportRunId) ?? null;
+  const errorCount = project.issues.filter(issue => issue.severity === 'error').length;
+
+  const selectedBusId = useCallback((): string | null => {
+    if (!selection.id) return project.system.buses[0]?.id ?? null;
+    switch (selection.type) {
+      case 'bus':
+        return selection.id;
+      case 'generator':
+        return project.system.generators.find(item => item.id === selection.id)?.bus ?? null;
+      case 'load':
+        return project.system.loads.find(item => item.id === selection.id)?.bus ?? null;
+      case 'shunt':
+        return (project.system.shunts ?? []).find(item => item.id === selection.id)?.bus ?? null;
+      default:
+        return project.system.buses[0]?.id ?? null;
+    }
+  }, [project.system, selection]);
+
+  const runStudy = useCallback(
+    (kind: StudyKind) => {
+      if (busy) return;
+      if (project.system.buses.length === 0) {
+        log('Cannot run a study: the project has no buses.');
+        setToast({ type: 'error', text: 'Add at least one bus before running a study.' });
+        return;
+      }
+      if (errorCount > 0) {
+        log(`Cannot run ${studyLabels[kind]}: ${project.issues.find(issue => issue.severity === 'error')?.message}`);
+        setDialog('validation');
+        return;
+      }
+
+      setBusy(true);
+      log(`Running ${studyLabels[kind]}...`);
+      window.setTimeout(() => {
+        try {
+          const run = executeStudy(kind, project.system, settings);
+          setRuns(prev => [...prev, run]);
+          setActiveRunId(run.id);
+          run.messages.forEach(message => log(message));
+          log(`${run.title}: ${run.summary}`);
+          setDialog('results');
+          setToast({
+            type: run.status === 'success' ? 'success' : 'error',
+            text: `${run.title}: ${run.summary}`,
+          });
+        } catch (error) {
+          const text = error instanceof Error ? error.message : String(error);
+          log(`Study failed: ${text}`);
+          setToast({ type: 'error', text: `Study failed: ${text}` });
+        } finally {
+          setBusy(false);
+        }
+      }, 40);
+    },
+    [busy, errorCount, log, project.issues, project.system, settings]
+  );
+
+  const saveProject = useCallback(
+    (name?: string) => {
+      const finalName = (name ?? project.name).trim() || 'Untitled Project';
+      const payload = serializeProject({ ...project.system, name: finalName }, finalName);
+      const filename = safeFileName(finalName, 'json');
+      downloadFile(filename, payload, 'application/json');
+      project.markSaved();
+      log(`Project saved as ${filename}`);
+      setToast({ type: 'success', text: `Saved ${filename}` });
+    },
+    [log, project]
+  );
+
+  const newProject = useCallback(() => {
+    if (project.dirty && typeof window !== 'undefined' && !window.confirm('Discard unsaved changes?')) return;
+    project.replaceSystem(emptySystem('Untitled Project'));
+    setRevision(value => value + 1);
+    setRuns([]);
+    setActiveRunId(null);
+    setSelection({ type: null, id: null });
+    setTool('select');
+    log('New project created.');
+    setToast({ type: 'info', text: 'New project created' });
+  }, [log, project]);
+
+  const openProject = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const loadProjectFile = useCallback(
+    async (file: File) => {
+      try {
+        const text = await file.text();
+        const { system, name } = deserializeProject(text);
+        project.replaceSystem(system, name);
+        setRevision(value => value + 1);
+        setRuns([]);
+        setActiveRunId(null);
+        setSelection({ type: null, id: null });
+        setTool('select');
+        log(`Opened project "${name}" (${system.buses.length} buses).`);
+        setToast({ type: 'success', text: `Opened ${name}` });
+      } catch (error) {
+        const text = error instanceof Error ? error.message : String(error);
+        log(`Open failed: ${text}`);
+        setToast({ type: 'error', text: `Open failed: ${text}` });
+      }
+    },
+    [log, project]
+  );
+
+  const loadSample = useCallback(
+    (id: string) => {
+      const system = buildSample(id);
+      project.replaceSystem(system, system.name);
+      setRevision(value => value + 1);
+      setRuns([]);
+      setActiveRunId(null);
+      setSelection({ type: null, id: null });
+      setTool('select');
+      log(`Loaded sample system "${system.name}".`);
+      setToast({ type: 'success', text: `Loaded ${system.name}` });
+    },
+    [log, project]
+  );
+
+  const addBus = useCallback(
+    (type: Bus['type'], position?: { x: number; y: number }) => {
+      const bus = project.addBus(type, position);
+      if (bus) {
+        setSelection({ type: 'bus', id: bus.id });
+        log(`Added ${type} bus "${bus.name}".`);
+        setToast({ type: 'success', text: `Added ${type} bus` });
+      }
+    },
+    [log, project]
+  );
+
+  const addDevice = useCallback(
+    (kind: 'generator' | 'load' | 'shunt') => {
+      let busId = selectedBusId();
+      if (!busId) {
+        const bus = project.addBus('slack');
+        busId = bus?.id ?? null;
+        if (bus) log(`Created slack bus "${bus.name}" for the new ${kind}.`);
+      }
+      if (!busId) {
+        log(`Cannot add ${kind}: no bus available.`);
+        return;
+      }
+      project.addDevice(kind, busId);
+      log(`Added ${kind} at bus ${busId}.`);
+      setToast({ type: 'success', text: `Added ${kind}` });
+    },
+    [log, project, selectedBusId]
+  );
+
+  const handleBranchConnect = useCallback(
+    (fromBus: string, toBus: string) => {
+      const kind = tool === 'transformer' ? 'transformer' : 'line';
+      project.addBranch(kind, fromBus, toBus);
+      log(`Added ${kind} from ${fromBus} to ${toBus}.`);
+      setToast({ type: 'success', text: `Added ${kind}` });
+      setTool('select');
+    },
+    [log, project, tool]
+  );
+
+  const handleDropComponent = useCallback(
+    (kind: string, position: { x: number; y: number }) => {
+      if (kind.startsWith('bus-')) {
+        const type = kind.slice(4) as Bus['type'];
+        addBus(type, position);
+        return;
+      }
+      if (kind === 'line' || kind === 'transformer') {
+        setTool(kind);
+        setActiveTab('components');
+        log(`Select two buses on the diagram to create the ${kind}.`);
+        return;
+      }
+      if (kind === 'generator' || kind === 'load' || kind === 'shunt') {
+        const nearest = project.system.buses.reduce<{ id: string; distance: number } | null>((best, bus) => {
+          const distance = Math.hypot(bus.x - position.x, bus.y - position.y);
+          if (!best || distance < best.distance) return { id: bus.id, distance };
+          return best;
+        }, null);
+        let busId = nearest?.id ?? null;
+        if (!busId) {
+          const bus = project.addBus('slack', position);
+          busId = bus?.id ?? null;
+        }
+        if (busId) {
+          project.addDevice(kind, busId);
+          log(`Added ${kind} at bus ${busId}.`);
+          setToast({ type: 'success', text: `Added ${kind}` });
+        }
+        return;
+      }
+      log(`Component "${kind}" is a protection/measurement device. It is considered in the Short Circuit study.`);
+    },
+    [addBus, log, project]
+  );
+
+  const deleteSelection = useCallback(() => {
+    if (!selection.type || !selection.id) return;
+    const label = `${selection.type} ${selection.id}`;
+    project.deleteElement(selection.type, selection.id);
+    setSelection({ type: null, id: null });
+    log(`Deleted ${label}.`);
+  }, [log, project, selection]);
+
+  const duplicateSelection = useCallback(() => {
+    if (!selection.type || !selection.id) return;
+    project.duplicateElement(selection.type, selection.id);
+    log(`Duplicated ${selection.type} ${selection.id}.`);
+  }, [log, project, selection]);
+
+  const copySelection = useCallback(() => {
+    if (!selection.type || !selection.id) return;
+    project.copyElement(selection.type, selection.id);
+    log(`Copied ${selection.type} ${selection.id}.`);
+  }, [log, project, selection]);
+
+  const cutSelection = useCallback(() => {
+    if (!selection.type || !selection.id) return;
+    project.copyElement(selection.type, selection.id);
+    project.deleteElement(selection.type, selection.id);
+    setSelection({ type: null, id: null });
+    log(`Cut ${selection.type}.`);
+  }, [log, project, selection]);
+
+  const exportCSV = useCallback(() => {
+    if (!activeRun) {
+      log('No results to export. Run a study first.');
       return;
     }
-    const newId = `line_${Date.now()}`;
-    const newLine = {
-      id: newId,
-      fromBus: system.buses[0].id,
-      toBus: system.buses[1].id,
-      resistance: 0.02,
-      reactance: 0.04,
-      susceptance: 0,
-      rating: 100,
-      active: true
+    const filename = safeFileName(`${project.name}-${activeRun.kind}`, 'csv');
+    downloadFile(filename, studyToCSV(activeRun, project.system), 'text/csv');
+    log(`Exported results to ${filename}.`);
+    setToast({ type: 'success', text: `Exported ${filename}` });
+  }, [activeRun, log, project.name, project.system]);
+
+  const toggleSetting = useCallback(
+    (key: 'showGrid' | 'showBusNames' | 'showVoltageOverlay' | 'showFlowOverlay') => {
+      setSettings(prev => ({ ...prev, [key]: !prev[key] }));
+    },
+    []
+  );
+
+  const handleAction = (action: string) => {
+    setContextMenu(null);
+    switch (action) {
+      case 'new':
+        newProject();
+        break;
+      case 'open':
+        openProject();
+        break;
+      case 'save':
+        saveProject();
+        break;
+      case 'save-as': {
+        const name = typeof window !== 'undefined' ? window.prompt('Save project as', project.name) : null;
+        if (name && name.trim()) {
+          project.setName(name.trim());
+          saveProject(name.trim());
+        }
+        break;
+      }
+      case 'export':
+        downloadFile(
+          safeFileName(project.name, 'json'),
+          serializeProject(project.system, project.name),
+          'application/json'
+        );
+        log(`Exported project ${project.name}.`);
+        break;
+      case 'samples':
+        setDialog('samples');
+        break;
+      case 'undo':
+        project.undo();
+        setSelection({ type: null, id: null });
+        setRevision(value => value + 1);
+        log('Undo.');
+        break;
+      case 'redo':
+        project.redo();
+        setSelection({ type: null, id: null });
+        setRevision(value => value + 1);
+        log('Redo.');
+        break;
+      case 'copy':
+        copySelection();
+        break;
+      case 'cut':
+        cutSelection();
+        break;
+      case 'paste':
+        project.pasteElement();
+        log('Pasted element.');
+        break;
+      case 'duplicate':
+        duplicateSelection();
+        break;
+      case 'delete':
+        deleteSelection();
+        break;
+      case 'select-all':
+        if (project.system.buses[0]) {
+          setSelection({ type: 'bus', id: project.system.buses[0].id });
+          log('Selected the first bus. Use the project tree to navigate between elements.');
+        }
+        break;
+      case 'tool-select':
+        setTool('select');
+        break;
+      case 'tool-pan':
+        setTool('pan');
+        break;
+      case 'tool-line':
+        setTool('line');
+        setActiveTab('components');
+        log('Line tool active: click the first bus, then the second bus.');
+        break;
+      case 'tool-transformer':
+        setTool('transformer');
+        setActiveTab('components');
+        log('Transformer tool active: click the first bus, then the second bus.');
+        break;
+      case 'zoom-in':
+        canvasRef.current?.zoomIn();
+        break;
+      case 'zoom-out':
+        canvasRef.current?.zoomOut();
+        break;
+      case 'fit':
+        canvasRef.current?.fit();
+        break;
+      case 'arrange':
+        project.autoArrange();
+        log('Auto-arranged the one-line diagram.');
+        break;
+      case 'toggle-grid':
+        toggleSetting('showGrid');
+        break;
+      case 'toggle-names':
+        toggleSetting('showBusNames');
+        break;
+      case 'toggle-voltage':
+        toggleSetting('showVoltageOverlay');
+        break;
+      case 'toggle-flow':
+        toggleSetting('showFlowOverlay');
+        break;
+      case 'add-slack':
+        addBus('slack');
+        break;
+      case 'add-pv':
+        addBus('pv');
+        break;
+      case 'add-pq':
+        addBus('pq');
+        break;
+      case 'add-generator':
+        addDevice('generator');
+        break;
+      case 'add-load':
+        addDevice('load');
+        break;
+      case 'add-shunt':
+        addDevice('shunt');
+        break;
+      case 'add-note':
+        log('Breakers, relays and meters are protection devices used by the Short Circuit study.');
+        setToast({ type: 'info', text: 'Protection devices are handled by the Short Circuit study' });
+        break;
+      case 'run-powerflow':
+        runStudy('powerflow');
+        break;
+      case 'run-cpf':
+        runStudy('cpf');
+        break;
+      case 'run-opf':
+        runStudy('opf');
+        break;
+      case 'run-fault':
+        runStudy('fault');
+        break;
+      case 'run-stability':
+        runStudy('stability');
+        break;
+      case 'run-timeseries':
+        runStudy('timeseries');
+        break;
+      case 'open-results':
+        if (runs.length === 0) {
+          log('No study results yet. Run a study first.');
+        } else {
+          setDialog('results');
+        }
+        break;
+      case 'open-history':
+        setDialog('results');
+        break;
+      case 'clear-results':
+        setRuns([]);
+        setActiveRunId(null);
+        log('Cleared all study results.');
+        break;
+      case 'export-csv':
+        exportCSV();
+        break;
+      case 'report':
+        if (activeRun) setReportRunId(activeRun.id);
+        else {
+          log('No results available for a report. Run a study first.');
+          setToast({ type: 'error', text: 'Run a study before generating a report' });
+        }
+        break;
+      case 'print':
+        if (typeof window !== 'undefined') window.print();
+        break;
+      case 'validate':
+        setDialog('validation');
+        log(
+          project.issues.length === 0
+            ? 'Model check passed.'
+            : `Model check found ${project.issues.length} issue(s).`
+        );
+        break;
+      case 'settings':
+        setDialog('settings');
+        break;
+      case 'shortcuts':
+        setDialog('shortcuts');
+        break;
+      case 'about':
+        setDialog('about');
+        break;
+      case 'focus-properties':
+        log('Edit the selected element in the Properties panel.');
+        break;
+      case 'escape':
+        setTool('select');
+        setDialog(null);
+        setContextMenu(null);
+        break;
+      default:
+        log(`Action "${action}" is not available.`);
+    }
+  };
+
+  const actionRef = useRef(handleAction);
+
+  useEffect(() => {
+    actionRef.current = handleAction;
+  });
+
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (
+        target &&
+        (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable)
+      ) {
+        return;
+      }
+      const ctrl = event.ctrlKey || event.metaKey;
+      if (ctrl) {
+        const key = event.key.toLowerCase();
+        const map: Record<string, string> = {
+          n: 'new',
+          o: 'open',
+          s: 'save',
+          z: 'undo',
+          y: 'redo',
+          c: 'copy',
+          v: 'paste',
+          x: 'cut',
+          d: 'duplicate',
+          '0': 'fit',
+          '=': 'zoom-in',
+          '+': 'zoom-in',
+          '-': 'zoom-out',
+        };
+        const action = map[key];
+        if (action) {
+          event.preventDefault();
+          actionRef.current(action);
+        }
+        return;
+      }
+
+      switch (event.key) {
+        case 'Delete':
+        case 'Backspace':
+          event.preventDefault();
+          actionRef.current('delete');
+          break;
+        case 'F5':
+          event.preventDefault();
+          actionRef.current('run-powerflow');
+          break;
+        case 'F6':
+          event.preventDefault();
+          actionRef.current('run-cpf');
+          break;
+        case 'F7':
+          event.preventDefault();
+          actionRef.current('run-fault');
+          break;
+        case 'F8':
+          event.preventDefault();
+          actionRef.current('run-opf');
+          break;
+        case 'F9':
+          event.preventDefault();
+          actionRef.current('run-timeseries');
+          break;
+        case 'F10':
+          event.preventDefault();
+          actionRef.current('open-results');
+          break;
+        case 'Escape':
+          actionRef.current('escape');
+          break;
+        default:
+          break;
+      }
     };
-    
-    setSystem(prev => ({
-      ...prev,
-      lines: [...prev.lines, newLine]
-    }));
-    addOutput(`Added line: ${newId}`);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  const toggles = {
+    'tool-select': tool === 'select',
+    'tool-pan': tool === 'pan',
+    'tool-line': tool === 'line',
+    'tool-transformer': tool === 'transformer',
+    grid: settings.showGrid,
+    names: settings.showBusNames,
+    voltage: settings.showVoltageOverlay,
+    flow: settings.showFlowOverlay,
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
-      {/* Title Bar */}
-      <div className="flex items-center justify-between bg-blue-700 text-white px-4 py-2 shadow-md">
-        <div className="flex items-center gap-3">
-          <span className="text-xl font-bold">⚡ PSAT</span>
-          <span className="text-sm opacity-75">Power System Analysis Toolbox</span>
-        </div>
-        <div className="flex items-center gap-2 text-sm">
-          <span>File</span>
-          <span>Edit</span>
-          <span>View</span>
-          <span>Analysis</span>
-          <span>Help</span>
-        </div>
-      </div>
-
-      {/* Toolbar */}
-      <Toolbar
-        onNew={() => setSystem(createDefaultSystem())}
-        onOpen={() => addOutput('Open dialog triggered')}
-        onSave={() => addOutput('Save dialog triggered')}
-        onUndo={() => addOutput('Undo')}
-        onRedo={() => addOutput('Redo')}
-        onZoomIn={() => {}}
-        onZoomOut={() => {}}
-        onFit={() => {}}
-        onRunPowerFlow={handleRunPowerFlow}
-        onRunTimeSim={() => addOutput('Time simulation triggered')}
-        isProcessing={isProcessing}
+    <div className="flex h-screen flex-col overflow-hidden bg-[#eef1f5] text-slate-800">
+      <TitleBar
+        projectName={project.name}
+        dirty={project.dirty}
+        canUndo={project.canUndo}
+        canRedo={project.canRedo}
+        onAction={handleAction}
+        onRename={name => {
+          project.setName(name);
+          log(`Renamed project to "${name}".`);
+        }}
       />
 
-      {/* Ribbon */}
       <Ribbon
         activeTab={activeTab}
         onTabChange={setActiveTab}
         onAction={handleAction}
+        toggles={toggles}
+        hasSelection={Boolean(selection.id)}
+        canUndo={project.canUndo}
+        canRedo={project.canRedo}
+        canPaste={project.canPaste}
       />
 
-      {/* Main Content Area */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
-        {!sidebarCollapsed && (
-          <Sidebar
-            system={system}
-            onAddBus={handleAddBus}
-            onAddLine={handleAddLine}
-            onCollapse={() => setSidebarCollapsed(true)}
-          />
-        )}
-        
-        {sidebarCollapsed && (
-          <button
-            onClick={() => setSidebarCollapsed(false)}
-            className="absolute left-0 top-1/2 bg-gray-200 px-1 py-4 rounded-r-lg shadow-md"
-          >
-            ▶
-          </button>
-        )}
+      <Toolbar
+        method={settings.method}
+        onMethodChange={method => {
+          setSettings(prev => ({ ...prev, method }));
+          log(`Load flow method set to ${method}.`);
+        }}
+        onRunPowerFlow={() => runStudy('powerflow')}
+        onRunFault={() => runStudy('fault')}
+        onRunTimeSeries={() => runStudy('timeseries')}
+        onOpenResults={() => setDialog('results')}
+        onOpenSettings={() => setDialog('settings')}
+        isProcessing={busy}
+        hasResults={runs.length > 0}
+        resultSummary={activeRun ? `${activeRun.title}: ${activeRun.summary}` : undefined}
+        issueCount={project.issues.length}
+      />
 
-        {/* Canvas Area */}
-        <div className="flex-1 flex flex-col">
-          <div className="flex-1 bg-white border border-gray-300 relative">
+      <div className="flex min-h-0 flex-1">
+        <Sidebar
+          system={project.system}
+          selection={selection}
+          onSelect={setSelection}
+          onAction={handleAction}
+        />
+
+        <main className="flex min-w-0 flex-1 flex-col">
+          <div className="relative min-h-0 flex-1 border-y border-[#d5dde7] bg-white">
             <Canvas
-              system={system}
-              selectedBus={selectedBus}
-              selectedLine={selectedLine}
-              onSelectBus={setSelectedBus}
-              onSelectLine={setSelectedLine}
-              onUpdateBusPosition={handleUpdateBusPosition}
-              powerFlowResults={powerFlowResults}
+              ref={canvasRef}
+              system={project.system}
+              selection={selection}
+              tool={tool}
+              results={activeRun?.kind === 'powerflow' ? activeRun.data : null}
+              showGrid={settings.showGrid}
+              snapToGrid={settings.snapToGrid}
+              showBusNames={settings.showBusNames}
+              showVoltageOverlay={settings.showVoltageOverlay}
+              showFlowOverlay={settings.showFlowOverlay}
+              onSelect={setSelection}
+              onMoveBus={project.moveBus}
+              onBranchConnect={handleBranchConnect}
+              onDropComponent={handleDropComponent}
+              onContextMenu={(hit, x, y) => setContextMenu({ x, y, selection: hit })}
+              onCursorMove={setCursor}
+              onDoubleClickElement={() => {
+                /* selection already updates the properties panel */
+              }}
             />
-            
-            {/* Canvas controls */}
-            <div className="absolute bottom-4 left-4 flex gap-2">
-              <button className="p-2 bg-white rounded shadow hover:bg-gray-100" title="Pan">
-                ✋
+
+            <div className="absolute left-2 top-2 flex items-center gap-1 rounded border border-[#d5dde7] bg-white/95 px-1 py-0.5 shadow-sm">
+              <button
+                className={`rounded p-1 ${tool === 'select' ? 'bg-[#dbe7f6] text-[#1f4d85]' : 'text-slate-600 hover:bg-slate-100'}`}
+                title="Select tool"
+                onClick={() => setTool('select')}
+              >
+                <Icon name="select" size={14} />
               </button>
-              <button className="p-2 bg-white rounded shadow hover:bg-gray-100" title="Select">
-                ↖
+              <button
+                className={`rounded p-1 ${tool === 'pan' ? 'bg-[#dbe7f6] text-[#1f4d85]' : 'text-slate-600 hover:bg-slate-100'}`}
+                title="Pan tool"
+                onClick={() => setTool('pan')}
+              >
+                <Icon name="pan" size={14} />
               </button>
-              <button className="p-2 bg-white rounded shadow hover:bg-gray-100" title="Zoom">
-                🔍
+              <div className="mx-0.5 h-4 w-px bg-slate-200" />
+              <button className="rounded p-1 text-slate-600 hover:bg-slate-100" title="Zoom in" onClick={() => canvasRef.current?.zoomIn()}>
+                <Icon name="zoomIn" size={14} />
+              </button>
+              <button className="rounded p-1 text-slate-600 hover:bg-slate-100" title="Zoom out" onClick={() => canvasRef.current?.zoomOut()}>
+                <Icon name="zoomOut" size={14} />
+              </button>
+              <button className="rounded p-1 text-slate-600 hover:bg-slate-100" title="Fit to window" onClick={() => canvasRef.current?.fit()}>
+                <Icon name="fit" size={14} />
               </button>
             </div>
+
+            <div className="pointer-events-none absolute right-2 top-2 rounded bg-white/90 px-2 py-0.5 text-[10px] text-slate-500 shadow-sm">
+              {stats.buses} buses · {stats.lines + stats.transformers} branches
+              {tool !== 'select' && <span className="ml-2 font-medium text-[#1f4d85]">Tool: {tool}</span>}
+            </div>
+
+            {contextMenu && (
+              <div
+                className="context-menu"
+                style={{
+                  left: Math.min(contextMenu.x, (typeof window !== 'undefined' ? window.innerWidth : 1200) - 200),
+                  top: Math.min(contextMenu.y, (typeof window !== 'undefined' ? window.innerHeight : 800) - 240),
+                }}
+                onMouseDown={event => event.stopPropagation()}
+              >
+                <button
+                  disabled={!contextMenu.selection.type}
+                  onClick={() => {
+                    handleAction('focus-properties');
+                    setContextMenu(null);
+                  }}
+                >
+                  <Icon name="settings" size={12} /> Properties
+                </button>
+                <button
+                  disabled={!contextMenu.selection.type}
+                  onClick={() => {
+                    handleAction('duplicate');
+                    setContextMenu(null);
+                  }}
+                >
+                  <Icon name="duplicate" size={12} /> Duplicate
+                </button>
+                <button
+                  disabled={!contextMenu.selection.type}
+                  onClick={() => {
+                    handleAction('delete');
+                    setContextMenu(null);
+                  }}
+                >
+                  <Icon name="delete" size={12} /> Delete
+                </button>
+                {contextMenu.selection.type === 'bus' && (
+                  <>
+                    <div className="menu-sep" />
+                    <button
+                      onClick={() => {
+                        setSelection(contextMenu.selection);
+                        setTool('line');
+                        setContextMenu(null);
+                        log('Line tool active: select the second bus.');
+                      }}
+                    >
+                      <Icon name="line" size={12} /> Start line from this bus
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSelection(contextMenu.selection);
+                        addDevice('generator');
+                        setContextMenu(null);
+                      }}
+                    >
+                      <Icon name="generator" size={12} /> Add generator
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSelection(contextMenu.selection);
+                        addDevice('load');
+                        setContextMenu(null);
+                      }}
+                    >
+                      <Icon name="load" size={12} /> Add load
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSelection(contextMenu.selection);
+                        addDevice('shunt');
+                        setContextMenu(null);
+                      }}
+                    >
+                      <Icon name="shunt" size={12} /> Add shunt
+                    </button>
+                  </>
+                )}
+                <div className="menu-sep" />
+                <button
+                  onClick={() => {
+                    canvasRef.current?.fit();
+                    setContextMenu(null);
+                  }}
+                >
+                  <Icon name="fit" size={12} /> Fit view
+                </button>
+              </div>
+            )}
           </div>
-          
-          {/* Output Window */}
-          <OutputWindow
-            messages={output}
-            onClear={() => setOutput([])}
-          />
-        </div>
 
-        {/* Properties Panel */}
-        {!propertiesPanelCollapsed && (
-          <PropertiesPanel
-            system={system}
-            selectedBus={selectedBus}
-            selectedLine={selectedLine}
-            powerFlowResults={powerFlowResults}
-            onUpdateBus={() => {}}
-            onUpdateLine={() => {}}
-            onCollapse={() => setPropertiesPanelCollapsed(true)}
-          />
-        )}
+          <OutputWindow messages={messages} onClear={() => setMessages([])} />
+        </main>
+
+        <PropertiesPanel
+          key={`${selection.type ?? 'none'}:${selection.id ?? 'none'}:${revision}`}
+          system={project.system}
+          selection={selection}
+          results={activeRun?.kind === 'powerflow' ? activeRun.data : null}
+          issues={project.issues}
+          onChange={(kind, element) => {
+            if (!kind) return;
+            project.updateElement(kind, element);
+          }}
+          onDelete={deleteSelection}
+          onDuplicate={duplicateSelection}
+          onMetaChange={changes => project.updateSystemMeta(changes)}
+          onSelect={setSelection}
+        />
       </div>
 
-      {/* Status Bar */}
-      <div className="flex items-center justify-between bg-gray-200 border-t border-gray-300 px-4 py-1 text-xs text-gray-600">
-        <div className="flex items-center gap-4">
-          <span>Buses: {system.buses.length}</span>
-          <span>Lines: {system.lines.length}</span>
-          <span>Transformers: {system.transformers.length}</span>
-          <span>Loads: {system.loads.length}</span>
-          <span>Generators: {system.generators.length}</span>
+      <div className="flex items-center justify-between border-t border-[#c9d2dd] bg-[#eef2f7] px-2 py-0.5 text-[10.5px] text-slate-600" data-testid="statusbar">
+        <div className="flex items-center gap-3">
+          <span>Buses: {stats.buses}</span>
+          <span>Lines: {stats.lines}</span>
+          <span>Transformers: {stats.transformers}</span>
+          <span>Loads: {stats.loads}</span>
+          <span>Generators: {stats.generators}</span>
+          <span>Shunts: {stats.shunts}</span>
         </div>
-        <div className="flex items-center gap-4">
-          <span>Base: 100 MVA</span>
-          <span>Frequency: 50 Hz</span>
-          {powerFlowResults && (
-            <>
-              <span className="text-green-600">✓ Converged</span>
-              <span>Iterations: {powerFlowResults.iterations}</span>
-            </>
-          )}
+        <div className="flex items-center gap-3">
+          {cursor && <span className="font-mono text-slate-500">X {cursor.x.toFixed(0)} Y {cursor.y.toFixed(0)}</span>}
+          <span>Base: {project.system.baseMVA} MVA</span>
+          <span>Frequency: {project.system.baseFreq} Hz</span>
+          <span className="flex items-center gap-1">
+            <span className={`inline-block h-2 w-2 rounded-full ${busy ? 'bg-amber-500' : activeRun?.status === 'failed' ? 'bg-rose-500' : 'bg-emerald-500'}`} />
+            {busy ? 'Running...' : activeRun ? activeRun.summary : 'Ready'}
+          </span>
         </div>
       </div>
 
-      {/* Settings Dialog */}
-      {showSettings && (
-        <SettingsDialog onClose={() => setShowSettings(false)} />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json,application/json"
+        className="hidden"
+        aria-label="Open project file"
+        onChange={event => {
+          const file = event.target.files?.[0];
+          if (file) void loadProjectFile(file);
+          event.target.value = '';
+        }}
+      />
+
+      {dialog === 'settings' && (
+        <SettingsDialog
+          settings={settings}
+          system={project.system}
+          onSave={next => {
+            setSettings(next);
+            saveSettings(next);
+            log('Study options saved.');
+            setToast({ type: 'success', text: 'Settings saved' });
+          }}
+          onMetaChange={changes => project.updateSystemMeta(changes)}
+          onClose={() => setDialog(null)}
+        />
+      )}
+
+      {dialog === 'samples' && <SampleDialog onLoad={loadSample} onClose={() => setDialog(null)} />}
+
+      {dialog === 'results' && (
+        <ResultsDialog
+          runs={runs}
+          activeRunId={activeRun?.id ?? null}
+          system={project.system}
+          onSelectRun={setActiveRunId}
+          onClose={() => setDialog(null)}
+          onExportCSV={run => {
+            const filename = safeFileName(`${project.name}-${run.kind}`, 'csv');
+            downloadFile(filename, studyToCSV(run, project.system), 'text/csv');
+            log(`Exported results to ${filename}.`);
+          }}
+          onReport={run => {
+            setReportRunId(run.id);
+            setDialog(null);
+          }}
+          onClearResults={() => {
+            setRuns([]);
+            setActiveRunId(null);
+            setDialog(null);
+            log('Cleared all study results.');
+          }}
+        />
+      )}
+
+      {reportRun && <ReportDialog run={reportRun} system={project.system} onClose={() => setReportRunId(null)} />}
+
+      {dialog === 'validation' && (
+        <ValidationDialog
+          issues={project.issues}
+          onClose={() => setDialog(null)}
+          onSelect={elementId => {
+            const type = project.system.buses.some(bus => bus.id === elementId)
+              ? 'bus'
+              : project.system.lines.some(line => line.id === elementId)
+                ? 'line'
+                : project.system.transformers.some(txf => txf.id === elementId)
+                  ? 'transformer'
+                  : project.system.generators.some(gen => gen.id === elementId)
+                    ? 'generator'
+                    : project.system.loads.some(load => load.id === elementId)
+                      ? 'load'
+                      : 'shunt';
+            setSelection({ type, id: elementId });
+            setDialog(null);
+          }}
+        />
+      )}
+
+      {dialog === 'shortcuts' && <ShortcutsDialog onClose={() => setDialog(null)} />}
+      {dialog === 'about' && <AboutDialog onClose={() => setDialog(null)} />}
+
+      {toast && (
+        <div
+          className={`psat-fade-in fixed bottom-7 right-3 z-[90] flex items-center gap-2 rounded border px-3 py-1.5 text-[11.5px] shadow-lg ${
+            toast.type === 'success'
+              ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
+              : toast.type === 'error'
+                ? 'border-rose-300 bg-rose-50 text-rose-800'
+                : 'border-slate-300 bg-white text-slate-700'
+          }`}
+          role="status"
+        >
+          <Icon name={toast.type === 'success' ? 'check' : toast.type === 'error' ? 'warning' : 'about'} size={13} />
+          {toast.text}
+        </div>
       )}
     </div>
   );

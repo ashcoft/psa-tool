@@ -70,7 +70,7 @@ export function createDefaultCost(gen: Generator): GeneratorCostParams {
     bus: gen.bus,
     model: 'polynomial',
     a: 10, // $10/h base cost
-    b: 30 + Math.random() * 10, // ~$30-40/MWh
+    b: 30 + (gen.id.length % 10), // deterministic default heat rate
     c: 0.01, // Small quadratic term
     startup: 50,
     shutdown: 25
@@ -140,179 +140,130 @@ export function solveDCOPF(
   costs?: GeneratorCostParams[]
 ): OPFResult {
   const startTime = performance.now();
-  
-  // Create default costs if not provided
   const genCosts = costs || system.generators.map(createDefaultCost);
-  
-  // Get slack bus
-  let slackBus: Bus | undefined;
-  let slackIdx = -1;
-  system.buses.forEach((bus, idx) => {
-    if (bus.type === 'slack') {
-      slackBus = bus;
-      slackIdx = idx;
-    }
-  });
-  if (!slackBus) {
-    slackBus = system.buses[0];
-    slackIdx = 0;
-  }
-  
-  // Calculate total load
-  let totalLoad = 0;
-  system.loads.forEach(load => {
-    if (load.active) totalLoad += load.pl;
-  });
-  
-  // Calculate total generation capacity
-  let totalCapacity = 0;
-  system.generators.forEach(gen => {
-    if (gen.active) totalCapacity += gen.pmax;
-  });
-  
-  // Simple economic dispatch: proportional to capacity and marginal cost
-  const n = system.generators.length;
-  const dispatches: { genId: string; bus: string; pg: number; qg: number; cost: number }[] = [];
-  
-  if (n === 0) {
+  const costFor = (gen: Generator) => genCosts.find(item => item.id === gen.id) ?? createDefaultCost(gen);
+
+  const activeGenerators = system.generators.filter(gen => gen.active !== false);
+  if (activeGenerators.length === 0) {
     return {
       success: false,
       message: 'No generators in system',
       generatorResults: [],
       totalCost: 0,
-      elapsedTime: performance.now() - startTime
+      elapsedTime: performance.now() - startTime,
     };
   }
-  
-  if (n === 1) {
-    // Single generator takes all load
-    const gen = system.generators[0];
-    const costParams = genCosts.find(c => c.id === gen.id) || createDefaultCost(gen);
-    const pg = Math.min(Math.max(totalLoad, gen.pmin), gen.pmax);
-    const cost = calculateGeneratorCost({ ...gen, pg }, costParams);
-    
+
+  const totalLoad = system.loads.reduce((sum, load) => sum + (load.active === false ? 0 : load.pl), 0);
+  const totalCapacity = activeGenerators.reduce((sum, gen) => sum + gen.pmax, 0);
+  const totalMinimum = activeGenerators.reduce((sum, gen) => sum + gen.pmin, 0);
+
+  if (totalCapacity + 1e-6 < totalLoad) {
     return {
-      success: true,
-      message: 'Single generator dispatch',
-      generatorResults: [{
+      success: false,
+      message: `Insufficient generation capacity: ${totalCapacity.toFixed(1)} MW available for ${totalLoad.toFixed(1)} MW load`,
+      generatorResults: activeGenerators.map(gen => ({
         generator: gen.id,
         bus: gen.bus,
-        pg,
-        qg: 0,
+        pg: gen.pmax,
+        qg: gen.qg,
         v: gen.v,
-        status: 'on'
-      }],
-      totalCost: cost,
-      elapsedTime: performance.now() - startTime
+        status: 'at limit',
+      })),
+      totalCost: 0,
+      elapsedTime: performance.now() - startTime,
     };
   }
-  
-  // Multi-generator dispatch using merit order based on marginal cost
-  // Marginal cost = d(cost)/d(P) = b + 2*c*P
-  type GenWithMarginalCost = { gen: Generator; mc: number; idx: number };
-  const gensWithMc: GenWithMarginalCost[] = system.generators
-    .map((gen, idx) => {
-      const costParams = genCosts.find(c => c.id === gen.id) || createDefaultCost(gen);
-      const c = costParams.c || 0;
-      const b = costParams.b || 50;
-      // Estimate marginal cost at 50% capacity
-      const pgEst = (gen.pmax + gen.pmin) / 2;
-      const mc = b + 2 * c * pgEst;
-      return { gen, mc, idx };
-    })
-    .filter(g => g.gen.active);
-  
-  // Sort by marginal cost (merit order)
-  gensWithMc.sort((a, b) => a.mc - b.mc);
-  
-  // Dispatch generators in merit order
-  let remainingLoad = totalLoad;
-  let totalCost = 0;
-  
-  for (const g of gensWithMc) {
-    if (remainingLoad <= 0) break;
-    
-    const gen = g.gen;
-    const costParams = genCosts.find(c => c.id === gen.id) || createDefaultCost(gen);
-    
-    // Available capacity
-    const available = Math.min(gen.pmax - gen.pg, remainingLoad);
-    const pg = Math.max(0, Math.min(available, gen.pmax - gen.pmin));
-    
-    const cost = calculateGeneratorCost({ ...gen, pg }, costParams);
-    totalCost += cost;
-    
-    dispatches.push({
-      genId: gen.id,
-      bus: gen.bus,
-      pg: gen.pg + pg,
-      qg: 0,
-      cost
-    });
-    
-    remainingLoad -= pg;
-  }
-  
-  // Check if load was met
-  if (remainingLoad > 0.01) {
-    // Try to redispatch from all generators
-    dispatches.length = 0;
-    totalCost = 0;
-    remainingLoad = totalLoad;
-    
-    for (const g of gensWithMc) {
-      const gen = g.gen;
-      const costParams = genCosts.find(c => c.id === gen.id) || createDefaultCost(gen);
-      const available = gen.pmax - gen.pmin;
-      const ratio = remainingLoad / totalCapacity;
-      const pg = gen.pmin + available * ratio;
-      
-      const cost = calculateGeneratorCost({ ...gen, pg }, costParams);
-      totalCost += cost;
-      
-      dispatches.push({
-        genId: gen.id,
-        bus: gen.bus,
-        pg,
-        qg: 0,
-        cost
-      });
-      
-      remainingLoad -= pg;
+
+  const dispatchAtLambda = (gen: Generator, lambda: number): number => {
+    const params = costFor(gen);
+    const b = params.b ?? 0;
+    const c = params.c ?? 0;
+    let pg: number;
+    if (c > 1e-9) {
+      pg = (lambda - b) / (2 * c);
+    } else {
+      pg = lambda >= b ? gen.pmax : gen.pmin;
     }
-  }
-  
-  // Create modified system with new dispatches
-  const modifiedSystem: PowerSystem = {
-    ...system,
-    generators: system.generators.map(gen => {
-      const dispatch = dispatches.find(d => d.genId === gen.id);
-      return dispatch ? { ...gen, pg: dispatch.pg } : gen;
-    })
+    return Math.max(gen.pmin, Math.min(gen.pmax, pg));
   };
-  
-  // Run power flow to get network solution
-  const pfResult = solveNewtonRaphson(modifiedSystem);
-  
-  // Format generator results
-  const generatorResults = dispatches.map(d => ({
-    generator: d.genId,
-    bus: d.bus,
-    pg: d.pg,
-    qg: d.qg || pfResult.generatorResults.find(r => r.generator === d.genId)?.qg || 0,
-    v: system.generators.find(g => g.id === d.genId)?.v || 1.0,
-    status: 'on' as const
-  }));
-  
+
+  const economicDispatch = (demand: number): Map<string, number> => {
+    const target = Math.max(totalMinimum, Math.min(totalCapacity, demand));
+    let low = -1000;
+    let high = 5000;
+    for (let iteration = 0; iteration < 100; iteration++) {
+      const lambda = (low + high) / 2;
+      const total = activeGenerators.reduce((sum, gen) => sum + dispatchAtLambda(gen, lambda), 0);
+      if (total < target) low = lambda;
+      else high = lambda;
+    }
+    const lambda = (low + high) / 2;
+    const map = new Map<string, number>();
+    activeGenerators.forEach(gen => map.set(gen.id, dispatchAtLambda(gen, lambda)));
+    return map;
+  };
+
+  const slackBus = system.buses.find(bus => bus.type === 'slack') ?? system.buses[0];
+  let target = totalLoad;
+  let dispatch = economicDispatch(target);
+  let powerFlow = solveNewtonRaphson({
+    ...system,
+    generators: system.generators.map(gen =>
+      dispatch.has(gen.id) ? { ...gen, pg: dispatch.get(gen.id) as number } : gen
+    ),
+  });
+
+  for (let iteration = 0; iteration < 3; iteration++) {
+    const losses = powerFlow.converged ? powerFlow.losses.real : 0;
+    target = totalLoad + losses;
+    dispatch = economicDispatch(target);
+    powerFlow = solveNewtonRaphson({
+      ...system,
+      generators: system.generators.map(gen =>
+        dispatch.has(gen.id) ? { ...gen, pg: dispatch.get(gen.id) as number } : gen
+      ),
+    });
+    if (!powerFlow.converged) break;
+  }
+
+  const generatorResults = system.generators.map(gen => {
+    const busResult = powerFlow.busResults.find(bus => bus.bus === gen.bus);
+    const isSlack = gen.bus === slackBus?.id;
+    const pg = isSlack ? busResult?.pg ?? dispatch.get(gen.id) ?? gen.pg : dispatch.get(gen.id) ?? gen.pg;
+    return {
+      generator: gen.id,
+      bus: gen.bus,
+      pg,
+      qg: busResult?.qg ?? gen.qg,
+      v: busResult?.v ?? gen.v,
+      status: gen.active === false ? 'off' : pg >= gen.pmax - 1e-6 ? 'at limit' : 'on',
+    };
+  });
+
+  const totalCost = system.generators.reduce((sum, gen) => {
+    const result = generatorResults.find(item => item.generator === gen.id);
+    return sum + calculateGeneratorCost({ ...gen, pg: result?.pg ?? gen.pg }, costFor(gen));
+  }, 0);
+
+  const violations = powerFlow.lineResults
+    .filter(line => line.loading > 100)
+    .map(line => `${line.line} overloaded (${line.loading.toFixed(1)}%)`);
+
   return {
-    success: dispatches.length > 0,
-    message: dispatches.length > 0 ? 'OPF converged' : 'Could not meet load demand',
+    success: powerFlow.converged,
+    message: powerFlow.converged
+      ? violations.length > 0
+        ? `Economic dispatch converged with ${violations.length} branch violation(s)`
+        : 'Economic dispatch converged'
+      : 'The power flow did not converge for the economic dispatch',
     generatorResults,
     totalCost,
     elapsedTime: performance.now() - startTime,
-    busResults: pfResult.busResults,
-    lineResults: pfResult.lineResults,
-    losses: typeof pfResult.losses === 'number' ? pfResult.losses : 0
+    busResults: powerFlow.busResults,
+    lineResults: powerFlow.lineResults,
+    losses: powerFlow.losses.real,
+    iterations: powerFlow.iterations,
   };
 }
 

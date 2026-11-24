@@ -1,110 +1,113 @@
 'use client';
 
-import { useState } from 'react';
+import { PowerFlowMethod } from '@/types';
+import Icon from './Icon';
 
 interface ToolbarProps {
-  onNew: () => void;
-  onOpen: () => void;
-  onSave: () => void;
-  onUndo: () => void;
-  onRedo: () => void;
-  onZoomIn: () => void;
-  onZoomOut: () => void;
-  onFit: () => void;
+  method: PowerFlowMethod;
+  onMethodChange: (method: PowerFlowMethod) => void;
   onRunPowerFlow: () => void;
-  onRunTimeSim: () => void;
+  onRunFault: () => void;
+  onRunTimeSeries: () => void;
+  onOpenResults: () => void;
+  onOpenSettings: () => void;
   isProcessing: boolean;
+  hasResults: boolean;
+  resultSummary?: string;
+  issueCount: number;
 }
 
-interface ToolbarButtonProps {
-  icon: string;
-  label: string;
-  onClick: () => void;
-  disabled?: boolean;
-  shortcut?: string;
-}
-
-function ToolbarButton({ icon, label, onClick, disabled = false, shortcut = '' }: ToolbarButtonProps) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className="flex items-center gap-1 px-2 py-1.5 text-sm rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-      title={`${label}${shortcut ? ` (${shortcut})` : ''}`}
-    >
-      <span className="text-base">{icon}</span>
-      <span className="hidden md:inline">{label}</span>
-    </button>
-  );
-}
+const methods: PowerFlowMethod[] = ['Newton-Raphson', 'Fast-Decoupled', 'DC', 'Gauss-Seidel'];
 
 export default function Toolbar({
-  onNew,
-  onOpen,
-  onSave,
-  onUndo,
-  onRedo,
-  onZoomIn,
-  onZoomOut,
-  onFit,
+  method,
+  onMethodChange,
   onRunPowerFlow,
-  onRunTimeSim,
-  isProcessing
+  onRunFault,
+  onRunTimeSeries,
+  onOpenResults,
+  onOpenSettings,
+  isProcessing,
+  hasResults,
+  resultSummary,
+  issueCount,
 }: ToolbarProps) {
-  const [status, setStatus] = useState('Ready');
-
   return (
-    <div className="flex items-center justify-between bg-gray-100 border-b border-gray-300 px-2 py-1">
-      {/* Left Section - File Operations */}
-      <div className="flex items-center gap-1">
-        <ToolbarButton icon="📁" label="New" onClick={onNew} shortcut="Ctrl+N" />
-        <ToolbarButton icon="📂" label="Open" onClick={onOpen} shortcut="Ctrl+O" />
-        <ToolbarButton icon="💾" label="Save" onClick={onSave} shortcut="Ctrl+S" />
-        
-        <div className="w-px h-6 bg-gray-300 mx-1" />
-        
-        <ToolbarButton icon="↩" label="Undo" onClick={onUndo} shortcut="Ctrl+Z" />
-        <ToolbarButton icon="↪" label="Redo" onClick={onRedo} shortcut="Ctrl+Y" />
-        
-        <div className="w-px h-6 bg-gray-300 mx-1" />
-        
-        <ToolbarButton icon="🔍+" label="Zoom In" onClick={onZoomIn} shortcut="Ctrl++" />
-        <ToolbarButton icon="🔍-" label="Zoom Out" onClick={onZoomOut} shortcut="Ctrl+-" />
-        <ToolbarButton icon="⬜" label="Fit" onClick={onFit} />
-      </div>
-
-      {/* Center Section - Analysis Actions */}
-      <div className="flex items-center gap-2">
-        <button
-          onClick={onRunPowerFlow}
-          disabled={isProcessing}
-          className="flex items-center gap-2 px-4 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm"
+    <div className="flex flex-wrap items-center gap-2 border-b border-[#c9d2dd] bg-[#eef2f7] px-2 py-1" data-testid="toolbar">
+      <div className="flex items-center gap-1.5">
+        <span className="text-[11px] font-semibold text-slate-600">Load Flow</span>
+        <select
+          value={method}
+          onChange={event => onMethodChange(event.target.value as PowerFlowMethod)}
+          className="rounded border border-slate-300 bg-white px-1.5 py-0.5 text-[11px] text-slate-800"
+          aria-label="Power flow method"
         >
-          <span>⚡</span>
-          <span>Run Power Flow</span>
-          {isProcessing && <span className="animate-spin">⟳</span>}
-        </button>
-        
+          {methods.map(item => (
+            <option key={item} value={item}>
+              {item}
+            </option>
+          ))}
+        </select>
         <button
-          onClick={onRunTimeSim}
-          disabled={isProcessing}
-          className="flex items-center gap-2 px-4 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm"
+          className="rounded p-1 text-slate-600 hover:bg-slate-200"
+          title="Study options"
+          onClick={onOpenSettings}
         >
-          <span>⏱</span>
-          <span>Time Simulation</span>
+          <Icon name="settings" size={14} />
         </button>
       </div>
 
-      {/* Right Section - Status */}
-      <div className="flex items-center gap-3 text-sm text-gray-600">
-        <div className="flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full ${status === 'Ready' ? 'bg-green-500' : 'bg-yellow-500'}`} />
-          <span>{status}</span>
-        </div>
-        <div className="text-xs text-gray-400">
-          {new Date().toLocaleTimeString()}
-        </div>
-      </div>
+      <div className="h-5 w-px bg-slate-300" />
+
+      <button
+        onClick={onRunPowerFlow}
+        disabled={isProcessing}
+        className="flex items-center gap-1.5 rounded bg-[#1f4d85] px-3 py-1 text-[11.5px] font-medium text-white hover:bg-[#183c68] disabled:opacity-50"
+      >
+        <Icon name={isProcessing ? 'refresh' : 'play'} size={13} className={isProcessing ? 'animate-spin' : ''} />
+        Run Load Flow
+      </button>
+      <button
+        onClick={onRunFault}
+        disabled={isProcessing}
+        className="flex items-center gap-1.5 rounded border border-slate-300 bg-white px-2.5 py-1 text-[11.5px] text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+      >
+        <Icon name="fault" size={13} className="text-rose-600" />
+        Short Circuit
+      </button>
+      <button
+        onClick={onRunTimeSeries}
+        disabled={isProcessing}
+        className="flex items-center gap-1.5 rounded border border-slate-300 bg-white px-2.5 py-1 text-[11.5px] text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+      >
+        <Icon name="time" size={13} className="text-indigo-600" />
+        Time Domain
+      </button>
+      <button
+        onClick={onOpenResults}
+        disabled={!hasResults}
+        className="flex items-center gap-1.5 rounded border border-slate-300 bg-white px-2.5 py-1 text-[11.5px] text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+      >
+        <Icon name="results" size={13} className="text-teal-700" />
+        Results
+      </button>
+
+      <div className="flex-1" />
+
+      {resultSummary && (
+        <span className="max-w-[320px] truncate rounded bg-emerald-50 px-2 py-0.5 text-[10.5px] text-emerald-800" title={resultSummary}>
+          {resultSummary}
+        </span>
+      )}
+      <span
+        className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-[10.5px] ${
+          issueCount > 0 ? 'bg-amber-50 text-amber-800' : 'bg-emerald-50 text-emerald-800'
+        }`}
+        title={issueCount > 0 ? 'Model check found issues' : 'Model check passed'}
+      >
+        <Icon name={issueCount > 0 ? 'warning' : 'check'} size={12} />
+        {issueCount > 0 ? `${issueCount} model issue${issueCount === 1 ? '' : 's'}` : 'Model OK'}
+      </span>
     </div>
   );
 }

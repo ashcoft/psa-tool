@@ -1,55 +1,134 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
 
-async function loadApp(page: any): Promise<void> {
+async function openApp(page: Page): Promise<void> {
   await page.goto('/');
-  await expect(page.locator('body')).toBeVisible();
+  await expect(page.getByTestId('titlebar')).toBeVisible();
+  await expect(page.getByTestId('canvas')).toBeVisible();
 }
 
-test.describe('PSAT Web Application', () => {
-  test('homepage loads correctly', async ({ page }) => {
-    await loadApp(page);
+async function runLoadFlow(page: Page): Promise<void> {
+  await page.getByTestId('toolbar').getByRole('button', { name: 'Run Load Flow' }).click();
+  await expect(page.getByRole('dialog')).toBeVisible({ timeout: 10000 });
+  await expect(page.getByText('COMPLETED')).toBeVisible();
+}
+
+test.describe('PSAT Web workbench', () => {
+  test('loads the ETAP-style workbench', async ({ page }) => {
+    await openApp(page);
     await expect(page).toHaveTitle(/Power System/i);
+    await expect(page.getByText('PSAT Web', { exact: true })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Home' })).toBeVisible();
+    await expect(page.getByTestId('statusbar')).toContainText('Buses: 4');
+    await expect(page.getByTestId('statusbar')).toContainText('Base: 100 MVA');
   });
 
-  test('navigation menu is present', async ({ page }) => {
-    await loadApp(page);
+  test('runs a load flow and shows results and charts', async ({ page }) => {
+    await openApp(page);
+    await runLoadFlow(page);
+
+    await page.getByRole('button', { name: 'Bus Results' }).click();
+    await expect(page.getByText('V (pu)')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Voltage Profile' }).click();
+    await expect(page.locator('svg[role="img"]').first()).toBeVisible();
+
+    await page.getByRole('button', { name: 'Close', exact: true }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.getByTestId('statusbar')).toContainText('Converged in 4 iterations');
   });
 
-  test('no console errors on homepage', async ({ page }) => {
+  test('adds a bus, undoes and redoes the change', async ({ page }) => {
+    await openApp(page);
+    await page.getByTestId('sidebar').getByRole('button', { name: 'PQ Bus' }).click();
+    await expect(page.getByTestId('statusbar')).toContainText('Buses: 5');
+
+    await page.getByTestId('ribbon').getByRole('button', { name: 'Undo' }).click();
+    await expect(page.getByTestId('statusbar')).toContainText('Buses: 4');
+
+    await page.getByTestId('ribbon').getByRole('button', { name: 'Redo' }).click();
+    await expect(page.getByTestId('statusbar')).toContainText('Buses: 5');
+  });
+
+  test('loads the IEEE 9-bus sample', async ({ page }) => {
+    await openApp(page);
+    await page.getByTestId('ribbon').getByRole('button', { name: 'Samples' }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByText('Sample Systems')).toBeVisible();
+    await dialog.getByRole('button', { name: 'Load' }).nth(1).click();
+    await expect(page.getByTestId('statusbar')).toContainText('Buses: 9');
+    await expect(page.getByTestId('statusbar')).toContainText('Generators: 3');
+  });
+
+  test('opens and saves study options', async ({ page }) => {
+    await openApp(page);
+    await page.getByTestId('ribbon').getByRole('button', { name: 'Options' }).click();
+    await expect(page.getByText('Study & Application Options')).toBeVisible();
+    await page.getByRole('button', { name: 'Save Settings' }).click();
+    await expect(page.getByText('Study & Application Options')).toHaveCount(0);
+  });
+
+  test('exports the project as JSON and reopens it', async ({ page }) => {
+    await openApp(page);
+    const downloadPromise = page.waitForEvent('download');
+    await page.getByTestId('titlebar').getByTitle('Save (Ctrl+S)').click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toMatch(/\.json$/);
+
+    const path = `/tmp/psat-e2e-${Date.now()}.json`;
+    await download.saveAs(path);
+
+    await page.locator('input[type="file"]').setInputFiles(path);
+    await expect(page.getByTestId('statusbar')).toContainText('Buses: 4');
+    await expect(page.getByTestId('titlebar')).toContainText('Demo 4-Bus System');
+  });
+
+  test('runs a short circuit study and shows kA results', async ({ page }) => {
+    await openApp(page);
+    await page.getByTestId('toolbar').getByRole('button', { name: 'Short Circuit' }).click();
+    await expect(page.getByRole('dialog')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('dialog').getByText('Short Circuit Study', { exact: true }).last()).toBeVisible();
+    await page.getByRole('button', { name: 'Fault Currents' }).click();
+    await expect(page.getByText('I (kA)')).toBeVisible();
+    await expect(page.getByText('Three-phase').first()).toBeVisible();
+  });
+
+  test('generates a report from the last study', async ({ page }) => {
+    await openApp(page);
+    await runLoadFlow(page);
+    await page.getByRole('button', { name: 'Report' }).click();
+    await expect(page.getByText('Study Report')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'HTML' })).toBeVisible();
+    await page.getByRole('button', { name: 'Close', exact: true }).last().click();
+  });
+
+  test('shows the keyboard shortcuts dialog', async ({ page }) => {
+    await openApp(page);
+    await page.getByRole('button', { name: 'Help' }).first().click();
+    await page.getByRole('button', { name: 'Keyboard Shortcuts' }).click();
+    await expect(page.getByText('Ctrl + N')).toBeVisible();
+  });
+
+  test('does not log console errors on load', async ({ page }) => {
     const errors: string[] = [];
-    page.on('console', (msg: any) => {
-      if (msg.type() === 'error') errors.push(msg.text());
+    page.on('console', message => {
+      if (message.type() === 'error') errors.push(message.text());
     });
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
-    const criticalErrors = errors.filter((e: string) => 
-      !e.includes('favicon') && !e.includes('hydration')
-    );
-    expect(criticalErrors).toHaveLength(0);
-  });
-
-  test('power flow module accessible', async ({ page }) => {
-    await loadApp(page);
+    await openApp(page);
+    await page.waitForTimeout(500);
+    expect(errors.filter(error => !error.includes('favicon') && !error.includes('hydration'))).toEqual([]);
   });
 });
 
-test.describe('Responsive Design', () => {
-  test('works on mobile viewport', async ({ page }) => {
-    await page.setViewportSize({ width: 375, height: 667 });
-    await loadApp(page);
+test.describe('Responsive layout', () => {
+  test('works on a tablet viewport', async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await openApp(page);
+    await expect(page.getByTestId('statusbar')).toBeVisible();
   });
 
-  test('works on tablet viewport', async ({ page }) => {
-    await page.setViewportSize({ width: 768, height: 1024 });
-    await loadApp(page);
-  });
-});
-
-test.describe('Performance', () => {
-  test('page loads within acceptable time', async ({ page }) => {
-    const startTime = Date.now();
-    await page.goto('/');
-    await page.waitForLoadState('domcontentloaded');
-    expect(Date.now() - startTime).toBeLessThan(5000);
+  test('works on a mobile viewport', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await openApp(page);
+    await expect(page.getByTestId('titlebar')).toBeVisible();
   });
 });
