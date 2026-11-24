@@ -176,6 +176,28 @@ and driven by [Conventional Commits](https://www.conventionalcommits.org/).
 The `Release` workflow runs on every push to `main`; commit messages determine
 the version bump (`fix:` patch, `feat:` minor, `feat!:`/`BREAKING CHANGE:` major).
 
+## Vercel deployment
+
+The repository includes `vercel.json` and `.github/workflows/vercel.yml`. To let
+the workflow publish https://psat-web.vercel.app/ on every push to `main`, add
+these repository secrets in GitHub (`Settings` → `Secrets and variables` →
+`Actions`):
+
+| Secret | Purpose |
+|--------|---------|
+| `VERCEL_TOKEN` | Vercel personal access token |
+| `VERCEL_ORG_ID` | Vercel team/user id |
+| `VERCEL_PROJECT_ID` | Vercel project id for `psat-web` |
+
+You can also deploy manually from a machine logged in to Vercel:
+
+```bash
+npx vercel@latest deploy --prod
+```
+
+If the workflow runs without `VERCEL_TOKEN`, it skips the deployment instead of
+failing.
+
 ## Original PSAT
 
 This project is a web-based port of the original

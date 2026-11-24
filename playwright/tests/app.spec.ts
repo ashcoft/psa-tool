@@ -108,6 +108,63 @@ test.describe('PSAT Web workbench', () => {
     await expect(page.getByText('Ctrl + N')).toBeVisible();
   });
 
+  test('runs every analysis study', async ({ page }) => {
+    await openApp(page);
+    await page.getByRole('tab', { name: 'Analysis' }).click();
+    const dialog = page.getByRole('dialog');
+
+    const studies: { button: string; title: string }[] = [
+      { button: 'Continuation PF', title: 'Continuation Power Flow' },
+      { button: 'Optimal PF', title: 'DC Optimal Power Flow' },
+      { button: 'Stability', title: 'Small-Signal Stability' },
+      { button: 'Time Domain', title: 'Time-Domain Simulation' },
+    ];
+
+    for (const study of studies) {
+      await page.getByTestId('ribbon').getByRole('button', { name: study.button }).click();
+      await expect(dialog).toBeVisible({ timeout: 15000 });
+      await expect(dialog.getByText(study.title, { exact: true }).last()).toBeVisible();
+      await expect(dialog.getByText('COMPLETED')).toBeVisible();
+      await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+      await expect(dialog).toHaveCount(0);
+    }
+  });
+
+  test('selects and edits a bus from the project tree', async ({ page }) => {
+    await openApp(page);
+    await page.getByTestId('sidebar').getByRole('button', { name: 'Project' }).click();
+    await page.getByTestId('sidebar').getByRole('button', { name: /PQ1/ }).click();
+    const panel = page.getByTestId('properties-panel');
+    const nameInput = panel.locator('input').first();
+    await expect(nameInput).toHaveValue('PQ1');
+    await nameInput.fill('Main Load');
+    await expect(nameInput).toHaveValue('Main Load');
+  });
+
+  test('adds a generator from the Components ribbon', async ({ page }) => {
+    await openApp(page);
+    await page.getByRole('tab', { name: 'Components' }).click();
+    await page.getByTestId('ribbon').getByRole('button', { name: 'Generator' }).click();
+    await expect(page.getByTestId('statusbar')).toContainText('Generators: 3');
+  });
+
+  test('persists the load-flow method across reloads', async ({ page }) => {
+    await openApp(page);
+    const method = page.getByLabel('Power flow method');
+    await method.selectOption('DC');
+    await page.reload();
+    await expect(page.getByLabel('Power flow method')).toHaveValue('DC');
+  });
+
+  test('exports study results as CSV', async ({ page }) => {
+    await openApp(page);
+    await runLoadFlow(page);
+    const downloadPromise = page.waitForEvent('download');
+    await page.getByRole('button', { name: /Export CSV/ }).click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toMatch(/\.csv$/);
+  });
+
   test('runs specialty studies from the Tools tab', async ({ page }) => {
     await openApp(page);
     await page.getByRole('tab', { name: 'Tools' }).click();
