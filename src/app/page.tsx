@@ -352,9 +352,11 @@ export default function Home() {
 
   const toggleSetting = useCallback(
     (key: 'showGrid' | 'showBusNames' | 'showVoltageOverlay' | 'showFlowOverlay') => {
-      setSettings(prev => ({ ...prev, [key]: !prev[key] }));
+      const next = { ...settings, [key]: !settings[key] };
+      setSettings(next);
+      saveSettings(next);
     },
-    []
+    [settings]
   );
 
   const handleAction = (action: string) => {
@@ -697,7 +699,9 @@ export default function Home() {
       <Toolbar
         method={settings.method}
         onMethodChange={method => {
-          setSettings(prev => ({ ...prev, method }));
+          const next = { ...settings, method };
+          setSettings(next);
+          saveSettings(next);
           log(`Load flow method set to ${method}.`);
         }}
         onRunPowerFlow={() => runStudy('powerflow')}
