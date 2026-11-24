@@ -176,6 +176,13 @@ and driven by [Conventional Commits](https://www.conventionalcommits.org/).
 The `Release` workflow runs on every push to `main`; commit messages determine
 the version bump (`fix:` patch, `feat:` minor, `feat!:`/`BREAKING CHANGE:` major).
 
+## Continuous integration
+
+GitHub Actions runs lint, type check, unit tests, the production build and the
+Playwright suite on pushes and pull requests, including pull requests that
+target review or release branches. Codacy and SonarCloud provide static
+analysis. The Vercel workflow deploys only when `VERCEL_TOKEN` is configured.
+
 ## Vercel deployment
 
 The repository includes `vercel.json` and `.github/workflows/vercel.yml`. To let
