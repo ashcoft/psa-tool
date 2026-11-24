@@ -90,7 +90,7 @@ export default function Chart({
 
   const tx = (value: number) => (xLog ? Math.log10(Math.max(value, 1e-9)) : value);
   const ty = (value: number) => (yLog ? Math.log10(Math.max(value, 1e-9)) : value);
-  const tickLabel = (value: number) => (value === 0 ? '0' : `10^${Number.isInteger(value) ? value : value.toFixed(1)}`);
+  const tickLabel = (value: number) => formatTick(Math.pow(10, value));
 
   const domainXMin = tx(xMin ?? Math.min(...allPoints.map(point => point.x)));
   const domainXMax = tx(xMax ?? Math.max(...allPoints.map(point => point.x)));

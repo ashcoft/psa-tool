@@ -367,8 +367,8 @@ function ProtectionPanel({ system }: { system: PowerSystem }) {
     id: `R${index + 1}`,
     bus: bus.id,
     curve: 'IEC-SI',
-    pickupA: 100 + index * 50,
-    timeDial: 0.1 + index * 0.05,
+    pickupA: 200 - index * 50,
+    timeDial: Number((0.3 - index * 0.1).toFixed(2)),
   }));
   const [settings, setSettings] = useState<RelaySetting[]>(defaults.length ? defaults : [{ id: 'R1', bus: system.buses[0]?.id ?? '', curve: 'IEC-SI', pickupA: 100, timeDial: 0.1 }]);
   const [results, setResults] = useState<RelayCurveResult[] | null>(null);
@@ -465,7 +465,7 @@ function ProtectionPanel({ system }: { system: PowerSystem }) {
                   result.bus,
                   result.curve,
                   result.pickupA,
-                  result.timeDial,
+                  result.timeDial.toFixed(2),
                   (result.tripTimes.find(item => item.multiple === 2)?.time ?? Infinity).toFixed(3),
                   (result.tripTimes.find(item => item.multiple === 5)?.time ?? Infinity).toFixed(3),
                   (result.tripTimes.find(item => item.multiple === 10)?.time ?? Infinity).toFixed(3),
