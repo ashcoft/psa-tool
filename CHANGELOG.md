@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file. This file is generated automatically by [semantic-release](https://github.com/semantic-release/semantic-release) from the commit history.
 
+## [1.1.2](https://github.com/ashcoft/psat-web/compare/v1.1.1...v1.1.2) (2026-11-24)
+
+### Bug Fixes
+
+* avoid StrictMode overwriting stored settings on load ([0775674](https://github.com/ashcoft/psat-web/commit/07756746da8ca87fb97b533ab3b0ee264dcdb28a))
+
 ## [1.1.1](https://github.com/ashcoft/psat-web/compare/v1.1.0...v1.1.1) (2026-11-24)
 
 ### Bug Fixes
