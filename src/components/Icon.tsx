@@ -7,7 +7,7 @@ export type IconName =
   | 'undo' | 'redo' | 'copy' | 'paste' | 'cut' | 'delete' | 'duplicate'
   | 'zoomIn' | 'zoomOut' | 'fit' | 'grid' | 'pan' | 'select' | 'connect'
   | 'bus' | 'busSlack' | 'busPV' | 'busPQ' | 'line' | 'transformer' | 'generator'
-  | 'load' | 'shunt' | 'motor' | 'breaker' | 'relay' | 'battery' | 'wind' | 'solar' | 'facts'
+  | 'load' | 'shunt' | 'motor' | 'breaker' | 'relay' | 'fuse' | 'meter' | 'battery' | 'wind' | 'solar' | 'facts'
   | 'powerflow' | 'cpf' | 'opf' | 'fault' | 'stability' | 'time' | 'results'
   | 'report' | 'settings' | 'help' | 'about' | 'search' | 'chevronDown' | 'chevronRight'
   | 'play' | 'check' | 'warning' | 'close' | 'plus' | 'refresh' | 'chart' | 'table' | 'csv'
@@ -52,6 +52,8 @@ const paths: Record<IconName, React.ReactNode> = {
   shunt: <><path d="M12 3v7M12 14v7" /><path d="M6 10h12M6 14h12" /></>,
   motor: <><circle cx="12" cy="12" r="8" /><path d="M9 15V9h4a2 2 0 0 1 0 4H9" /></>,
   breaker: <><path d="M3 12h6M15 12h6" /><rect x="9" y="7" width="6" height="10" rx="1" /><path d="M11 10l2 2" /></>,
+  fuse: <><path d="M3 12h5M16 12h5" /><rect x="8" y="8" width="8" height="8" rx="1" /><path d="M8 12h8" /></>,
+  meter: <><circle cx="12" cy="12" r="8" /><path d="M8 15l3-5 2 3 3-5" /></>,
   relay: <><rect x="4" y="6" width="16" height="12" rx="1" /><path d="M8 18v2M16 18v2" /><path d="M8 10h8M8 13h5" /></>,
   battery: <><rect x="3" y="7" width="16" height="10" rx="1" /><path d="M21 10v4" /><path d="M6 10v4M9 10v4" /></>,
   wind: <><circle cx="12" cy="12" r="2" /><path d="M12 10V3M13.7 13l6 3.5M10.3 13l-6 3.5" /></>,

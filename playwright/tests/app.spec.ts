@@ -39,7 +39,7 @@ test.describe('PSAT Web workbench', () => {
 
   test('adds a bus, undoes and redoes the change', async ({ page }) => {
     await openApp(page);
-    await page.getByTestId('sidebar').getByRole('button', { name: 'PQ Bus' }).click();
+    await page.getByTestId('sidebar').getByRole('button', { name: 'Bus', exact: true }).click();
     await expect(page.getByTestId('statusbar')).toContainText('Buses: 5');
 
     await page.getByTestId('ribbon').getByRole('button', { name: 'Undo' }).click();
@@ -106,6 +106,28 @@ test.describe('PSAT Web workbench', () => {
     await page.getByRole('button', { name: 'Help' }).first().click();
     await page.getByRole('button', { name: 'Keyboard Shortcuts' }).click();
     await expect(page.getByText('Ctrl + N')).toBeVisible();
+  });
+
+  test('adds DC, instrument and control components from the catalog', async ({ page }) => {
+    await openApp(page);
+    const sidebar = page.getByTestId('sidebar');
+    const status = page.getByTestId('statusbar');
+
+    await sidebar.getByRole('button', { name: 'DC', exact: true }).click();
+    await sidebar.getByRole('button', { name: 'DC Bus' }).click();
+    await expect(status).toContainText('Components: 1');
+
+    await sidebar.getByRole('button', { name: 'Ins', exact: true }).click();
+    await sidebar.getByRole('button', { name: 'Voltmeter' }).click();
+    await expect(status).toContainText('Components: 2');
+
+    await sidebar.getByRole('button', { name: 'CS', exact: true }).click();
+    await sidebar.getByRole('button', { name: /Automatic Voltage Regulator/ }).click();
+    await expect(status).toContainText('Components: 3');
+
+    await sidebar.getByRole('button', { name: 'Project' }).click();
+    await expect(sidebar.getByText('DC Bus')).toBeVisible();
+    await expect(sidebar.getByText('Voltmeter')).toBeVisible();
   });
 
   test('runs every analysis study', async ({ page }) => {
@@ -210,6 +232,6 @@ test.describe('Responsive layout', () => {
     await expect(page.getByTestId('sidebar')).toBeHidden();
     await page.getByRole('button', { name: 'Components', exact: true }).click();
     await expect(page.getByTestId('sidebar')).toBeVisible();
-    await expect(page.getByTestId('sidebar').getByRole('button', { name: 'PQ Bus' })).toBeVisible();
+    await expect(page.getByTestId('sidebar').getByRole('button', { name: 'Bus', exact: true })).toBeVisible();
   });
 });

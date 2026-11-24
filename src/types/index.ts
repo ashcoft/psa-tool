@@ -26,6 +26,7 @@ export interface Bus {
   zone?: number;         // Loss zone
   owner?: number;        // Ownership
   comments?: string;
+  subtype?: string;       // MCC, switchgear, panelboard, etc.
 }
 
 export type BusType = 'slack' | 'pv' | 'pq' | 'isolated';
@@ -131,6 +132,22 @@ export interface Area {
 // Complete Power System Model
 // ============================================================================
 
+export type ComponentCategory = 'AC' | 'DC' | 'Instrument' | 'Control' | 'Other';
+
+export interface GenericComponent {
+  id: string;
+  type: string;                 // catalog id
+  category: ComponentCategory;
+  name: string;
+  bus?: string;                 // primary bus
+  fromBus?: string;
+  toBus?: string;
+  x: number;                    // graphical position
+  y: number;
+  properties: Record<string, string | number | boolean>;
+  active: boolean;
+}
+
 export interface PowerSystem {
   buses: Bus[];
   lines: Line[];
@@ -138,6 +155,7 @@ export interface PowerSystem {
   generators: Generator[];
   loads: Load[];
   shunts?: Shunt[];
+  components?: GenericComponent[];
   areas?: Area[];
   baseMVA: number;
   baseFreq: number;

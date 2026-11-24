@@ -46,8 +46,16 @@ describe('PSAT Web application shell', () => {
   it('adds a bus from the component palette', async () => {
     const user = userEvent.setup();
     render(<HomePage />);
-    await user.click(screen.getByRole('button', { name: /PQ Bus/i }));
+    await user.click(screen.getByRole('button', { name: 'Bus' }));
     expect(screen.getByText('Buses: 5')).toBeInTheDocument();
+  });
+
+  it('adds a specialty component from the catalog', async () => {
+    const user = userEvent.setup();
+    render(<HomePage />);
+    await user.click(screen.getByRole('button', { name: 'DC' }));
+    await user.click(screen.getByRole('button', { name: 'DC Bus' }));
+    expect(screen.getByText('Components: 1')).toBeInTheDocument();
   });
 
   it('runs a load flow and opens the results dialog', async () => {

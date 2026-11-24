@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Bus,
   Generator,
+  GenericComponent,
   Load,
   Line,
   PowerSystem,
@@ -12,7 +13,7 @@ import {
 } from '@/types';
 import { cloneSystem, findFreePosition, nextId, validateSystem, ValidationIssue } from './project';
 
-export type ElementKind = 'bus' | 'line' | 'transformer' | 'generator' | 'load' | 'shunt';
+export type ElementKind = 'bus' | 'line' | 'transformer' | 'generator' | 'load' | 'shunt' | 'component';
 
 export interface Selection {
   type: ElementKind | null;
@@ -34,7 +35,7 @@ interface ProjectState {
 
 interface ClipboardPayload {
   kind: ElementKind;
-  element: Bus | Line | Transformer | Generator | Load | Shunt;
+  element: Bus | Line | Transformer | Generator | Load | Shunt | GenericComponent;
 }
 
 const HISTORY_LIMIT = 60;
@@ -55,10 +56,11 @@ export interface UseProjectResult {
   redo: () => void;
   markSaved: () => void;
   updateSystemMeta: (changes: Partial<Pick<PowerSystem, 'baseMVA' | 'baseFreq' | 'name'>>) => void;
-  addBus: (type: Bus['type'], position?: { x: number; y: number }) => Bus | null;
-  addBranch: (kind: 'line' | 'transformer', fromBus: string, toBus: string) => void;
-  addDevice: (kind: 'generator' | 'load' | 'shunt', busId: string) => void;
-  updateElement: (kind: ElementKind, element: Bus | Line | Transformer | Generator | Load | Shunt) => void;
+  addBus: (type: Bus['type'], position?: { x: number; y: number }, options?: { name?: string; subtype?: string }) => Bus | null;
+  addBranch: (kind: 'line' | 'transformer', fromBus: string, toBus: string, overrides?: Partial<Line> & Partial<Transformer>) => void;
+  addDevice: (kind: 'generator' | 'load' | 'shunt', busId: string, overrides?: Partial<Generator> & Partial<Load> & Partial<Shunt>) => void;
+  addComponent: (component: Omit<GenericComponent, 'id'>) => GenericComponent;
+  updateElement: (kind: ElementKind, element: Bus | Line | Transformer | Generator | Load | Shunt | GenericComponent) => void;
   deleteElement: (kind: ElementKind, id: string) => void;
   duplicateElement: (kind: ElementKind, id: string) => void;
   copyElement: (kind: ElementKind, id: string) => void;
@@ -152,11 +154,12 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
     }));
   }, []);
 
-  const addBus = useCallback((type: Bus['type'], position?: { x: number; y: number }): Bus | null => {
+  const addBus = useCallback((type: Bus['type'], position?: { x: number; y: number }, options?: { name?: string; subtype?: string }): Bus | null => {
     const spot = position ?? findFreePosition(state.system);
     const bus: Bus = {
       id: nextId(state.system.buses, 'bus_'),
-      name: `Bus ${state.system.buses.length + 1}`,
+      name: options?.name ?? `Bus ${state.system.buses.length + 1}`,
+      subtype: options?.subtype,
       type,
       voltage: type === 'pv' ? 1.02 : 1.0,
       angle: 0,
@@ -178,35 +181,37 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
     return bus;
   }, [state.system]);
 
-  const addBranch = useCallback((kind: 'line' | 'transformer', fromBus: string, toBus: string) => {
+  const addBranch = useCallback((kind: 'line' | 'transformer', fromBus: string, toBus: string, overrides?: Partial<Line> & Partial<Transformer>) => {
     if (fromBus === toBus) return;
     setState(prev => {
       const system = cloneSystem(prev.system);
       if (kind === 'line') {
         system.lines.push({
-          id: nextId(system.lines, 'line_'),
           name: `Line ${fromBus}-${toBus}`,
-          fromBus,
-          toBus,
           resistance: 0.01,
           reactance: 0.05,
           susceptance: 0,
           rating: 100,
           length: 10,
           active: true,
+          ...overrides,
+          id: nextId(system.lines, 'line_'),
+          fromBus,
+          toBus,
         });
       } else {
         system.transformers.push({
-          id: nextId(system.transformers, 'txf_'),
           name: `Transformer ${fromBus}-${toBus}`,
-          fromBus,
-          toBus,
           resistance: 0.001,
           reactance: 0.05,
           tap: 1,
           shift: 0,
           rating: 100,
           active: true,
+          ...overrides,
+          id: nextId(system.transformers, 'txf_'),
+          fromBus,
+          toBus,
         });
       }
       return {
@@ -219,14 +224,12 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
     });
   }, []);
 
-  const addDevice = useCallback((kind: 'generator' | 'load' | 'shunt', busId: string) => {
+  const addDevice = useCallback((kind: 'generator' | 'load' | 'shunt', busId: string, overrides?: Partial<Generator> & Partial<Load> & Partial<Shunt>) => {
     setState(prev => {
       const system = cloneSystem(prev.system);
       if (kind === 'generator') {
         const generator: Generator = {
-          id: nextId(system.generators, 'gen_'),
           name: `Generator ${system.generators.length + 1}`,
-          bus: busId,
           pg: 20,
           qg: 0,
           v: 1.0,
@@ -235,27 +238,32 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
           qmax: 50,
           qmin: -50,
           active: true,
+          ...overrides,
+          id: nextId(system.generators, 'gen_'),
+          bus: busId,
         };
         system.generators.push(generator);
       } else if (kind === 'load') {
         const load: Load = {
-          id: nextId(system.loads, 'load_'),
           name: `Load ${system.loads.length + 1}`,
-          bus: busId,
           pl: 10,
           ql: 5,
           demandModel: 'constant-power',
           active: true,
+          ...overrides,
+          id: nextId(system.loads, 'load_'),
+          bus: busId,
         };
         system.loads.push(load);
       } else {
         const shunt: Shunt = {
-          id: nextId(system.shunts ?? [], 'shunt_'),
           name: `Shunt ${(system.shunts?.length ?? 0) + 1}`,
-          bus: busId,
           g: 0,
           b: 0.05,
           active: true,
+          ...overrides,
+          id: nextId(system.shunts ?? [], 'shunt_'),
+          bus: busId,
         };
         system.shunts = [...(system.shunts ?? []), shunt];
       }
@@ -269,8 +277,23 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
     });
   }, []);
 
+  const addComponent = useCallback((component: Omit<GenericComponent, 'id'>): GenericComponent => {
+    const created: GenericComponent = {
+      ...component,
+      id: nextId(state.system.components ?? [], 'cmp_'),
+    };
+    setState(prev => ({
+      ...prev,
+      system: { ...prev.system, components: [...(prev.system.components ?? []), created] },
+      past: [...prev.past, { system: prev.system, name: prev.name }].slice(-HISTORY_LIMIT),
+      future: [],
+      dirty: true,
+    }));
+    return created;
+  }, [state.system]);
+
   const updateElement = useCallback(
-    (kind: ElementKind, element: Bus | Line | Transformer | Generator | Load | Shunt) => {
+    (kind: ElementKind, element: Bus | Line | Transformer | Generator | Load | Shunt | GenericComponent) => {
       setState(prev => {
         const system = cloneSystem(prev.system);
         switch (kind) {
@@ -298,6 +321,11 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
               item.id === element.id ? (element as Shunt) : item
             );
             break;
+          case 'component':
+            system.components = (system.components ?? []).map(item =>
+              item.id === element.id ? (element as GenericComponent) : item
+            );
+            break;
         }
         return {
           ...prev,
@@ -322,6 +350,9 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
           system.generators = system.generators.filter(item => item.bus !== id);
           system.loads = system.loads.filter(item => item.bus !== id);
           system.shunts = (system.shunts ?? []).filter(item => item.bus !== id);
+          system.components = (system.components ?? []).filter(
+            item => item.bus !== id && item.fromBus !== id && item.toBus !== id
+          );
           break;
         case 'line':
           system.lines = system.lines.filter(item => item.id !== id);
@@ -337,6 +368,9 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
           break;
         case 'shunt':
           system.shunts = (system.shunts ?? []).filter(item => item.id !== id);
+          break;
+        case 'component':
+          system.components = (system.components ?? []).filter(item => item.id !== id);
           break;
       }
       return {
@@ -370,6 +404,9 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
           break;
         case 'shunt':
           element = (prev.system.shunts ?? []).find(item => item.id === id);
+          break;
+        case 'component':
+          element = (prev.system.components ?? []).find(item => item.id === id);
           break;
       }
       if (element) setClipboard({ kind, element: JSON.parse(JSON.stringify(element)) });
@@ -428,6 +465,20 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
           system.shunts = [...(system.shunts ?? []), { ...shunt, id: nextId(system.shunts ?? [], 'shunt_') }];
           break;
         }
+        case 'component': {
+          const component = element as GenericComponent;
+          system.components = [
+            ...(system.components ?? []),
+            {
+              ...component,
+              id: nextId(system.components ?? [], 'cmp_'),
+              name: `${component.name} copy`,
+              x: component.x + 0.6,
+              y: component.y + 0.6,
+            },
+          ];
+          break;
+        }
       }
       return {
         ...prev,
@@ -483,6 +534,21 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
           const shunt = (system.shunts ?? []).find(item => item.id === id);
           if (!shunt) return prev;
           system.shunts = [...(system.shunts ?? []), { ...shunt, id: nextId(system.shunts ?? [], 'shunt_') }];
+          break;
+        }
+        case 'component': {
+          const component = (system.components ?? []).find(item => item.id === id);
+          if (!component) return prev;
+          system.components = [
+            ...(system.components ?? []),
+            {
+              ...component,
+              id: nextId(system.components ?? [], 'cmp_'),
+              name: `${component.name} copy`,
+              x: component.x + 0.6,
+              y: component.y + 0.6,
+            },
+          ];
           break;
         }
       }
@@ -557,6 +623,7 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
     addBus,
     addBranch,
     addDevice,
+    addComponent,
     updateElement,
     deleteElement,
     duplicateElement,

@@ -2,7 +2,7 @@
  * Project model utilities: creation, validation, serialization and file I/O.
  */
 
-import { PowerSystem, Bus, Line, Transformer, Generator, Load, Shunt } from '@/types';
+import { PowerSystem, Bus, Line, Transformer, Generator, Load, Shunt, GenericComponent, ComponentCategory } from '@/types';
 
 export const PROJECT_VERSION = 1;
 export const PROJECT_APPLICATION = 'psat-web';
@@ -30,6 +30,10 @@ export interface SystemStats {
   generators: number;
   loads: number;
   shunts: number;
+  components: number;
+  dcComponents: number;
+  instruments: number;
+  controls: number;
   totalLoadMW: number;
   totalLoadMvar: number;
   totalGenerationMW: number;
@@ -222,6 +226,27 @@ export function normalizeSystem(input: unknown): PowerSystem {
     };
   }).filter(shunt => busIds.has(shunt.bus));
 
+  const components: GenericComponent[] = (Array.isArray(raw.components) ? raw.components : []).map((component, index) => {
+    const source = (component ?? {}) as Partial<GenericComponent>;
+    const category: ComponentCategory =
+      source.category === 'DC' || source.category === 'Instrument' || source.category === 'Control' || source.category === 'Other'
+        ? source.category
+        : 'AC';
+    return {
+      id: toText(source.id, `component_${index + 1}`),
+      type: toText(source.type, 'generic'),
+      category,
+      name: toText(source.name, `Component ${index + 1}`),
+      bus: source.bus && busIds.has(source.bus) ? source.bus : undefined,
+      fromBus: source.fromBus && busIds.has(source.fromBus) ? source.fromBus : undefined,
+      toBus: source.toBus && busIds.has(source.toBus) ? source.toBus : undefined,
+      x: toNumber(source.x, index * 1.2),
+      y: toNumber(source.y, 0),
+      properties: source.properties && typeof source.properties === 'object' ? source.properties : {},
+      active: source.active !== false,
+    };
+  });
+
   return autoLayout({
     name: toText(raw.name, 'Untitled Project'),
     buses,
@@ -230,6 +255,7 @@ export function normalizeSystem(input: unknown): PowerSystem {
     generators,
     loads,
     shunts,
+    components,
     areas: Array.isArray(raw.areas) && raw.areas.length
       ? raw.areas.map((area, index) => ({
           id: toText(area?.id, `A${index + 1}`),
@@ -362,6 +388,30 @@ export function validateSystem(system: PowerSystem): ValidationIssue[] {
     }
   });
 
+  (system.components ?? []).forEach(component => {
+    if (component.bus && !busIds.has(component.bus)) {
+      issues.push({
+        severity: 'warning',
+        message: `Component "${component.name}" is attached to a missing bus.`,
+        elementId: component.id,
+      });
+    }
+    if (component.fromBus && !busIds.has(component.fromBus)) {
+      issues.push({
+        severity: 'warning',
+        message: `Component "${component.name}" has a missing from-bus.`,
+        elementId: component.id,
+      });
+    }
+    if (component.toBus && !busIds.has(component.toBus)) {
+      issues.push({
+        severity: 'warning',
+        message: `Component "${component.name}" has a missing to-bus.`,
+        elementId: component.id,
+      });
+    }
+  });
+
   const totalGeneration = system.generators.reduce((sum, gen) => sum + (gen.active ? gen.pg : 0), 0);
   const totalLoad = system.loads.reduce((sum, load) => sum + (load.active ? load.pl : 0), 0);
   if (totalGeneration + 1e-6 < totalLoad * 0.5) {
@@ -381,6 +431,8 @@ export function systemStats(system: PowerSystem): SystemStats {
   const totalGenerationCapacityMW = system.generators.reduce((sum, gen) => sum + (gen.active ? gen.pmax : 0), 0);
   const totalLineLengthKm = system.lines.reduce((sum, line) => sum + (line.length ?? 0), 0);
 
+  const components = system.components ?? [];
+
   return {
     buses: system.buses.length,
     lines: system.lines.length,
@@ -388,6 +440,10 @@ export function systemStats(system: PowerSystem): SystemStats {
     generators: system.generators.length,
     loads: system.loads.length,
     shunts: system.shunts?.length ?? 0,
+    components: components.length,
+    dcComponents: components.filter(component => component.category === 'DC').length,
+    instruments: components.filter(component => component.category === 'Instrument').length,
+    controls: components.filter(component => component.category === 'Control').length,
     totalLoadMW,
     totalLoadMvar,
     totalGenerationMW,

@@ -19,10 +19,13 @@ import { Bus } from '@/types';
 import { useProject, Selection } from '@/lib/useProject';
 import { AppSettings, defaultSettings, loadSettings, saveSettings } from '@/lib/settings';
 import { buildDemoSystem, buildSample } from '@/lib/samples';
+import { ComponentDefinition, buildGenericComponent, getComponentDefinition } from '@/lib/component-catalog';
+import { findNearestBusId } from '@/lib/component-utils';
 import {
   deserializeProject,
   downloadFile,
   emptySystem,
+  findFreePosition,
   safeFileName,
   serializeProject,
   systemStats,
@@ -51,6 +54,7 @@ export default function Home() {
   const project = useProject(buildDemoSystem());
   const [selection, setSelection] = useState<Selection>({ type: null, id: null });
   const [tool, setTool] = useState<CanvasTool>('select');
+  const [pendingBranch, setPendingBranch] = useState<ComponentDefinition | null>(null);
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [revision, setRevision] = useState(0);
@@ -264,19 +268,106 @@ export default function Home() {
     [log, project, selectedBusId]
   );
 
+  const addCatalogComponent = useCallback(
+    (definitionId: string, position?: { x: number; y: number }) => {
+      const definition = getComponentDefinition(definitionId);
+      if (!definition) {
+        log(`Unknown component "${definitionId}".`);
+        return;
+      }
+
+      if (definition.model === 'bus') {
+        const bus = project.addBus(definition.busType ?? 'pq', position, {
+          name: definition.label,
+          subtype: definition.busKind,
+        });
+        if (bus) {
+          setSelection({ type: 'bus', id: bus.id });
+          log(`Added ${definition.label} bus "${bus.name}".`);
+          setToast({ type: 'success', text: `Added ${definition.label}` });
+        }
+        return;
+      }
+
+      if (definition.model === 'line' || definition.model === 'transformer') {
+        setPendingBranch(definition);
+        setTool(definition.model === 'transformer' ? 'transformer' : 'line');
+        setActiveTab('components');
+        log(`Select two buses to place the ${definition.label}.`);
+        return;
+      }
+
+      if (definition.model === 'generator' || definition.model === 'load' || definition.model === 'shunt') {
+        let busId = selectedBusId();
+        if (!busId) {
+          const bus = project.addBus('slack', position);
+          busId = bus?.id ?? null;
+        }
+        if (!busId) {
+          log(`Cannot add ${definition.label}: no bus available.`);
+          return;
+        }
+        const overrides =
+          definition.model === 'generator'
+            ? definition.generatorDefaults
+            : definition.model === 'load'
+              ? definition.loadDefaults
+              : definition.shuntDefaults;
+        project.addDevice(definition.model, busId, overrides);
+        log(`Added ${definition.label} at bus ${busId}.`);
+        setToast({ type: 'success', text: `Added ${definition.label}` });
+        return;
+      }
+
+      let busId: string | undefined;
+      if (definition.attach === 'bus') {
+        busId = position ? findNearestBusId(project.system, position) : selectedBusId() ?? undefined;
+      }
+
+      let spot = position;
+      if (!spot) {
+        if (busId) {
+          const bus = project.system.buses.find(item => item.id === busId);
+          const count = (project.system.components ?? []).filter(item => item.bus === busId).length;
+          spot = bus
+            ? { x: bus.x + 0.7 + (count % 3) * 0.45, y: bus.y + 0.7 + Math.floor(count / 3) * 0.45 }
+            : { x: 0, y: 0 };
+        } else {
+          spot = findFreePosition(project.system);
+        }
+      }
+
+      const created = project.addComponent(buildGenericComponent(definition, spot, busId));
+      setSelection({ type: 'component', id: created.id });
+      log(`Added ${definition.label}${busId ? ` at bus ${busId}` : ''}.`);
+      setToast({ type: 'success', text: `Added ${definition.label}` });
+    },
+    [log, project, selectedBusId]
+  );
+
   const handleBranchConnect = useCallback(
     (fromBus: string, toBus: string) => {
-      const kind = tool === 'transformer' ? 'transformer' : 'line';
-      project.addBranch(kind, fromBus, toBus);
-      log(`Added ${kind} from ${fromBus} to ${toBus}.`);
-      setToast({ type: 'success', text: `Added ${kind}` });
+      const kind = pendingBranch?.model === 'transformer' || tool === 'transformer' ? 'transformer' : 'line';
+      const overrides = pendingBranch
+        ? pendingBranch.model === 'transformer'
+          ? pendingBranch.transformerDefaults
+          : pendingBranch.lineDefaults
+        : undefined;
+      project.addBranch(kind, fromBus, toBus, overrides);
+      log(`Added ${pendingBranch?.label ?? kind} from ${fromBus} to ${toBus}.`);
+      setToast({ type: 'success', text: `Added ${pendingBranch?.label ?? kind}` });
+      setPendingBranch(null);
       setTool('select');
     },
-    [log, project, tool]
+    [log, pendingBranch, project, tool]
   );
 
   const handleDropComponent = useCallback(
     (kind: string, position: { x: number; y: number }) => {
+      if (kind.startsWith('component:')) {
+        addCatalogComponent(kind.slice('component:'.length), position);
+        return;
+      }
       if (kind.startsWith('bus-')) {
         const type = kind.slice(4) as Bus['type'];
         addBus(type, position);
@@ -308,7 +399,7 @@ export default function Home() {
       }
       log(`Component "${kind}" is a protection/measurement device. It is considered in the Short Circuit study.`);
     },
-    [addBus, log, project]
+    [addBus, addCatalogComponent, log, project]
   );
 
   const deleteSelection = useCallback(() => {
@@ -361,6 +452,10 @@ export default function Home() {
 
   const handleAction = (action: string) => {
     setContextMenu(null);
+    if (action.startsWith('component:')) {
+      addCatalogComponent(action.slice('component:'.length));
+      return;
+    }
     switch (action) {
       case 'new':
         newProject();
@@ -431,11 +526,13 @@ export default function Home() {
         setTool('pan');
         break;
       case 'tool-line':
+        setPendingBranch(null);
         setTool('line');
         setActiveTab('components');
         log('Line tool active: click the first bus, then the second bus.');
         break;
       case 'tool-transformer':
+        setPendingBranch(null);
         setTool('transformer');
         setActiveTab('components');
         log('Transformer tool active: click the first bus, then the second bus.');
@@ -569,6 +666,7 @@ export default function Home() {
         log('Edit the selected element in the Properties panel.');
         break;
       case 'escape':
+        setPendingBranch(null);
         setTool('select');
         setDialog(null);
         setContextMenu(null);
@@ -907,6 +1005,7 @@ export default function Home() {
           <span>Loads: {stats.loads}</span>
           <span>Generators: {stats.generators}</span>
           <span>Shunts: {stats.shunts}</span>
+          <span>Components: {stats.components}</span>
         </div>
         <div className="flex items-center gap-3">
           {cursor && <span className="font-mono text-slate-500">X {cursor.x.toFixed(0)} Y {cursor.y.toFixed(0)}</span>}

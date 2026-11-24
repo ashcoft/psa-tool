@@ -11,6 +11,9 @@ import {
 } from 'react';
 import { PowerFlowResult, PowerSystem } from '@/types';
 import { Selection } from '@/lib/useProject';
+import { getComponentDefinition } from '@/lib/component-catalog';
+import { componentAnchor } from '@/lib/component-utils';
+import { renderSymbol } from '@/lib/symbols';
 
 export type CanvasTool = 'select' | 'pan' | 'line' | 'transformer';
 
@@ -585,6 +588,85 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
       ctx.fillText(`#${bus.id}`, x - BUS_HALF_WIDTH - 5, y - 2);
     });
 
+    // Specialty components (DC, instruments, controls, protection, composite)
+    const genericComponents = system.components ?? [];
+    genericComponents.forEach(component => {
+      const anchor = componentAnchor(system, component);
+      const isSelected = selection.type === 'component' && selection.id === component.id;
+      const isHovered = hover.type === 'component' && hover.id === component.id;
+      const color = isSelected ? colors.selected : isHovered ? '#0f172a' : '#475569';
+      const definition = getComponentDefinition(component.type);
+
+      if (component.fromBus && component.toBus) {
+        const from = busById.get(component.fromBus);
+        const to = busById.get(component.toBus);
+        if (from && to) {
+          ctx.save();
+          ctx.strokeStyle = color;
+          ctx.lineWidth = (isSelected ? 2.8 : 1.4) / Math.max(0.6, scale);
+          ctx.beginPath();
+          ctx.moveTo(from.x * GRID_UNIT, from.y * GRID_UNIT);
+          ctx.lineTo(to.x * GRID_UNIT, to.y * GRID_UNIT);
+          ctx.stroke();
+          ctx.restore();
+        }
+      } else if (component.bus) {
+        const bus = busById.get(component.bus);
+        if (bus) {
+          ctx.save();
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 1.2 / Math.max(0.6, scale);
+          ctx.beginPath();
+          ctx.moveTo(bus.x * GRID_UNIT, bus.y * GRID_UNIT);
+          ctx.lineTo(anchor.x, anchor.y);
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+
+      ctx.save();
+      ctx.globalAlpha = component.active === false ? 0.45 : 1;
+      if (definition?.symbol) {
+        ctx.save();
+        ctx.translate(anchor.x, anchor.y);
+        renderSymbol(ctx, definition.symbol, 0, 0);
+        ctx.restore();
+      } else {
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = color;
+        ctx.lineWidth = (isSelected ? 2.4 : 1.4) / Math.max(0.6, scale);
+        const width = 26;
+        const height = 18;
+        ctx.beginPath();
+        ctx.rect(anchor.x - width / 2, anchor.y - height / 2, width, height);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = color;
+        ctx.font = 'bold 8px "Segoe UI", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const short = component.category === 'Instrument' ? 'I' : component.category === 'Control' ? 'CS' : component.category === 'DC' ? 'DC' : component.category.slice(0, 2);
+        ctx.fillText(short, anchor.x, anchor.y + 1);
+        ctx.textBaseline = 'alphabetic';
+      }
+
+      if (isSelected) {
+        ctx.setLineDash([4 / Math.max(0.7, scale), 3 / Math.max(0.7, scale)]);
+        ctx.strokeStyle = colors.selected;
+        ctx.lineWidth = 1.2 / Math.max(0.6, scale);
+        ctx.strokeRect(anchor.x - 20, anchor.y - 16, 40, 32);
+        ctx.setLineDash([]);
+      }
+
+      if (showBusNames) {
+        ctx.fillStyle = isSelected ? colors.selected : '#334155';
+        ctx.font = '8.5px "Segoe UI", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(component.name, anchor.x, anchor.y + 25);
+      }
+      ctx.restore();
+    });
+
     if (results && showVoltageOverlay) {
       const legendX = -size.width / 2 / scale + 14 / scale;
       const legendY = -size.height / 2 / scale + 14 / scale;
@@ -644,6 +726,31 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
           return { type: device.kind, id: device.id };
         }
       }
+      for (const component of system.components ?? []) {
+        const anchor = componentAnchor(system, component);
+        if (Math.hypot(worldX - anchor.x, worldY - anchor.y) < 22) {
+          return { type: 'component', id: component.id };
+        }
+        if (component.fromBus && component.toBus) {
+          const from = busById.get(component.fromBus);
+          const to = busById.get(component.toBus);
+          if (
+            from &&
+            to &&
+            pointSegmentDistance(
+              worldX,
+              worldY,
+              from.x * GRID_UNIT,
+              from.y * GRID_UNIT,
+              to.x * GRID_UNIT,
+              to.y * GRID_UNIT
+            ) < 12
+          ) {
+            return { type: 'component', id: component.id };
+          }
+        }
+      }
+
       for (const bus of system.buses) {
         if (Math.hypot(worldX - bus.x * GRID_UNIT, worldY - bus.y * GRID_UNIT) < 34) {
           return { type: 'bus', id: bus.id };

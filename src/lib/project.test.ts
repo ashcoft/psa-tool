@@ -69,6 +69,49 @@ describe('project model', () => {
     expect(issues2.some(issue => issue.message.includes('does not exist'))).toBe(true);
   });
 
+  it('normalizes and round-trips specialty components', () => {
+    const system = normalizeSystem({
+      buses: [{ id: 'b1', name: 'Bus 1', type: 'slack' }],
+      components: [
+        {
+          id: 'cmp_1',
+          type: 'dc-bus',
+          category: 'DC',
+          name: 'DC Bus A',
+          x: 2,
+          y: 3,
+          properties: { voltageV: 480, ratingKW: 100 },
+          active: true,
+        },
+        {
+          id: 'cmp_2',
+          type: 'overcurrent-relay',
+          category: 'Instrument',
+          name: 'Relay 1',
+          bus: 'missing',
+          x: 1,
+          y: 1,
+          properties: {},
+          active: true,
+        },
+      ],
+    });
+
+    expect(system.components).toHaveLength(2);
+    expect(system.components?.[0].category).toBe('DC');
+    expect(system.components?.[0].properties.voltageV).toBe(480);
+    expect(system.components?.[1].bus).toBeUndefined();
+
+    const restored = deserializeProject(serializeProject(system, 'Components'));
+    expect(restored.system.components).toHaveLength(2);
+    expect(restored.system.components?.[0].name).toBe('DC Bus A');
+
+    const stats = systemStats(system);
+    expect(stats.components).toBe(2);
+    expect(stats.dcComponents).toBe(1);
+    expect(stats.instruments).toBe(1);
+  });
+
   it('computes system statistics', () => {
     const stats = systemStats(buildDemoSystem());
     expect(stats.buses).toBe(4);

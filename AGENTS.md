@@ -13,6 +13,10 @@
   rendered by `ResultsDialog`, exported by `results-export`, and described in `results-export` reports.
 - Specialty calculators live in `src/lib/arcflash.ts`, `motor-starting.ts`, `harmonics.ts`,
   `protection.ts` and `groundgrid.ts`, and are presented by `SpecialtyDialog`.
+- `src/lib/component-catalog.ts` is the source of truth for the AC/DC/Instrument/Control/Other
+  palettes. Definitions either map to a real model element (`bus`, `line`, `transformer`,
+  `generator`, `load`, `shunt`) or become a `GenericComponent` stored in `system.components`.
+  Generic components are persisted, drawn on the canvas and edited in the property panel.
 - `src/lib/useProject.ts` owns the system state, undo/redo history and element editing actions.
 - `src/components/Canvas.tsx` draws the one-line diagram and handles selection, dragging, connection
   and view transforms. Bus coordinates are grid units where 1 unit = 100 px at 100 % zoom.

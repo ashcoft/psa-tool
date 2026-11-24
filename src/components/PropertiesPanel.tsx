@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   Bus,
   Generator,
+  GenericComponent,
   Load,
   Line,
   PowerFlowResult,
@@ -13,9 +14,10 @@ import {
 } from '@/types';
 import { Selection } from '@/lib/useProject';
 import { systemStats, ValidationIssue } from '@/lib/project';
+import { getComponentDefinition } from '@/lib/component-catalog';
 import Icon from './Icon';
 
-type AnyElement = Bus | Line | Transformer | Generator | Load | Shunt;
+type AnyElement = Bus | Line | Transformer | Generator | Load | Shunt | GenericComponent;
 
 interface PropertiesPanelProps {
   system: PowerSystem;
@@ -44,6 +46,8 @@ function findElement(system: PowerSystem, selection: Selection): AnyElement | nu
       return system.loads.find(item => item.id === selection.id) ?? null;
     case 'shunt':
       return (system.shunts ?? []).find(item => item.id === selection.id) ?? null;
+    case 'component':
+      return (system.components ?? []).find(item => item.id === selection.id) ?? null;
     default:
       return null;
   }
@@ -56,6 +60,7 @@ const kindTitle: Record<string, string> = {
   generator: 'Generator',
   load: 'Load',
   shunt: 'Shunt',
+  component: 'Component',
 };
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -505,8 +510,113 @@ export default function PropertiesPanel({
             </>
           );
         })()}
+
+        {selection.type === 'component' && (
+          <ComponentEditor
+            component={draft as GenericComponent}
+            busOptions={busOptions}
+            onChange={next => update(next)}
+          />
+        )}
       </div>
     </aside>
+  );
+}
+
+function ComponentEditor({
+  component,
+  busOptions,
+  onChange,
+}: {
+  component: GenericComponent;
+  busOptions: { value: string; label: string }[];
+  onChange: (component: GenericComponent) => void;
+}) {
+  const definition = getComponentDefinition(component.type);
+  const properties =
+    definition?.properties ??
+    Object.keys(component.properties).map(key => ({
+      key,
+      label: key,
+      type: typeof component.properties[key] === 'number'
+        ? ('number' as const)
+        : typeof component.properties[key] === 'boolean'
+          ? ('boolean' as const)
+          : ('text' as const),
+      default: component.properties[key],
+    }));
+
+  return (
+    <>
+      <Section title="Identification">
+        <Row label="Name"><TextInput value={component.name} onChange={value => onChange({ ...component, name: value })} /></Row>
+        <div className="flex items-center justify-between text-[11px]">
+          <span className="text-slate-500">Type</span>
+          <span className="font-medium text-slate-800">{definition?.label ?? component.type}</span>
+        </div>
+        <div className="flex items-center justify-between text-[11px]">
+          <span className="text-slate-500">Category</span>
+          <span className="font-medium text-slate-800">{component.category}</span>
+        </div>
+        <Row label="In service"><CheckInput value={component.active} onChange={value => onChange({ ...component, active: value })} /></Row>
+      </Section>
+
+      <Section title="Connections">
+        <Row label="Bus">
+          <SelectInput
+            value={component.bus ?? ''}
+            options={[{ value: '', label: '— none —' }, ...busOptions]}
+            onChange={value => onChange({ ...component, bus: value || undefined })}
+          />
+        </Row>
+        {(definition?.attach === 'branch' || component.fromBus || component.toBus) && (
+          <>
+            <Row label="From bus">
+              <SelectInput
+                value={component.fromBus ?? ''}
+                options={[{ value: '', label: '— none —' }, ...busOptions]}
+                onChange={value => onChange({ ...component, fromBus: value || undefined })}
+              />
+            </Row>
+            <Row label="To bus">
+              <SelectInput
+                value={component.toBus ?? ''}
+                options={[{ value: '', label: '— none —' }, ...busOptions]}
+                onChange={value => onChange({ ...component, toBus: value || undefined })}
+              />
+            </Row>
+          </>
+        )}
+        <Row label="X"><NumberInput value={component.x} step={0.2} onChange={value => onChange({ ...component, x: value })} /></Row>
+        <Row label="Y"><NumberInput value={component.y} step={0.2} onChange={value => onChange({ ...component, y: value })} /></Row>
+      </Section>
+
+      {properties.length > 0 && (
+        <Section title="Parameters">
+          {properties.map(property => (
+            <Row key={property.key} label={property.label}>
+              {property.type === 'boolean' ? (
+                <CheckInput
+                  value={Boolean(component.properties[property.key])}
+                  onChange={value => onChange({ ...component, properties: { ...component.properties, [property.key]: value } })}
+                />
+              ) : property.type === 'number' ? (
+                <NumberInput
+                  value={Number(component.properties[property.key] ?? 0)}
+                  step={0.01}
+                  onChange={value => onChange({ ...component, properties: { ...component.properties, [property.key]: value } })}
+                />
+              ) : (
+                <TextInput
+                  value={String(component.properties[property.key] ?? '')}
+                  onChange={value => onChange({ ...component, properties: { ...component.properties, [property.key]: value } })}
+                />
+              )}
+            </Row>
+          ))}
+        </Section>
+      )}
+    </>
   );
 }
 

@@ -14,8 +14,12 @@ study-case history and tabular/chart results.
 
 ### One-line diagram editor
 - Ribbon with Home, Components, Analysis, Results and Tools tabs
-- Component palette with search and drag-and-drop placement
-- Project tree for buses, lines, transformers, generators, loads and shunts
+- Complete PSAT component library with AC, DC, Instruments, Controls and Other
+  palettes (sources, buses, branches, loads/motors, protection, conversion,
+  meters, relays, AVR/governor/PSS, DC elements, DC control and composite items)
+- Component palette with category tabs, search and drag-and-drop placement
+- Project tree for buses, lines, transformers, generators, loads, shunts and
+  specialty components
 - Select, pan, zoom (cursor-centred), fit, grid and snap-to-grid
 - Click-to-connect line and transformer tools
 - Context menu, duplicate, copy/paste, delete and undo/redo
@@ -119,7 +123,7 @@ src/
 │   ├── TitleBar.tsx     # Project name, menus and quick access
 │   ├── Ribbon.tsx       # ETAP-style ribbon definition and renderer
 │   ├── Toolbar.tsx      # Study toolbar (method, run buttons, model state)
-│   ├── Sidebar.tsx      # Component palette and project tree
+│   ├── Sidebar.tsx      # AC/DC/Ins/CS/Other component palette and project tree
 │   ├── Canvas.tsx       # One-line diagram renderer and interaction
 │   ├── PropertiesPanel.tsx
 │   ├── ResultsDialog.tsx / ReportDialog.tsx / Chart.tsx
@@ -135,6 +139,8 @@ src/
 │   ├── studies.ts            # Study runner facade
 │   ├── results-export.ts     # Tables, CSV and report sections
 │   ├── project.ts            # Serialization, validation, statistics
+│   ├── component-catalog.ts  # Full PSAT component catalog and defaults
+│   ├── component-utils.ts    # Component anchors and nearest-bus helpers
 │   ├── samples.ts            # Ready-to-run systems
 │   ├── settings.ts           # Persisted application settings
 │   └── useProject.ts         # Project state, history and editing actions
