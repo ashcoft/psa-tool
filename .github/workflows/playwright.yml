@@ -6,7 +6,7 @@ on:
     paths-ignore:
       - 'psat-converted/**'
   pull_request:
-    branches: [main, master]
+    branches: ['**']
     paths-ignore:
       - 'psat-converted/**'
 
