@@ -632,7 +632,7 @@ export function solveFastDecoupled(
   }
 
   const buildMatrix = (buses: number[]): number[][] =>
-    buses.map(i => buses.map(j => (i === j ? -ybus.b[i][j] : -ybus.b[i][j])));
+    buses.map(i => buses.map(j => -ybus.b[i][j]));
 
   const Bp = buildMatrix(angleBuses);
   const Bpp = buildMatrix(voltageBuses);
@@ -876,7 +876,7 @@ export function solveDC(system: PowerSystem): PowerFlowResult {
     bus: bus.id,
     v: Vm[i],
     angle: (theta[i] * 180) / Math.PI,
-    pg: i === slackIdx ? network.pGen[i] * network.baseMVA : network.pGen[i] * network.baseMVA,
+    pg: network.pGen[i] * network.baseMVA,
     qg: 0,
     pl: network.pLoad[i] * network.baseMVA,
     ql: network.qLoad[i] * network.baseMVA,

@@ -7,7 +7,6 @@
  */
 
 import { PowerSystem } from '@/types';
-import { buildYBus } from './powerflow-methods';
 
 interface Complex {
   re: number;

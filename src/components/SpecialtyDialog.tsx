@@ -13,7 +13,6 @@ import {
   buildRelayCurves,
   coordinationMargin,
   relayCurves,
-  relayTripTime,
 } from '@/lib/protection';
 import { GroundGridResult, designGroundGrid } from '@/lib/groundgrid';
 import { downloadFile, safeFileName } from '@/lib/project';
