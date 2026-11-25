@@ -107,11 +107,11 @@ is private by default: authenticate with `docker login ghcr.io` using a token th
 
 The static workbench is live at **https://ashcoft.github.io/psat-web/**.
 
-The repository includes `.github/workflows/pages.yml` to rebuild and deploy it from `main`. To use
-the workflow in a fork, set **Settings → Pages → Build and deployment → Source: GitHub Actions**.
-The workflow builds with `NEXT_OUTPUT=export` and `NEXT_PUBLIC_BASE_PATH=/psat-web`, writes
-`out/.nojekyll` and uploads the artifact. The current deployment is served from the `gh-pages`
-branch; the same build is available locally with `npm run build:pages`.
+The repository includes `.github/workflows/pages.yml` to rebuild it from `main` and publish it to
+the `gh-pages` branch. GitHub Pages serves that branch: **Settings → Pages → Build and deployment →
+Source: Deploy from a branch → `gh-pages` / root**. The workflow builds with `NEXT_OUTPUT=export`
+and `NEXT_PUBLIC_BASE_PATH=/psat-web` and writes `out/.nojekyll`. The same build is available
+locally with `npm run build:pages`.
 
 ## Capabilities
 

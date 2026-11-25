@@ -66,12 +66,11 @@ are required.
 
 The workbench is live at **https://ashcoft.github.io/psat-web/**.
 
-The current deployment is served from the `gh-pages` branch. The repository also includes
-`.github/workflows/pages.yml` to rebuild and deploy it from `main` with the Actions source.
+The repository includes `.github/workflows/pages.yml`, which rebuilds the static export from `main`
+and force-pushes it to the `gh-pages` branch.
 
 - URL: `https://ashcoft.github.io/psat-web/`
-- Actions source: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
-- Branch source: **Source: Deploy from a branch → `gh-pages` / root**.
+- Source: **Settings → Pages → Build and deployment → Source: Deploy from a branch → `gh-pages` / root**.
 - The workflow writes `out/.nojekyll` so the `_next` asset directory is served.
 - The static export is configured in `next.config.js` when `NEXT_OUTPUT=export`.
 
