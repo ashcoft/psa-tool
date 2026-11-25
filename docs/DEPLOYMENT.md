@@ -1,6 +1,6 @@
 # Deployment
 
-PSAT Web is a static Next.js application. It can run locally, as a container, on GitHub Pages or on
+Power System Analysis Tool (PSA) is a static Next.js application. It can run locally, as a container, on GitHub Pages or on
 Vercel.
 
 ## Local
@@ -27,8 +27,8 @@ npm run test:e2e
 The image uses the Next.js standalone output, runs as a non-root user and listens on port 3000.
 
 ```bash
-docker build -t psat-web .
-docker run --rm -p 3000:3000 psat-web
+docker build -t psa-tool .
+docker run --rm -p 3000:3000 psa-tool
 ```
 
 Or with Compose:
@@ -41,36 +41,39 @@ The Compose service includes a health check against `http://127.0.0.1:3000/`.
 
 ## GitHub Container Registry (GHCR)
 
-Every push to `main`, every `v*` tag and manual dispatch publishes an image with the workflow in
-`.github/workflows/docker-publish.yml`.
+Every push to `main`, every `v*` tag and manual dispatch publishes an image with
+`.github/workflows/docker-publish.yml`. The release workflow also publishes the version-tagged
+image after semantic-release, because tags created with `GITHUB_TOKEN` do not trigger a downstream
+push workflow.
 
 ```bash
-docker pull ghcr.io/ashcoft/psat-web:latest
-docker run --rm -p 3000:3000 ghcr.io/ashcoft/psat-web:latest
+docker pull ghcr.io/ashcoft/psa-tool:latest
+docker run --rm -p 3000:3000 ghcr.io/ashcoft/psa-tool:latest
 ```
 
 Tags produced by the workflow:
 
 | Tag | When |
 |-----|------|
-| `latest` | Default branch |
+| `latest` | Default branch or a new release |
 | `main` | Branch push |
-| `1.2.0`, `1.2` | Semantic version tag `v1.2.0` |
-| `sha-<short>` | Every build |
+| `1.3.0`, `1.3` | Release workflow, or a manual `v1.3.0` tag |
+| `sha-<short>` | Every main/tag build |
 
-The workflow uses `GITHUB_TOKEN` with `packages: write`. No extra secret is required. The first
+The workflows use `GITHUB_TOKEN` with `packages: write`. No extra secret is required. The first
 publish creates the package; make it public in the repository package settings if anonymous pulls
-are required.
+are required. `docker/metadata-action` runs with `latest=false`, so an older version tag cannot move
+`latest` backwards.
 
 ## GitHub Pages
 
-The workbench is live at **https://ashcoft.github.io/psat-web/**.
+The workbench is live at **https://ashcoft.github.io/psa-tool/**.
 
-The repository includes `.github/workflows/pages.yml`, which rebuilds the static export from `main`
-and force-pushes it to the `gh-pages` branch.
+The repository includes `.github/workflows/pages.yml`, which builds the static export and deploys
+it with the official Pages artifact and deployment actions.
 
-- URL: `https://ashcoft.github.io/psat-web/`
-- Source: **Settings → Pages → Build and deployment → Source: Deploy from a branch → `gh-pages` / root**.
+- URL: `https://ashcoft.github.io/psa-tool/`
+- Source: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
 - The workflow writes `out/.nojekyll` so the `_next` asset directory is served.
 - The static export is configured in `next.config.js` when `NEXT_OUTPUT=export`.
 
@@ -97,7 +100,7 @@ Without `VERCEL_TOKEN` the workflow skips the deployment instead of failing.
 | Variable | Used by | Meaning |
 |----------|---------|---------|
 | `NEXT_OUTPUT` | build | `standalone` for Docker, `export` for GitHub Pages |
-| `NEXT_PUBLIC_BASE_PATH` | build | Sub-path for GitHub Pages, for example `/psat-web` |
+| `NEXT_PUBLIC_BASE_PATH` | build | Sub-path for GitHub Pages, for example `/psa-tool` |
 | `NEXT_TELEMETRY_DISABLED` | runtime | Disable Next.js telemetry |
 | `PORT` | runtime | Container port, default `3000` |
 | `BASE_URL` | Playwright | Target URL for end-to-end tests |

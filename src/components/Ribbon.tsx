@@ -64,6 +64,7 @@ export const ribbonTabs: RibbonTab[] = [
           { id: 'zoom-out', label: 'Zoom Out', icon: 'zoomOut', action: 'zoom-out', size: 'small', shortcut: 'Ctrl+-' },
           { id: 'fit', label: 'Fit', icon: 'fit', action: 'fit', size: 'small', shortcut: 'Ctrl+0' },
           { id: 'grid', label: 'Grid', icon: 'grid', action: 'toggle-grid', size: 'small', toggleKey: 'grid' },
+          { id: 'menubar', label: 'Menu Bar', icon: 'menu', action: 'toggle-menubar', size: 'small', toggleKey: 'menubar' },
           { id: 'arrange', label: 'Arrange', icon: 'area', action: 'arrange', size: 'small' },
         ],
       },

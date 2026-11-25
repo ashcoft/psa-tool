@@ -1,11 +1,11 @@
 blank_issues_enabled: false
 contact_links:
   - name: Security report
-    url: https://github.com/ashcoft/psat-web/security/advisories/new
+    url: https://github.com/ashcoft/psa-tool/security/advisories/new
     about: Report a vulnerability privately. Do not open a public issue.
   - name: User guide
-    url: https://github.com/ashcoft/psat-web/blob/main/docs/USER-GUIDE.md
+    url: https://github.com/ashcoft/psa-tool/blob/main/docs/USER-GUIDE.md
     about: How to build a diagram, run studies and read results.
   - name: Deployment guide
-    url: https://github.com/ashcoft/psat-web/blob/main/docs/DEPLOYMENT.md
+    url: https://github.com/ashcoft/psa-tool/blob/main/docs/DEPLOYMENT.md
     about: Local, Docker, GHCR, GitHub Pages and Vercel deployment.

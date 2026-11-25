@@ -69,7 +69,7 @@ export default function Home() {
   const [mobileSidebar, setMobileSidebar] = useState(false);
   const [reportRunId, setReportRunId] = useState<string | null>(null);
   const [messages, setMessages] = useState<string[]>([
-    'PSAT Web ready. Demo 4-bus system loaded.',
+    'Power System Analysis Tool (PSA) ready. Demo 4-bus system loaded.',
     'Use the Components tab or drag components onto the diagram to build a network.',
     'Drag placed buses and components to reposition them; hold Alt for free placement.',
   ]);
@@ -80,6 +80,7 @@ export default function Home() {
 
   const canvasRef = useRef<CanvasHandle>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const projectGeneration = useRef(0);
 
   const log = useCallback((text: string) => {
     setMessages(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${text}`].slice(-400));
@@ -101,6 +102,17 @@ export default function Home() {
     const timer = setTimeout(() => setToast(null), 4000);
     return () => clearTimeout(timer);
   }, [toast]);
+
+  useEffect(() => {
+    if (!project.dirty) return;
+    const remind = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+    };
+    window.addEventListener('beforeunload', remind);
+    return () => {
+      window.removeEventListener('beforeunload', remind);
+    };
+  }, [project.dirty]);
 
   useEffect(() => {
     const close = () => setContextMenu(null);
@@ -151,7 +163,12 @@ export default function Home() {
 
       setBusy(true);
       log(`Running ${studyLabels[kind]}...`);
+      const generation = projectGeneration.current;
       window.setTimeout(() => {
+        if (generation !== projectGeneration.current) {
+          setBusy(false);
+          return;
+        }
         try {
           const run = executeStudy(kind, project.system, settings);
           setRuns(prev => [...prev, run]);
@@ -179,7 +196,7 @@ export default function Home() {
     (name?: string) => {
       const finalName = (name ?? project.name).trim() || 'Untitled Project';
       const payload = serializeProject({ ...project.system, name: finalName }, finalName);
-      const filename = safeFileName(finalName, 'json');
+      const filename = safeFileName(finalName, 'psa');
       downloadFile(filename, payload, 'application/json');
       project.markSaved();
       log(`Project saved as ${filename}`);
@@ -188,8 +205,18 @@ export default function Home() {
     [log, project]
   );
 
+  const confirmDiscard = useCallback(
+    (action: string): boolean => {
+      if (!project.dirty) return true;
+      if (typeof window === 'undefined') return true;
+      return window.confirm(`The current project has unsaved changes. Discard them and ${action}?`);
+    },
+    [project.dirty]
+  );
+
   const newProject = useCallback(() => {
-    if (project.dirty && typeof window !== 'undefined' && !window.confirm('Discard unsaved changes?')) return;
+    if (!confirmDiscard('create a new project')) return;
+    projectGeneration.current += 1;
     project.replaceSystem(emptySystem('Untitled Project'));
     setRevision(value => value + 1);
     setRuns([]);
@@ -198,17 +225,19 @@ export default function Home() {
     setTool('select');
     log('New project created.');
     setToast({ type: 'info', text: 'New project created' });
-  }, [log, project]);
+  }, [confirmDiscard, log, project]);
 
   const openProject = useCallback(() => {
+    if (!confirmDiscard('open another project')) return;
     fileInputRef.current?.click();
-  }, []);
+  }, [confirmDiscard]);
 
   const loadProjectFile = useCallback(
     async (file: File) => {
       try {
         const text = await file.text();
         const { system, name } = deserializeProject(text);
+        projectGeneration.current += 1;
         project.replaceSystem(system, name);
         setRevision(value => value + 1);
         setRuns([]);
@@ -228,7 +257,9 @@ export default function Home() {
 
   const loadSample = useCallback(
     (id: string) => {
+      if (!confirmDiscard('load a sample system')) return;
       const system = buildSample(id);
+      projectGeneration.current += 1;
       project.replaceSystem(system, system.name);
       setRevision(value => value + 1);
       setRuns([]);
@@ -238,8 +269,21 @@ export default function Home() {
       log(`Loaded sample system "${system.name}".`);
       setToast({ type: 'success', text: `Loaded ${system.name}` });
     },
-    [log, project]
+    [confirmDiscard, log, project]
   );
+
+  const closeProject = useCallback(() => {
+    if (!confirmDiscard('close the project')) return;
+    projectGeneration.current += 1;
+    project.replaceSystem(emptySystem('Untitled Project'));
+    setRevision(value => value + 1);
+    setRuns([]);
+    setActiveRunId(null);
+    setSelection({ type: null, id: null });
+    setTool('select');
+    log('Project closed. Open a .psa file or create a new project.');
+    setToast({ type: 'info', text: 'Project closed' });
+  }, [confirmDiscard, log, project]);
 
   const addBus = useCallback(
     (type: Bus['type'], position?: { x: number; y: number }) => {
@@ -272,6 +316,26 @@ export default function Home() {
     [log, project, selectedBusId]
   );
 
+  const resolveDeviceBus = useCallback(
+    (position?: { x: number; y: number }): string | null => {
+      if (position) {
+        const existing = findNearestBusIdWithin(project.system, position, ATTACH_RADIUS);
+        if (existing) return existing;
+        const hasSlack = project.system.buses.some(bus => bus.type === 'slack');
+        const busType: Bus['type'] = project.system.buses.length === 0 || !hasSlack ? 'slack' : 'pq';
+        const bus = project.addBus(busType, position);
+        if (bus) log(`Created ${busType} bus "${bus.name}" at the drop point.`);
+        return bus?.id ?? null;
+      }
+      const selected = selectedBusId();
+      if (selected) return selected;
+      const bus = project.addBus('slack');
+      if (bus) log(`Created slack bus "${bus.name}" for the new device.`);
+      return bus?.id ?? null;
+    },
+    [log, project, selectedBusId]
+  );
+
   const addCatalogComponent = useCallback(
     (definitionId: string, position?: { x: number; y: number }) => {
       const definition = getComponentDefinition(definitionId);
@@ -284,6 +348,7 @@ export default function Home() {
         const bus = project.addBus(definition.busType ?? 'pq', position, {
           name: definition.label,
           subtype: definition.busKind,
+          symbol: definition.symbol,
         });
         if (bus) {
           setSelection({ type: 'bus', id: bus.id });
@@ -302,11 +367,7 @@ export default function Home() {
       }
 
       if (definition.model === 'generator' || definition.model === 'load' || definition.model === 'shunt') {
-        let busId = selectedBusId();
-        if (!busId) {
-          const bus = project.addBus('slack', position);
-          busId = bus?.id ?? null;
-        }
+        const busId = resolveDeviceBus(position);
         if (!busId) {
           log(`Cannot add ${definition.label}: no bus available.`);
           return;
@@ -348,7 +409,7 @@ export default function Home() {
       log(`Added ${definition.label}${busId ? ` at bus ${busId}` : ''}.`);
       setToast({ type: 'success', text: `Added ${definition.label}` });
     },
-    [log, project, selectedBusId]
+    [log, project, resolveDeviceBus, selectedBusId]
   );
 
   const handleBranchConnect = useCallback(
@@ -386,14 +447,7 @@ export default function Home() {
         return;
       }
       if (kind === 'generator' || kind === 'load' || kind === 'shunt') {
-        let busId = findNearestBusIdWithin(project.system, position, ATTACH_RADIUS);
-        if (!busId) {
-          const hasSlack = project.system.buses.some(bus => bus.type === 'slack');
-          const busType: Bus['type'] = project.system.buses.length === 0 || !hasSlack ? 'slack' : 'pq';
-          const bus = project.addBus(busType, position);
-          busId = bus?.id;
-          if (bus) log(`Created ${busType} bus "${bus.name}" at the drop point.`);
-        }
+        const busId = resolveDeviceBus(position);
         if (busId) {
           project.addDevice(kind, busId);
           log(`Added ${kind} at bus ${busId}.`);
@@ -403,7 +457,7 @@ export default function Home() {
       }
       log(`Component "${kind}" is a protection/measurement device. It is considered in the Short Circuit study.`);
     },
-    [addBus, addCatalogComponent, log, project]
+    [addBus, addCatalogComponent, log, project, resolveDeviceBus]
   );
 
   const deleteSelection = useCallback(() => {
@@ -446,7 +500,7 @@ export default function Home() {
   }, [activeRun, log, project.name, project.system]);
 
   const toggleSetting = useCallback(
-    (key: 'showGrid' | 'showBusNames' | 'showVoltageOverlay' | 'showFlowOverlay') => {
+    (key: 'showMenubar' | 'showGrid' | 'showBusNames' | 'showVoltageOverlay' | 'showFlowOverlay') => {
       const next = { ...settings, [key]: !settings[key] };
       setSettings(next);
       saveSettings(next);
@@ -467,6 +521,9 @@ export default function Home() {
       case 'open':
         openProject();
         break;
+      case 'close-project':
+        closeProject();
+        break;
       case 'save':
         saveProject();
         break;
@@ -480,7 +537,7 @@ export default function Home() {
       }
       case 'export':
         downloadFile(
-          safeFileName(project.name, 'json'),
+          safeFileName(project.name, 'psa'),
           serializeProject(project.system, project.name),
           'application/json'
         );
@@ -553,6 +610,9 @@ export default function Home() {
       case 'arrange':
         project.autoArrange();
         log('Auto-arranged the one-line diagram.');
+        break;
+      case 'toggle-menubar':
+        toggleSetting('showMenubar');
         break;
       case 'toggle-grid':
         toggleSetting('showGrid');
@@ -697,6 +757,12 @@ export default function Home() {
       }
       const ctrl = event.ctrlKey || event.metaKey;
       if (ctrl) {
+        if (event.shiftKey && event.key.toLowerCase() === 'm') {
+          if (document.querySelector('[role="dialog"]')) return;
+          event.preventDefault();
+          actionRef.current('toggle-menubar');
+          return;
+        }
         const key = event.key.toLowerCase();
         const map: Record<string, string> = {
           n: 'new',
@@ -767,6 +833,7 @@ export default function Home() {
     'tool-pan': tool === 'pan',
     'tool-line': tool === 'line',
     'tool-transformer': tool === 'transformer',
+    menubar: settings.showMenubar,
     grid: settings.showGrid,
     names: settings.showBusNames,
     voltage: settings.showVoltageOverlay,
@@ -780,6 +847,10 @@ export default function Home() {
         dirty={project.dirty}
         canUndo={project.canUndo}
         canRedo={project.canRedo}
+        showMenubar={settings.showMenubar}
+        onToggleMenubar={() => {
+          toggleSetting('showMenubar');
+        }}
         onAction={handleAction}
         onRename={name => {
           project.setName(name);
@@ -840,6 +911,8 @@ export default function Home() {
               showVoltageOverlay={settings.showVoltageOverlay}
               showFlowOverlay={settings.showFlowOverlay}
               onSelect={setSelection}
+              onMoveStart={project.beginMove}
+              onMoveEnd={project.endMove}
               onMoveBus={project.moveBus}
               onMoveComponent={project.moveComponent}
               onBranchConnect={handleBranchConnect}
@@ -1026,7 +1099,7 @@ export default function Home() {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".json,application/json"
+        accept=".psa,.json,application/json"
         className="hidden"
         aria-label="Open project file"
         onChange={event => {

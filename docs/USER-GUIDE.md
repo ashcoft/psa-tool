@@ -1,6 +1,6 @@
-# PSAT Web user guide
+# Power System Analysis Tool (PSA) user guide
 
-PSAT Web is a browser-based power system analysis workbench. It keeps the whole project in the
+Power System Analysis Tool (PSA) is a browser-based power system analysis workbench. It keeps the whole project in the
 browser: no account, no server-side database, no upload.
 
 ## 1. Start a project
@@ -8,7 +8,8 @@ browser: no account, no server-side database, no upload.
 - The app opens with the **Demo 4-Bus System**.
 - Use **Tools → Samples** to load the IEEE 9-bus, IEEE 14-bus or distribution feeder cases.
 - **Home → New** starts an empty project.
-- **Home → Open** loads a `.json` project saved by PSAT Web.
+- **Home → Open** loads a `.psa` project saved by Power System Analysis Tool. Legacy `.json` projects still open.
+- **File → Close Project** clears the workspace. New, open and close ask before discarding unsaved changes.
 
 The status bar shows the element counts, base MVA, frequency and the last study result.
 
@@ -102,11 +103,11 @@ design.
 
 ## 6. Save and share
 
-- **Ctrl + S** downloads the project as JSON.
+- **Ctrl + S** downloads the project as a `.psa` file.
 - **Save As** chooses a new project name.
-- **Export** in the Home tab downloads the same JSON project.
-- The JSON contains the system model, generic components and project name. Study results are not
-  saved.
+- **Export** in the Home tab downloads the same `.psa` project.
+- The `.psa` file contains the system model, generic components and project name as JSON. Study
+  results are not saved.
 
 ## 7. Keyboard shortcuts
 
@@ -119,6 +120,7 @@ design.
 | `F5` / `F6` / `F7` / `F8` / `F9` / `F10` | Load flow / CPF / short circuit / OPF / time domain / results |
 | `Ctrl + 0` | Fit diagram |
 | `Ctrl + +` / `Ctrl + -` | Zoom in / out |
+| `Ctrl + Shift + M` | Show or hide the menu bar |
 | `Esc` | Cancel tool, connection or dialog |
 
 ## 8. Troubleshooting

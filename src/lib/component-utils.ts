@@ -1,4 +1,4 @@
-import { GenericComponent, PowerSystem } from '@/types';
+import { ComponentCategory, GenericComponent, PowerSystem } from '@/types';
 import { getComponentDefinition } from './component-catalog';
 
 const GRID_UNIT = 100;
@@ -51,4 +51,11 @@ export function findNearestBusIdWithin(
 
 export function componentCategoryLabel(component: GenericComponent): string {
   return getComponentDefinition(component.type)?.label ?? component.name;
+}
+
+export function componentCategoryShort(category: ComponentCategory): string {
+  if (category === 'Instrument') return 'I';
+  if (category === 'Control') return 'CS';
+  if (category === 'DC') return 'DC';
+  return category.slice(0, 2);
 }
