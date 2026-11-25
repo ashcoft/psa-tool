@@ -245,7 +245,7 @@ export default function TitleBar({ projectName, dirty, canUndo, canRedo, onActio
       </div>
 
       <div className="hidden items-center gap-3 text-[10px] text-blue-100/80 md:flex">
-        <span>PSAT Web 1.1</span>
+        <span>PSAT Web {process.env.NEXT_PUBLIC_APP_VERSION ?? '1.2.0'}</span>
         <span>Web Edition</span>
       </div>
     </div>

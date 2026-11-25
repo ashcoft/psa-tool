@@ -171,6 +171,12 @@ export default function PropertiesPanel({
     draftRef.current = draft;
   }, [draft]);
 
+  useEffect(() => {
+    // Keep the form in sync with canvas drags, undo and other external edits.
+    if (timer.current) return;
+    setDraft(element);
+  }, [element]);
+
   useEffect(
     () => () => {
       if (timer.current) clearTimeout(timer.current);
@@ -182,6 +188,7 @@ export default function PropertiesPanel({
     setDraft(next);
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => {
+      timer.current = null;
       lastSent.current = JSON.stringify(next);
       onChange(selection.type, next);
     }, 300);

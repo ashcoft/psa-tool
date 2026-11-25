@@ -20,7 +20,7 @@ import { useProject, Selection } from '@/lib/useProject';
 import { AppSettings, defaultSettings, loadSettings, saveSettings } from '@/lib/settings';
 import { buildDemoSystem, buildSample } from '@/lib/samples';
 import { ComponentDefinition, buildGenericComponent, getComponentDefinition } from '@/lib/component-catalog';
-import { findNearestBusId } from '@/lib/component-utils';
+import { findNearestBusIdWithin } from '@/lib/component-utils';
 import {
   deserializeProject,
   downloadFile,
@@ -50,6 +50,9 @@ const studyLabels: Record<StudyKind, string> = {
   timeseries: 'Time-Domain Simulation',
 };
 
+/** Grid distance within which a dropped device attaches to an existing bus. */
+const ATTACH_RADIUS = 1.5;
+
 export default function Home() {
   const project = useProject(buildDemoSystem());
   const [selection, setSelection] = useState<Selection>({ type: null, id: null });
@@ -68,6 +71,7 @@ export default function Home() {
   const [messages, setMessages] = useState<string[]>([
     'PSAT Web ready. Demo 4-bus system loaded.',
     'Use the Components tab or drag components onto the diagram to build a network.',
+    'Drag placed buses and components to reposition them; hold Alt for free placement.',
   ]);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<Toast | null>(null);
@@ -321,7 +325,9 @@ export default function Home() {
 
       let busId: string | undefined;
       if (definition.attach === 'bus') {
-        busId = position ? findNearestBusId(project.system, position) : selectedBusId() ?? undefined;
+        busId = position
+          ? findNearestBusIdWithin(project.system, position, ATTACH_RADIUS)
+          : selectedBusId() ?? undefined;
       }
 
       let spot = position;
@@ -380,15 +386,13 @@ export default function Home() {
         return;
       }
       if (kind === 'generator' || kind === 'load' || kind === 'shunt') {
-        const nearest = project.system.buses.reduce<{ id: string; distance: number } | null>((best, bus) => {
-          const distance = Math.hypot(bus.x - position.x, bus.y - position.y);
-          if (!best || distance < best.distance) return { id: bus.id, distance };
-          return best;
-        }, null);
-        let busId = nearest?.id ?? null;
+        let busId = findNearestBusIdWithin(project.system, position, ATTACH_RADIUS);
         if (!busId) {
-          const bus = project.addBus('slack', position);
-          busId = bus?.id ?? null;
+          const hasSlack = project.system.buses.some(bus => bus.type === 'slack');
+          const busType: Bus['type'] = project.system.buses.length === 0 || !hasSlack ? 'slack' : 'pq';
+          const bus = project.addBus(busType, position);
+          busId = bus?.id;
+          if (bus) log(`Created ${busType} bus "${bus.name}" at the drop point.`);
         }
         if (busId) {
           project.addDevice(kind, busId);
@@ -837,6 +841,7 @@ export default function Home() {
               showFlowOverlay={settings.showFlowOverlay}
               onSelect={setSelection}
               onMoveBus={project.moveBus}
+              onMoveComponent={project.moveComponent}
               onBranchConnect={handleBranchConnect}
               onDropComponent={handleDropComponent}
               onContextMenu={(hit, x, y) => setContextMenu({ x, y, selection: hit })}
