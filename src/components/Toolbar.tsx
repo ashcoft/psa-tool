@@ -15,6 +15,8 @@ interface ToolbarProps {
   hasResults: boolean;
   resultSummary?: string;
   issueCount: number;
+  visible?: boolean;
+  onToggleVisible?: () => void;
 }
 
 const methods: PowerFlowMethod[] = ['Newton-Raphson', 'Fast-Decoupled', 'DC', 'Gauss-Seidel'];
@@ -31,7 +33,46 @@ export default function Toolbar({
   hasResults,
   resultSummary,
   issueCount,
+  visible = true,
+  onToggleVisible,
 }: ToolbarProps) {
+  const status = (
+    <>
+      {resultSummary && (
+        <span className="max-w-[320px] truncate rounded bg-emerald-50 px-2 py-0.5 text-[10.5px] text-emerald-800" title={resultSummary}>
+          {resultSummary}
+        </span>
+      )}
+      <span
+        className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-[10.5px] ${
+          issueCount > 0 ? 'bg-amber-50 text-amber-800' : 'bg-emerald-50 text-emerald-800'
+        }`}
+        title={issueCount > 0 ? 'Model check found issues' : 'Model check passed'}
+      >
+        <Icon name={issueCount > 0 ? 'warning' : 'check'} size={12} />
+        {issueCount > 0 ? `${issueCount} model issue${issueCount === 1 ? '' : 's'}` : 'Model OK'}
+      </span>
+    </>
+  );
+
+  if (!visible) {
+    return (
+      <div className="flex items-center gap-2 border-b border-[#c9d2dd] bg-[#eef2f7] px-2 py-0.5" data-testid="toolbar">
+        <button
+          className="flex items-center gap-1 text-[11px] font-semibold text-slate-700 hover:text-[#1f4d85]"
+          title="Show toolbar (Ctrl+Shift+T)"
+          aria-expanded={false}
+          onClick={onToggleVisible}
+        >
+          <Icon name="chevronRight" size={11} />
+          Toolbar
+        </button>
+        <div className="flex-1" />
+        {status}
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-wrap items-center gap-2 border-b border-[#c9d2dd] bg-[#eef2f7] px-2 py-1" data-testid="toolbar">
       <div className="flex items-center gap-1.5">
@@ -94,20 +135,16 @@ export default function Toolbar({
 
       <div className="flex-1" />
 
-      {resultSummary && (
-        <span className="max-w-[320px] truncate rounded bg-emerald-50 px-2 py-0.5 text-[10.5px] text-emerald-800" title={resultSummary}>
-          {resultSummary}
-        </span>
-      )}
-      <span
-        className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-[10.5px] ${
-          issueCount > 0 ? 'bg-amber-50 text-amber-800' : 'bg-emerald-50 text-emerald-800'
-        }`}
-        title={issueCount > 0 ? 'Model check found issues' : 'Model check passed'}
+      {status}
+      <button
+        className="rounded p-1 text-slate-500 hover:bg-slate-200 hover:text-slate-700"
+        title="Hide toolbar (Ctrl+Shift+T)"
+        aria-label="Hide toolbar"
+        aria-expanded
+        onClick={onToggleVisible}
       >
-        <Icon name={issueCount > 0 ? 'warning' : 'check'} size={12} />
-        {issueCount > 0 ? `${issueCount} model issue${issueCount === 1 ? '' : 's'}` : 'Model OK'}
-      </span>
+        <Icon name="chevronDown" size={12} />
+      </button>
     </div>
   );
 }

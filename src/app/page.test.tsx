@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { forwardRef } from 'react';
 import HomePage from './page';
@@ -11,6 +11,10 @@ vi.mock('@/components/Canvas', () => ({
 }));
 
 describe('Power System Analysis Tool application shell', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
   it('renders the ETAP-style workbench', () => {
     render(<HomePage />);
     expect(screen.getByTestId('titlebar')).toBeInTheDocument();
@@ -75,5 +79,26 @@ describe('Power System Analysis Tool application shell', () => {
     render(<HomePage />);
     await user.click(screen.getByRole('button', { name: /^Options$/i }));
     expect(screen.getByText('Study & Application Options')).toBeInTheDocument();
+  });
+
+  it('collapses and restores the panes and toolbar', async () => {
+    const user = userEvent.setup();
+    render(<HomePage />);
+
+    const sidebar = screen.getByTestId('sidebar');
+    expect(sidebar.className).toContain('md:flex');
+    await user.click(within(sidebar).getByRole('button', { name: 'Hide left pane' }));
+    expect(screen.getByTestId('sidebar').className).not.toContain('md:flex');
+
+    const properties = screen.getByTestId('properties-panel');
+    expect(properties.className).toContain('lg:flex');
+    await user.click(within(properties).getByRole('button', { name: 'Hide right pane' }));
+    expect(screen.getByTestId('properties-panel').className).not.toContain('lg:flex');
+
+    await user.click(within(screen.getByTestId('toolbar')).getByRole('button', { name: 'Hide toolbar' }));
+    const collapsed = screen.getByTestId('toolbar');
+    expect(within(collapsed).getByRole('button', { name: 'Toolbar' })).toBeInTheDocument();
+    await user.click(within(collapsed).getByRole('button', { name: 'Toolbar' }));
+    expect(within(screen.getByTestId('toolbar')).getByRole('button', { name: 'Hide toolbar' })).toBeInTheDocument();
   });
 });

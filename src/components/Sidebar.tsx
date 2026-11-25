@@ -19,6 +19,40 @@ interface SidebarProps {
   onSelect: (selection: Selection) => void;
   onAction: (action: string) => void;
   forceVisible?: boolean;
+  visible?: boolean;
+  onToggle?: () => void;
+}
+
+const groupColors: Record<string, string> = {
+  Buses: '#b91c1c',
+  Sources: '#15803d',
+  Branches: '#1d4ed8',
+  'Loads & Motors': '#0369a1',
+  'Protection & Switching': '#be123c',
+  Conversion: '#7c3aed',
+  Meters: '#0f766e',
+  Relays: '#c2410c',
+  'Generator Controls': '#6d28d9',
+  'System Controls': '#6d28d9',
+  Grounding: '#4d7c0f',
+  Composite: '#475569',
+  Connectors: '#475569',
+};
+
+function paletteColor(category: ComponentCategory, group: string): string {
+  if (groupColors[group]) return groupColors[group];
+  switch (category) {
+    case 'DC':
+      return '#b45309';
+    case 'Instrument':
+      return '#0f766e';
+    case 'Control':
+      return '#6d28d9';
+    case 'Other':
+      return '#475569';
+    default:
+      return '#1d4ed8';
+  }
 }
 
 const kindLabels: Record<string, string> = {
@@ -40,7 +74,15 @@ const treeIcon: Record<string, IconName> = {
   shunt: 'shunt',
 };
 
-export default function Sidebar({ system, selection, onSelect, onAction, forceVisible = false }: SidebarProps) {
+export default function Sidebar({
+  system,
+  selection,
+  onSelect,
+  onAction,
+  forceVisible = false,
+  visible = true,
+  onToggle,
+}: SidebarProps) {
   const [tab, setTab] = useState<'palette' | 'project'>('palette');
   const [category, setCategory] = useState<ComponentCategory>('AC');
   const [search, setSearch] = useState('');
@@ -70,7 +112,7 @@ export default function Sidebar({ system, selection, onSelect, onAction, forceVi
 
   return (
     <aside
-      className={`${forceVisible ? 'flex' : 'hidden'} w-[236px] shrink-0 flex-col border-r border-[#c9d2dd] bg-[#f7f9fc] md:flex`}
+      className={`${forceVisible ? 'flex' : visible ? 'hidden md:flex' : 'hidden'} w-[236px] shrink-0 flex-col border-r border-[#c9d2dd] bg-[#f7f9fc]`}
       data-testid="sidebar"
     >
       <div className="flex items-center gap-1 border-b border-[#d5dde7] bg-[#eef2f7] px-1 py-1">
@@ -90,6 +132,16 @@ export default function Sidebar({ system, selection, onSelect, onAction, forceVi
         >
           <Icon name="project" size={12} /> Project
         </button>
+        {onToggle && (
+          <button
+            className="ml-auto rounded p-0.5 text-slate-500 hover:bg-slate-200 hover:text-slate-700"
+            title="Hide left pane (Ctrl+B)"
+            aria-label="Hide left pane"
+            onClick={onToggle}
+          >
+            <Icon name="panelLeft" size={13} />
+          </button>
+        )}
       </div>
 
       {tab === 'palette' && (
@@ -129,7 +181,7 @@ export default function Sidebar({ system, selection, onSelect, onAction, forceVi
               return (
                 <div key={group} className="mb-2">
                   <div className="mb-1 px-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">{group}</div>
-                  <div className="grid grid-cols-2 gap-1">
+                  <div className="grid grid-cols-4 gap-1">
                     {items.map(definition => (
                       <button
                         key={definition.id}
@@ -139,16 +191,17 @@ export default function Sidebar({ system, selection, onSelect, onAction, forceVi
                           event.dataTransfer.effectAllowed = 'copy';
                         }}
                         onClick={() => onAction(`component:${definition.id}`)}
-                        className="group flex min-h-[48px] flex-col items-center justify-center gap-1 rounded border border-transparent bg-white px-1 py-1.5 text-slate-700 shadow-sm hover:border-[#7fa9d8] hover:bg-[#eaf2fb]"
-                        title={`${definition.description ?? definition.label} — drag onto the diagram`}
+                        className="flex h-9 items-center justify-center rounded border border-transparent bg-white shadow-sm hover:border-[#7fa9d8] hover:bg-[#eaf2fb]"
+                        title={`${definition.label} — ${definition.description ?? 'drag onto the diagram'}`}
+                        aria-label={definition.label}
                         data-component-id={definition.id}
                       >
                         <SymbolPreview
                           symbol={definition.symbol}
                           fallbackLabel={componentCategoryShort(definition.category)}
-                          size={30}
+                          color={paletteColor(definition.category, definition.group)}
+                          size={22}
                         />
-                        <span className="text-center text-[9px] leading-tight">{definition.label}</span>
                       </button>
                     ))}
                   </div>

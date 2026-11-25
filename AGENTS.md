@@ -31,6 +31,9 @@
   midpoint.
 - The app shell is `src/app/page.tsx`; the ribbon definition is `src/components/Ribbon.tsx` and
   actions are dispatched by `handleAction` in the page.
+- Workspace panes are toggled by `settings.showSidebar`, `showProperties` and `showToolbar`
+  (`Ctrl+B`, `Ctrl+Shift+B`, `Ctrl+Shift+T`). The toolbar collapses to a thin strip like the output
+  bar. Palette tiles are icon-only, category-coloured and use `title`/`aria-label` for names.
 
 ## Conventions
 

@@ -12,6 +12,9 @@ export interface AppSettings {
   tolerance: number;
   maxIterations: number;
   showMenubar: boolean;
+  showSidebar: boolean;
+  showProperties: boolean;
+  showToolbar: boolean;
   showGrid: boolean;
   snapToGrid: boolean;
   showBusNames: boolean;
@@ -41,6 +44,9 @@ export const defaultSettings: AppSettings = {
   tolerance: 1e-6,
   maxIterations: 50,
   showMenubar: true,
+  showSidebar: true,
+  showProperties: true,
+  showToolbar: true,
   showGrid: true,
   snapToGrid: true,
   showBusNames: true,

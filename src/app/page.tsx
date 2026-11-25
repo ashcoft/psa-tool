@@ -590,7 +590,17 @@ export default function Home() {
   }, [activeRun, log, project.name, project.system]);
 
   const toggleSetting = useCallback(
-    (key: 'showMenubar' | 'showGrid' | 'showBusNames' | 'showVoltageOverlay' | 'showFlowOverlay') => {
+    (
+      key:
+        | 'showMenubar'
+        | 'showSidebar'
+        | 'showProperties'
+        | 'showToolbar'
+        | 'showGrid'
+        | 'showBusNames'
+        | 'showVoltageOverlay'
+        | 'showFlowOverlay'
+    ) => {
       const next = { ...settings, [key]: !settings[key] };
       setSettings(next);
       saveSettings(next);
@@ -700,6 +710,15 @@ export default function Home() {
         break;
       case 'toggle-menubar':
         toggleSetting('showMenubar');
+        break;
+      case 'toggle-sidebar':
+        toggleSetting('showSidebar');
+        break;
+      case 'toggle-properties':
+        toggleSetting('showProperties');
+        break;
+      case 'toggle-toolbar':
+        toggleSetting('showToolbar');
         break;
       case 'toggle-grid':
         toggleSetting('showGrid');
@@ -847,13 +866,24 @@ export default function Home() {
       if (document.querySelector('[role="dialog"]') && event.key !== 'Escape') return;
       const ctrl = event.ctrlKey || event.metaKey;
       if (ctrl) {
-        if (event.shiftKey && event.key.toLowerCase() === 'm') {
+        const keyLower = event.key.toLowerCase();
+        if (event.shiftKey && keyLower === 'm') {
           if (document.querySelector('[role="dialog"]')) return;
           event.preventDefault();
           actionRef.current('toggle-menubar');
           return;
         }
-        const key = event.key.toLowerCase();
+        if (event.shiftKey && keyLower === 'b') {
+          event.preventDefault();
+          actionRef.current('toggle-properties');
+          return;
+        }
+        if (event.shiftKey && keyLower === 't') {
+          event.preventDefault();
+          actionRef.current('toggle-toolbar');
+          return;
+        }
+        const key = keyLower;
         const map: Record<string, string> = {
           n: 'new',
           o: 'open',
@@ -865,6 +895,7 @@ export default function Home() {
           x: 'cut',
           d: 'duplicate',
           a: 'select-all',
+          b: 'toggle-sidebar',
           '0': 'fit',
           '=': 'zoom-in',
           '+': 'zoom-in',
@@ -925,6 +956,9 @@ export default function Home() {
     'tool-line': tool === 'line',
     'tool-transformer': tool === 'transformer',
     menubar: settings.showMenubar,
+    sidebar: settings.showSidebar,
+    properties: settings.showProperties,
+    toolbar: settings.showToolbar,
     grid: settings.showGrid,
     names: settings.showBusNames,
     voltage: settings.showVoltageOverlay,
@@ -977,6 +1011,8 @@ export default function Home() {
         hasResults={runs.length > 0}
         resultSummary={activeRun ? `${activeRun.title}: ${activeRun.summary}` : undefined}
         issueCount={project.issues.length}
+        visible={settings.showToolbar}
+        onToggleVisible={() => toggleSetting('showToolbar')}
       />
 
       <div className="flex min-h-0 flex-1">
@@ -986,6 +1022,8 @@ export default function Home() {
           onSelect={setSelection}
           onAction={handleAction}
           forceVisible={mobileSidebar}
+          visible={settings.showSidebar}
+          onToggle={() => toggleSetting('showSidebar')}
         />
 
         <main className="flex min-w-0 flex-1 flex-col">
@@ -1169,6 +1207,8 @@ export default function Home() {
           onDuplicate={duplicateSelection}
           onMetaChange={changes => project.updateSystemMeta(changes)}
           onSelect={setSelection}
+          visible={settings.showProperties}
+          onToggle={() => toggleSetting('showProperties')}
         />
       </div>
 
