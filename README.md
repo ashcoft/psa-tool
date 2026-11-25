@@ -4,20 +4,20 @@ Power System Analysis Tool (PSA) is a browser-native power system analysis workb
 [PSAT](https://faraday1.ucd.ie/psat.html). It follows the ETAP style: a ribbon, a one-line diagram
 editor, a component palette, a property grid, a study-case history and tabular/chart results.
 
-[![CI](https://github.com/ashcoft/psa/actions/workflows/ci.yml/badge.svg)](https://github.com/ashcoft/psa/actions/workflows/ci.yml)
-[![Tests](https://github.com/ashcoft/psa/actions/workflows/test.yml/badge.svg)](https://github.com/ashcoft/psa/actions/workflows/test.yml)
-[![Pages](https://github.com/ashcoft/psa/actions/workflows/pages.yml/badge.svg)](https://github.com/ashcoft/psa/actions/workflows/pages.yml)
-[![Container](https://github.com/ashcoft/psa/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/ashcoft/psa/actions/workflows/docker-publish.yml)
-[![Release](https://img.shields.io/github/v/release/ashcoft/psa)](https://github.com/ashcoft/psa/releases)
+[![CI](https://github.com/ashcoft/psa-tool/actions/workflows/ci.yml/badge.svg)](https://github.com/ashcoft/psa-tool/actions/workflows/ci.yml)
+[![Tests](https://github.com/ashcoft/psa-tool/actions/workflows/test.yml/badge.svg)](https://github.com/ashcoft/psa-tool/actions/workflows/test.yml)
+[![Pages](https://github.com/ashcoft/psa-tool/actions/workflows/pages.yml/badge.svg)](https://github.com/ashcoft/psa-tool/actions/workflows/pages.yml)
+[![Container](https://github.com/ashcoft/psa-tool/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/ashcoft/psa-tool/actions/workflows/docker-publish.yml)
+[![Release](https://img.shields.io/github/v/release/ashcoft/psa-tool)](https://github.com/ashcoft/psa-tool/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Next.js 16](https://img.shields.io/badge/Next.js-16-black.svg)](https://nextjs.org/)
 [![React 19](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
-[![GHCR](https://img.shields.io/badge/ghcr.io-psa-blue?logo=github)](https://github.com/ashcoft/psa/pkgs/container/psa)
+[![GHCR](https://img.shields.io/badge/ghcr.io-psa--tool-blue?logo=github)](https://github.com/ashcoft/psa-tool/pkgs/container/psa-tool)
 
 ![Power System Analysis Tool workbench](docs/screenshot.png)
 
-**Live workbench:** [ashcoft.github.io/psa](https://ashcoft.github.io/psa/) ·
-**Container:** `ghcr.io/ashcoft/psa:latest` ·
+**Live workbench:** [ashcoft.github.io/psa-tool](https://ashcoft.github.io/psa-tool/) ·
+**Container:** `ghcr.io/ashcoft/psa-tool:latest` ·
 **Docs:** [User guide](docs/USER-GUIDE.md) · [Architecture](docs/ARCHITECTURE.md) ·
 [Numerical methods](docs/NUMERICAL-METHODS.md) · [Deployment](docs/DEPLOYMENT.md) ·
 [Roadmap](ROADMAP.md)
@@ -83,8 +83,8 @@ runs lint, type check, tests and the production build.
 ## Docker and GHCR
 
 ```bash
-docker build -t psa .
-docker run --rm -p 3000:3000 psa
+docker build -t psa-tool .
+docker run --rm -p 3000:3000 psa-tool
 
 # or
 docker compose up -d
@@ -94,8 +94,8 @@ The image uses the Next.js standalone output, runs as a non-root user and serves
 published image is available from the GitHub Container Registry:
 
 ```bash
-docker pull ghcr.io/ashcoft/psa:latest
-docker run --rm -p 3000:3000 ghcr.io/ashcoft/psa:latest
+docker pull ghcr.io/ashcoft/psa-tool:latest
+docker run --rm -p 3000:3000 ghcr.io/ashcoft/psa-tool:latest
 ```
 
 Tags are produced by `.github/workflows/docker-publish.yml`: `latest` for the default branch,
@@ -106,12 +106,12 @@ is private by default: authenticate with `docker login ghcr.io` using a token th
 
 ## GitHub Pages
 
-The static workbench is live at **https://ashcoft.github.io/psa/**.
+The static workbench is live at **https://ashcoft.github.io/psa-tool/**.
 
 The repository includes `.github/workflows/pages.yml`, which builds the static export and deploys
 it with the official Pages artifact and deployment actions. GitHub Pages must use the Actions
 source: **Settings → Pages → Build and deployment → Source: GitHub Actions**. The workflow builds
-with `NEXT_OUTPUT=export` and `NEXT_PUBLIC_BASE_PATH=/psa` and writes `out/.nojekyll`. The
+with `NEXT_OUTPUT=export` and `NEXT_PUBLIC_BASE_PATH=/psa-tool` and writes `out/.nojekyll`. The
 same build is available locally with `npm run build:pages`.
 
 ## Capabilities

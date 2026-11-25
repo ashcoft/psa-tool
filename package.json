@@ -1,11 +1,11 @@
 {
-  "name": "psa",
+  "name": "psa-tool",
   "version": "1.3.0",
   "description": "Power System Analysis Tool (PSA)",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "build:pages": "NEXT_OUTPUT=export NEXT_PUBLIC_BASE_PATH=/psa next build",
+    "build:pages": "NEXT_OUTPUT=export NEXT_PUBLIC_BASE_PATH=/psa-tool next build",
     "start": "next start",
     "lint": "eslint src/ --max-warnings 1",
     "typecheck": "tsc --noEmit",

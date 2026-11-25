@@ -6,7 +6,7 @@
 - `npm ci`, `npm run dev`, `npm run build`, `npm run lint`, `npm test`.
 - `npm run verify` runs lint, type check, unit tests and the production build.
 - End-to-end: `BASE_URL=http://localhost:3000 npx playwright test` (Chromium).
-- `npm run build:pages` produces the static export for GitHub Pages with base path `/psa`.
+- `npm run build:pages` produces the static export for GitHub Pages with base path `/psa-tool`.
 
 ## Architecture
 
@@ -51,7 +51,7 @@
   with behaviour or assumption changes.
 - `README.md` is the project landing page; `ROADMAP.md` is the plan of record.
 - `.github/workflows/pages.yml` builds the static export and force-pushes it to `gh-pages`; GitHub
-  Pages serves that branch at <https://ashcoft.github.io/psa/>.
+  Pages serves that branch at <https://ashcoft.github.io/psa-tool/>.
 - `.github/workflows/docker-publish.yml` publishes the container to GHCR on `main`, version tags and
   manual dispatch.
 

@@ -25,7 +25,7 @@ jobs:
       issues: write
       pull-requests: write
     # Never release from forks.
-    if: github.repository == 'ashcoft/psa'
+    if: github.repository == 'ashcoft/psa-tool'
 
     steps:
       - name: Checkout code
