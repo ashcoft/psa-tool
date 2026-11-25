@@ -10,7 +10,7 @@ interface SymbolPreviewProps {
   size?: number;
 }
 
-export default function SymbolPreview({ symbol, fallbackLabel, size = 30 }: SymbolPreviewProps) {
+export default function SymbolPreview({ symbol, fallbackLabel, size = 30 }: Readonly<SymbolPreviewProps>) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -50,7 +50,7 @@ export default function SymbolPreview({ symbol, fallbackLabel, size = 30 }: Symb
       ref={canvasRef}
       width={size}
       height={size}
-      aria-hidden="true"
+      role="presentation"
       className="pointer-events-none"
       style={{ width: size, height: size }}
     />

@@ -364,6 +364,56 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
       ctx.restore();
     };
 
+    const drawTransformerMarker = (
+      midX: number,
+      midY: number,
+      x1: number,
+      y1: number,
+      x2: number,
+      y2: number,
+      symbol: IECSymbolType | undefined,
+      isSelected: boolean
+    ) => {
+      const definition = symbol ? getSymbol(symbol) : undefined;
+      if (definition?.render) {
+        const symbolScale = 0.8;
+        const width = definition.width * symbolScale;
+        const height = definition.height * symbolScale;
+        drawCatalogSymbol(symbol, midX - width / 2, midY - height / 2, symbolScale);
+        if (isSelected) drawSelectionOutline(midX - width / 2 - 4, midY - height / 2 - 4, width + 8, height + 8);
+        return;
+      }
+      const angle = Math.atan2(y2 - y1, x2 - x1);
+      const gap = 9;
+      ctx.save();
+      ctx.translate(midX, midY);
+      ctx.rotate(angle);
+      ctx.fillStyle = '#ffffff';
+      ctx.lineWidth = 1.8 / Math.max(0.6, scale);
+      ctx.beginPath();
+      ctx.arc(-gap, 0, 11, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(gap, 0, 11, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    };
+
+    const drawFlowLabel = (midX: number, midY: number, loading: number) => {
+      const label = `${loading.toFixed(0)}%`;
+      ctx.font = `${11 / Math.max(0.7, scale)}px "Segoe UI", sans-serif`;
+      ctx.textAlign = 'center';
+      const metrics = ctx.measureText(label);
+      const boxWidth = metrics.width + 8;
+      const boxHeight = 14;
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      ctx.fillRect(midX - boxWidth / 2, midY - boxHeight - 4, boxWidth, boxHeight);
+      ctx.fillStyle = loadingColor(loading);
+      ctx.fillText(label, midX, midY - 6);
+    };
+
     const drawBranch = (
       id: string,
       fromId: string,
@@ -396,48 +446,11 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
       ctx.stroke();
 
       if (kind === 'transformer') {
-        const midX = (x1 + x2) / 2;
-        const midY = (y1 + y2) / 2;
-        const definition = symbol ? getSymbol(symbol) : undefined;
-        if (definition?.render) {
-          const symbolScale = 0.8;
-          const width = definition.width * symbolScale;
-          const height = definition.height * symbolScale;
-          drawCatalogSymbol(symbol, midX - width / 2, midY - height / 2, symbolScale);
-          if (isSelected) drawSelectionOutline(midX - width / 2 - 4, midY - height / 2 - 4, width + 8, height + 8);
-        } else {
-          const angle = Math.atan2(y2 - y1, x2 - x1);
-          const gap = 9;
-          ctx.save();
-          ctx.translate(midX, midY);
-          ctx.rotate(angle);
-          ctx.fillStyle = '#ffffff';
-          ctx.lineWidth = 1.8 / Math.max(0.6, scale);
-          ctx.beginPath();
-          ctx.arc(-gap, 0, 11, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.stroke();
-          ctx.beginPath();
-          ctx.arc(gap, 0, 11, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.stroke();
-          ctx.restore();
-        }
+        drawTransformerMarker((x1 + x2) / 2, (y1 + y2) / 2, x1, y1, x2, y2, symbol, isSelected);
       }
 
       if (result && showFlowOverlay) {
-        const midX = (x1 + x2) / 2;
-        const midY = (y1 + y2) / 2;
-        const label = `${loading.toFixed(0)}%`;
-        ctx.font = `${11 / Math.max(0.7, scale)}px "Segoe UI", sans-serif`;
-        ctx.textAlign = 'center';
-        const metrics = ctx.measureText(label);
-        const boxWidth = metrics.width + 8;
-        const boxHeight = 14;
-        ctx.fillStyle = 'rgba(255,255,255,0.9)';
-        ctx.fillRect(midX - boxWidth / 2, midY - boxHeight - 4, boxWidth, boxHeight);
-        ctx.fillStyle = loadingColor(loading);
-        ctx.fillText(label, midX, midY - 6);
+        drawFlowLabel((x1 + x2) / 2, (y1 + y2) / 2, loading);
       }
     };
 

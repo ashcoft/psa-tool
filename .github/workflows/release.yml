@@ -8,9 +8,7 @@ on:
 # semantic-release needs to push the release commit/CHANGELOG, create the Git
 # tag, publish the GitHub Release and comment on resolved issues/PRs.
 permissions:
-  contents: write
-  issues: write
-  pull-requests: write
+  contents: read
 
 # Never run two releases at the same time.
 concurrency:
@@ -22,6 +20,10 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
     # Never release from forks.
     if: github.repository == 'ashcoft/psat-web'
 
