@@ -9,7 +9,9 @@ import {
   getComponentDefinition,
   getComponentsByCategory,
 } from '@/lib/component-catalog';
+import { componentCategoryShort } from '@/lib/component-utils';
 import Icon, { IconName } from './Icon';
+import SymbolPreview from './SymbolPreview';
 
 interface SidebarProps {
   system: PowerSystem;
@@ -141,7 +143,11 @@ export default function Sidebar({ system, selection, onSelect, onAction, forceVi
                         title={`${definition.description ?? definition.label} — drag onto the diagram`}
                         data-component-id={definition.id}
                       >
-                        <Icon name={definition.icon} size={20} className="text-[#1f4d85] group-hover:text-[#0f3a67]" />
+                        <SymbolPreview
+                          symbol={definition.symbol}
+                          fallbackLabel={componentCategoryShort(definition.category)}
+                          size={30}
+                        />
                         <span className="text-center text-[9px] leading-tight">{definition.label}</span>
                       </button>
                     ))}

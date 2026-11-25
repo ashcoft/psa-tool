@@ -42,6 +42,9 @@ window.ResizeObserver = ResizeObserverMock;
   return {
     fillRect: noop,
     clearRect: noop,
+    strokeRect: noop,
+    fillText: noop,
+    strokeText: noop,
     getImageData: () => ({ data: [], width: 0, height: 0 }),
     putImageData: noop,
     createImageData: () => ({ data: [], width: 0, height: 0 }),
@@ -59,6 +62,9 @@ window.ResizeObserver = ResizeObserverMock;
     scale: noop,
     rotate: noop,
     arc: noop,
+    ellipse: noop,
+    rect: noop,
+    setLineDash: noop,
     measureText: () => ({ width: 0 }),
   };
 };

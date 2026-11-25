@@ -1,4 +1,4 @@
-# PSAT Web Development Roadmap
+# Power System Analysis Tool (PSA) Development Roadmap
 
 Living plan of record for the workbench. Baseline: **v1.2.0** · Last reviewed: **2026-11-25**.
 
@@ -14,9 +14,9 @@ workflow), and `P3` (scale and ecosystem). Effort is `S` (≤ 2 days), `M` (≈ 
 
 ## 1. Product direction
 
-PSAT Web should be a **browser-native screening workbench** that is honest about its
-assumptions: engineering units in the model, per-unit internally, deterministic solvers, and
-visible notes whenever a result depends on an assumed value.
+The tool should be a **browser-native screening workbench** that is honest about its assumptions:
+engineering units in the model, per-unit internally, deterministic solvers, and visible notes
+whenever a result depends on an assumed value.
 
 Three principles drive the sequencing:
 
@@ -55,13 +55,23 @@ settings persistence.
   bus create a new bus at the drop point, and bus-attached components stay free when no bus is near.
 - Topology-aware auto-arrange lays buses out by BFS depth from the slack bus and keeps attached
   components beside their bus.
-- Moves are undoable and coalesce into one history step; the property panel tracks canvas drags live.
+- Moves are grouped by drag gesture (`beginMove`/`endMove`), so pauses do not split a drag and quick
+  separate drags remain separate undo steps. The property panel tracks canvas drags live.
 - Fixed a StrictMode bug where the first move of a drag could be lost from the undo history.
+- Palette and diagram share the same IEC symbol renderer. Catalog symbols are stored on model
+  elements, so wind, PV, battery, motor and transformer choices appear on the canvas as they do in
+  the palette.
 - Documentation set: user guide, architecture, numerical methods, deployment guide, screenshots,
   contributing, security, code of conduct, issue forms and a pull-request template.
-- GPL-3.0 `LICENSE`, `typecheck`/`verify` scripts and a package-derived version string.
-- GitHub Pages static export deployed at <https://ashcoft.github.io/psat-web/>.
-- GHCR publishing workflow and a published `ghcr.io/ashcoft/psat-web:1.2.0` image.
+- MIT `LICENSE` with third-party GPL notices, `typecheck`/`verify` scripts and a package-derived
+  version string.
+- Project files now save as `.psa` (JSON content); legacy `.json` files still open.
+- File → Close Project returns to an empty workspace, and new/open/close prompt before discarding
+  unsaved changes.
+- The app is branded as **Power System Analysis Tool** and the menu bar can be shown or hidden from
+  the titlebar, the View ribbon group, Settings, or `Ctrl+Shift+M`.
+- GitHub Pages static export deployed at <https://ashcoft.github.io/psa-tool/>.
+- GHCR publishing workflow and a published `ghcr.io/ashcoft/psa-tool:1.3.0` image.
 
 ## 3. Gap analysis
 
@@ -219,7 +229,7 @@ users can operate dialogs and the canvas; reports can be delivered as PDF.
 Goal: handle networks and workflows beyond a single demo session.
 
 Exit criteria: 500-bus load flow completes in a worker under the agreed budget; large diagrams
-stay interactive; projects can move between PSAT Web and other tools.
+stay interactive; projects can move between Power System Analysis Tool and other tools.
 
 | ID | Item | Effort |
 |----|------|--------|
@@ -236,7 +246,6 @@ stay interactive; projects can move between PSAT Web and other tools.
 
 | Rank | ID | Item | Why now | Effort |
 |------|----|------|---------|--------|
-| 1 | Q-01 | Add `LICENSE` | Legal/compliance blocker for a GPL-3.0 project | S |
 | 2 | Q-02 | Node/engine alignment | Release and CI run on different Node versions today | S |
 | 3 | Q-05 | Remove dead solver and editor hooks | 1 000+ lines of untested, misleading code | S |
 | 4 | Q-10 | Test `useProject` | Core editing state is the least covered module | M |
@@ -263,7 +272,7 @@ Versions are proposals; `semantic-release` still decides the actual bump from co
 
 | Release | Theme | Representative scope | Gate |
 |---------|-------|----------------------|------|
-| v1.2.x | Baseline fixes | Q-01…Q-09 | `verify` green, zero skips |
+| v1.2.x | Baseline fixes | Q-02…Q-09 | `verify` green, zero skips |
 | v1.3.0 | Trusted results | M-01…M-04, M-07, S-04, S-05 | Schema v2 migration, golden IEEE cases |
 | v1.4.0 | Study breadth | S-01…S-03, S-08…S-10 | Each study exported and E2E tested |
 | v1.5.0 | Workbench | U-01…U-07 | Keyboard-only and recovery tests |

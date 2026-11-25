@@ -121,7 +121,7 @@ const source = (
   model: 'generator',
   symbol,
   attach: 'bus',
-  generatorDefaults: { name: label, pg: 0, qg: 0, v: 1, pmax: 100, pmin: 0, qmax: 50, qmin: -50, ...defaults },
+  generatorDefaults: { name: label, pg: 0, qg: 0, v: 1, pmax: 100, pmin: 0, qmax: 50, qmin: -50, symbol, ...defaults },
   description: `${label} source`,
 });
 
@@ -143,8 +143,8 @@ const acBranch = (
   symbol,
   attach: 'branch',
   ...(model === 'line'
-    ? { lineDefaults: { name: label, resistance: 0.01, reactance: 0.05, susceptance: 0, rating: 100, length: 10, ...(defaults as Partial<Line>) } }
-    : { transformerDefaults: { name: label, resistance: 0.001, reactance: 0.05, tap: 1, shift: 0, rating: 100, ...(defaults as Partial<Transformer>) } }),
+    ? { lineDefaults: { name: label, resistance: 0.01, reactance: 0.05, susceptance: 0, rating: 100, length: 10, symbol, ...(defaults as Partial<Line>) } }
+    : { transformerDefaults: { name: label, resistance: 0.001, reactance: 0.05, tap: 1, shift: 0, rating: 100, symbol, ...(defaults as Partial<Transformer>) } }),
   description: description ?? `${label} branch`,
 });
 
@@ -163,7 +163,7 @@ const acLoad = (
   model: 'load',
   symbol,
   attach: 'bus',
-  loadDefaults: { name: label, pl: 10, ql: 5, demandModel: 'constant-power', ...defaults },
+  loadDefaults: { name: label, pl: 10, ql: 5, demandModel: 'constant-power', symbol, ...defaults },
   description: `${label} load`,
 });
 
@@ -183,7 +183,7 @@ const shunt = (
   model: 'shunt',
   symbol,
   attach: 'bus',
-  shuntDefaults: { name: label, g: 0, b: 0.05, ...defaults },
+  shuntDefaults: { name: label, g: 0, b: 0.05, symbol, ...defaults },
   description: description ?? `${label} shunt element`,
 });
 

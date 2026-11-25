@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildDemoSystem } from './samples';
 import { emptySystem } from './project';
-import { findNearestBusIdWithin } from './component-utils';
+import { componentCategoryShort, findNearestBusIdWithin } from './component-utils';
 
 describe('component placement helpers', () => {
   const system = buildDemoSystem();
@@ -16,5 +16,13 @@ describe('component placement helpers', () => {
 
   it('handles an empty system', () => {
     expect(findNearestBusIdWithin(emptySystem(), { x: 0, y: 0 }, 2)).toBeUndefined();
+  });
+
+  it('uses the same category labels as the canvas', () => {
+    expect(componentCategoryShort('Instrument')).toBe('I');
+    expect(componentCategoryShort('Control')).toBe('CS');
+    expect(componentCategoryShort('DC')).toBe('DC');
+    expect(componentCategoryShort('AC')).toBe('AC');
+    expect(componentCategoryShort('Other')).toBe('Ot');
   });
 });

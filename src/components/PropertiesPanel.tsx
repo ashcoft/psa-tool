@@ -163,7 +163,6 @@ export default function PropertiesPanel({
 }: PropertiesPanelProps) {
   const element = findElement(system, selection);
   const [draft, setDraft] = useState<AnyElement | null>(element);
-  const lastSent = useRef<string>('');
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const draftRef = useRef<AnyElement | null>(element);
 
@@ -174,7 +173,7 @@ export default function PropertiesPanel({
   useEffect(() => {
     // Keep the form in sync with canvas drags, undo and other external edits.
     if (timer.current) return;
-    setDraft(element);
+    setDraft(prev => (prev === element ? prev : element));
   }, [element]);
 
   useEffect(
@@ -189,7 +188,6 @@ export default function PropertiesPanel({
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => {
       timer.current = null;
-      lastSent.current = JSON.stringify(next);
       onChange(selection.type, next);
     }, 300);
   };
@@ -198,10 +196,7 @@ export default function PropertiesPanel({
     if (timer.current) {
       clearTimeout(timer.current);
       timer.current = null;
-      if (draftRef.current) {
-        lastSent.current = JSON.stringify(draftRef.current);
-        onChange(selection.type, draftRef.current);
-      }
+      if (draftRef.current) onChange(selection.type, draftRef.current);
     }
   };
 

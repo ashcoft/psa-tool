@@ -11,6 +11,7 @@ export interface AppSettings {
   method: PowerFlowMethod;
   tolerance: number;
   maxIterations: number;
+  showMenubar: boolean;
   showGrid: boolean;
   snapToGrid: boolean;
   showBusNames: boolean;
@@ -39,6 +40,7 @@ export const defaultSettings: AppSettings = {
   method: 'Newton-Raphson',
   tolerance: 1e-6,
   maxIterations: 50,
+  showMenubar: true,
   showGrid: true,
   snapToGrid: true,
   showBusNames: true,

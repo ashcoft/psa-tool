@@ -1,6 +1,6 @@
 # Architecture
 
-PSAT Web is a Next.js App Router application with a pure TypeScript analysis core. The UI never
+Power System Analysis Tool (PSA) is a Next.js App Router application with a pure TypeScript analysis core. The UI never
 performs power-system mathematics directly; it calls `src/lib` engines and renders the results.
 
 ```mermaid
@@ -34,6 +34,8 @@ flowchart LR
 `PowerSystem` is the single source of truth:
 
 - `buses`, `lines`, `transformers`, `generators`, `loads`, `shunts` are solved by the engines.
+- Model elements carry an optional `symbol` IEC type set by the catalog. The canvas renders the
+  same symbol shown in the palette, and the field is preserved by project save/open.
 - `components` stores generic catalog elements (DC, instruments, controls, protection and
   composite items). They are persisted, drawn and edited but do not enter the admittance matrix.
 - `baseMVA`, `baseFreq`, `name` and `slackBus` are system metadata.
@@ -63,10 +65,11 @@ radians; the property panel converts to and from degrees.
 ## Editing state and undo
 
 `useProject` keeps `{ system, name, past, future, dirty }`. Element creation and editing actions
-push the previous system onto `past`. Moves and the generic commit path call
-`beginCommit(description)` before `setState`, then a pure `applyCommit` updater records the previous
-system. Consecutive moves with the same description coalesce inside a 600 ms window, so a drag is
-one undo step.
+push the previous system onto `past`. Drags use explicit gesture boundaries: `beginMove` records a
+snapshot at mouse-down, the canvas updates coordinates during mouse-move, and `endMove` pushes the
+snapshot once at mouse-up. A pause therefore cannot split one drag into several undo steps, and two
+quick drags remain separate. The generic commit path still coalesces consecutive edits inside a
+600 ms window.
 
 State updaters must stay pure: React StrictMode invokes them twice, and writing refs or mutating
 history inside an updater loses entries.
@@ -84,7 +87,7 @@ component.
 
 ## Persistence
 
-- Projects are JSON files produced by `serializeProject` and validated by `deserializeProject` and
+- Projects are `.psa` files (JSON content) produced by `serializeProject` and validated by `deserializeProject` and
   `normalizeSystem`.
 - Settings are stored in `localStorage` under `psat-web.settings.v1`.
 - Study results are session-only. Export CSV or a report to keep them.

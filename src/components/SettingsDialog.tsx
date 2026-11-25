@@ -239,6 +239,7 @@ export default function SettingsDialog({ settings, system, onSave, onMetaChange,
         <Section title="Diagram Display" description="Overlays and editing aids">
           {(
             [
+              ['showMenubar', 'Show menu bar'],
               ['showGrid', 'Show grid'],
               ['snapToGrid', 'Snap to grid'],
               ['showBusNames', 'Show labels'],

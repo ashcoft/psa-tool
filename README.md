@@ -1,30 +1,30 @@
-# PSAT Web — Power System Analysis Toolbox
+# Power System Analysis Tool (PSA)
 
-A browser-native power system analysis workbench derived from the MATLAB-based
+Power System Analysis Tool (PSA) is a browser-native power system analysis workbench derived from the MATLAB-based
 [PSAT](https://faraday1.ucd.ie/psat.html). It follows the ETAP style: a ribbon, a one-line diagram
 editor, a component palette, a property grid, a study-case history and tabular/chart results.
 
-[![CI](https://github.com/ashcoft/psat-web/actions/workflows/ci.yml/badge.svg)](https://github.com/ashcoft/psat-web/actions/workflows/ci.yml)
-[![Tests](https://github.com/ashcoft/psat-web/actions/workflows/test.yml/badge.svg)](https://github.com/ashcoft/psat-web/actions/workflows/test.yml)
-[![Pages](https://github.com/ashcoft/psat-web/actions/workflows/pages.yml/badge.svg)](https://github.com/ashcoft/psat-web/actions/workflows/pages.yml)
-[![Container](https://github.com/ashcoft/psat-web/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/ashcoft/psat-web/actions/workflows/docker-publish.yml)
-[![Release](https://img.shields.io/github/v/release/ashcoft/psat-web)](https://github.com/ashcoft/psat-web/releases)
-[![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-green.svg)](LICENSE)
+[![CI](https://github.com/ashcoft/psa-tool/actions/workflows/ci.yml/badge.svg)](https://github.com/ashcoft/psa-tool/actions/workflows/ci.yml)
+[![Tests](https://github.com/ashcoft/psa-tool/actions/workflows/test.yml/badge.svg)](https://github.com/ashcoft/psa-tool/actions/workflows/test.yml)
+[![Pages](https://github.com/ashcoft/psa-tool/actions/workflows/pages.yml/badge.svg)](https://github.com/ashcoft/psa-tool/actions/workflows/pages.yml)
+[![Container](https://github.com/ashcoft/psa-tool/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/ashcoft/psa-tool/actions/workflows/docker-publish.yml)
+[![Release](https://img.shields.io/github/v/release/ashcoft/psa-tool)](https://github.com/ashcoft/psa-tool/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Next.js 16](https://img.shields.io/badge/Next.js-16-black.svg)](https://nextjs.org/)
 [![React 19](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
-[![GHCR](https://img.shields.io/badge/ghcr.io-psat--web-blue?logo=github)](https://github.com/ashcoft/psat-web/pkgs/container/psat-web)
+[![GHCR](https://img.shields.io/badge/ghcr.io-psa--tool-blue?logo=github)](https://github.com/ashcoft/psa-tool/pkgs/container/psa-tool)
 
-![PSAT Web workbench](docs/screenshot.png)
+![Power System Analysis Tool workbench](docs/screenshot.png)
 
-**Live workbench:** [ashcoft.github.io/psat-web](https://ashcoft.github.io/psat-web/) ·
-**Container:** `ghcr.io/ashcoft/psat-web:latest` ·
+**Live workbench:** [ashcoft.github.io/psa-tool](https://ashcoft.github.io/psa-tool/) ·
+**Container:** `ghcr.io/ashcoft/psa-tool:latest` ·
 **Docs:** [User guide](docs/USER-GUIDE.md) · [Architecture](docs/ARCHITECTURE.md) ·
 [Numerical methods](docs/NUMERICAL-METHODS.md) · [Deployment](docs/DEPLOYMENT.md) ·
 [Roadmap](ROADMAP.md)
 
-## Why PSAT Web
+## Why this tool
 
-- **Everything stays in the browser.** Projects are JSON files; no account, server database or
+- **Everything stays in the browser.** Projects are `.psa` files; no account, server database or
   upload.
 - **A real one-line editor.** Drag components from the palette, place them anywhere, connect
   branches and rearrange the diagram without losing the electrical model.
@@ -73,6 +73,7 @@ Quality gates:
 npm run lint
 npm run typecheck
 npm run test:run
+npx playwright install chromium
 npm run test:e2e   # Chromium; starts the dev server on port 3456
 ```
 
@@ -82,8 +83,8 @@ runs lint, type check, tests and the production build.
 ## Docker and GHCR
 
 ```bash
-docker build -t psat-web .
-docker run --rm -p 3000:3000 psat-web
+docker build -t psa-tool .
+docker run --rm -p 3000:3000 psa-tool
 
 # or
 docker compose up -d
@@ -93,35 +94,39 @@ The image uses the Next.js standalone output, runs as a non-root user and serves
 published image is available from the GitHub Container Registry:
 
 ```bash
-docker pull ghcr.io/ashcoft/psat-web:latest
-docker run --rm -p 3000:3000 ghcr.io/ashcoft/psat-web:latest
+docker pull ghcr.io/ashcoft/psa-tool:latest
+docker run --rm -p 3000:3000 ghcr.io/ashcoft/psa-tool:latest
 ```
 
 Tags are produced by `.github/workflows/docker-publish.yml`: `latest` for the default branch,
-`1.2.0` and `1.2` for a `v1.2.0` tag, `main` for branch pushes and `sha-<short>` for every build.
+`1.3.0` and `1.3` for a `v1.3.0` tag, `main` for branch pushes and `sha-<short>` for every build.
 The workflow uses `GITHUB_TOKEN` with `packages: write`; no extra secret is required. The package
 is private by default: authenticate with `docker login ghcr.io` using a token that has
 `read:packages`, or make the package public in its package settings for anonymous pulls.
 
 ## GitHub Pages
 
-The static workbench is live at **https://ashcoft.github.io/psat-web/**.
+The static workbench is live at **https://ashcoft.github.io/psa-tool/**.
 
-The repository includes `.github/workflows/pages.yml` to rebuild it from `main` and publish it to
-the `gh-pages` branch. GitHub Pages serves that branch: **Settings → Pages → Build and deployment →
-Source: Deploy from a branch → `gh-pages` / root**. The workflow builds with `NEXT_OUTPUT=export`
-and `NEXT_PUBLIC_BASE_PATH=/psat-web` and writes `out/.nojekyll`. The same build is available
-locally with `npm run build:pages`.
+The repository includes `.github/workflows/pages.yml`, which builds the static export and deploys
+it with the official Pages artifact and deployment actions. GitHub Pages must use the Actions
+source: **Settings → Pages → Build and deployment → Source: GitHub Actions**. The workflow builds
+with `NEXT_OUTPUT=export` and `NEXT_PUBLIC_BASE_PATH=/psa-tool` and writes `out/.nojekyll`. The
+same build is available locally with `npm run build:pages`.
 
 ## Capabilities
 
 ### One-line diagram editor
 
 - Ribbon with Home, Components, Analysis, Results and Tools tabs.
+- Toggleable menu bar from the titlebar, Home → View → Menu Bar, or `Ctrl+Shift+M`; the choice is
+  persisted.
 - Complete PSAT component library with AC, DC, Instruments, Controls and Other palettes (sources,
   buses, branches, loads/motors, protection, conversion, meters, relays, AVR/governor/PSS, DC
   elements, DC control and composite items).
 - Component palette with category tabs, search and drag-and-drop placement.
+- The palette and diagram share the same IEC symbol renderer, including catalog-specific generator,
+  load, shunt and transformer symbols.
 - Every placed bus or non-branch specialty component can be dragged anywhere on the diagram.
   **Hold Alt** to bypass grid snap; the property panel X/Y fields accept exact coordinates.
 - Dropping a device away from a bus creates a bus at the drop point; bus-attached components stay
@@ -138,7 +143,8 @@ locally with `npm run build:pages`.
 
 ### Project management
 
-- JSON project save/open with validation and normalization.
+- `.psa` project save/open (JSON content) with validation and normalization.
+- Close Project returns to an empty workspace; new, open and close remind you about unsaved changes.
 - Sample systems: Demo 4-bus, IEEE 9-bus, IEEE 14-bus and a distribution feeder.
 - Settings persisted in the browser (solver, tolerances, simulation, overlays).
 - Model check with clickable issues.
@@ -156,7 +162,7 @@ locally with `npm run build:pages`.
 | Study | Method | Output |
 |-------|--------|--------|
 | **Load flow** | Newton-Raphson (full Jacobian), fast-decoupled, DC, Gauss-Seidel | Bus, branch and generator tables; voltage profile; violations |
-| **Continuation power flow** | Predictor-corrector parameter continuation | PV curve, nose point, critical bus, loading margin |
+| **Continuation power flow** | Adaptive-step parameter continuation | PV curve, last converged point, critical bus, loading margin |
 | **Optimal power flow** | Merit-order/equal-incremental-cost dispatch with AC verification | Dispatch, cost, losses and overload report |
 | **Short circuit** | Bus impedance matrix (Zbus) | Three-phase, line-to-ground, line-to-line and double line-to-ground currents in kA, fault MVA, CT and breaker ratings |
 | **Small-signal stability** | Kron-reduced multimachine model, complex shifted QR | Eigenvalues, damping ratios, mode classification and plot |
@@ -186,6 +192,7 @@ Specialty studies are screening calculations. Check the notes in each result and
 | `F10` | Open results |
 | `Ctrl+0` | Fit diagram to window |
 | `Ctrl++` / `Ctrl+-` | Zoom in / out |
+| `Ctrl+Shift+M` | Show or hide the menu bar |
 | `Esc` | Cancel the current tool or dialog |
 | `Alt` + drag | Free positioning without grid snap |
 
@@ -201,6 +208,7 @@ Specialty studies are screening calculations. Check the notes in each result and
 | [Changelog](CHANGELOG.md) | Release history generated by semantic-release |
 | [Contributing](CONTRIBUTING.md) | Setup, conventions, commit format and PR checklist |
 | [Security](SECURITY.md) | Reporting policy and security model |
+| [Third-party notices](THIRD_PARTY_NOTICES.md) | PSAT attribution and GPL terms for derived code |
 
 ## Architecture
 
@@ -243,8 +251,8 @@ study.
 
 ## Numerical notes
 
-- The model stores engineering units (MW, Mvar, kV, degrees) and converts to per-unit on the system
-  MVA base inside the solvers.
+- The model stores MW, Mvar and kV, and the property panel shows angles in degrees. Bus angles are
+  stored in radians and converted for display. Solvers convert to per-unit on the system MVA base.
 - Diagram coordinates are grid units; one unit is 100 px at 100 % zoom.
 - The short-circuit engine currently assumes `Xd″ = 0.05 p.u.` and `Z0 = 0.5 Z1` because sequence
   data is not part of the model.
@@ -257,7 +265,7 @@ The full list is in [docs/NUMERICAL-METHODS.md](docs/NUMERICAL-METHODS.md) and `
 
 ## Testing and quality
 
-At v1.2.0 the repository has **269 unit/component tests** and **22 Chromium end-to-end specs**.
+At v1.3.0 the repository has **272 unit/component tests** and **22 Chromium end-to-end specs**.
 GitHub Actions runs lint, type check, unit tests, coverage, the production build and Playwright on
 pushes and pull requests. Codacy and SonarCloud provide static analysis.
 
@@ -284,7 +292,9 @@ static workbench.
 
 ## Original PSAT
 
-This project is a web-based port of the original
+The application is abbreviated **PSA**. **PSAT** refers to the original toolbox it is derived from.
+
+This project is a browser-based port of the original
 [PSAT — Power System Analysis Toolbox](https://faraday1.ucd.ie/psat.html) developed by Federico
 Milano.
 
@@ -293,4 +303,6 @@ Public License v3.
 
 ## License
 
-GPL-3.0. See [LICENSE](LICENSE) for the full text.
+MIT for the original code in this repository. See [LICENSE](LICENSE) and
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md); the original PSAT and `psat-converted/` remain under
+their upstream GPL terms.

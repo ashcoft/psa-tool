@@ -1,4 +1,4 @@
-# Production container for PSAT Web (Next.js standalone output)
+# Production container for Power System Analysis Tool (PSA) (Next.js standalone output)
 FROM node:26-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
