@@ -52,10 +52,15 @@ starts the two-click connection tool.
 ### Select, edit and delete
 
 - Click an element on the diagram or in the **Project** tree.
-- The right-hand **Properties** panel edits names, electrical data, limits, coordinates and
-  catalog-specific parameters.
-- **Ctrl + C / Ctrl + V / Ctrl + X / Ctrl + D** copy, paste, cut and duplicate.
-- **Delete** removes the selection. **Ctrl + Z / Ctrl + Y** undo and redo, including moves.
+- **Ctrl + click** or **Shift + click** adds or removes an element from the selection.
+- **Ctrl + A** selects every bus, branch, device and specialty component in the workspace.
+- Drag on empty canvas to draw a selection marquee: left-to-right selects fully enclosed elements,
+  right-to-left selects crossing elements.
+- Selected buses and specialty components move together when you drag one of them.
+- The right-hand **Properties** panel edits the primary (last selected) element.
+- **Ctrl + C / Ctrl + V / Ctrl + X / Ctrl + D** copy, paste, cut and duplicate the primary element.
+- **Delete** removes the whole selection. **Ctrl + Z / Ctrl + Y** undo and redo, including moves.
+- **Esc** clears the selection and cancels the current tool.
 
 ## 3. Run a study
 
@@ -115,13 +120,14 @@ design.
 |----------|--------|
 | `Ctrl + N` / `Ctrl + O` / `Ctrl + S` | New / open / save |
 | `Ctrl + Z` / `Ctrl + Y` | Undo / redo |
+| `Ctrl + A` | Select all workspace elements |
 | `Ctrl + C` / `Ctrl + V` / `Ctrl + X` / `Ctrl + D` | Copy / paste / cut / duplicate |
 | `Delete` | Delete selection |
 | `F5` / `F6` / `F7` / `F8` / `F9` / `F10` | Load flow / CPF / short circuit / OPF / time domain / results |
 | `Ctrl + 0` | Fit diagram |
 | `Ctrl + +` / `Ctrl + -` | Zoom in / out |
 | `Ctrl + Shift + M` | Show or hide the menu bar |
-| `Esc` | Cancel tool, connection or dialog |
+| `Esc` | Cancel tool or connection, clear selection or close a dialog |
 
 ## 8. Troubleshooting
 

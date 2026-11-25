@@ -142,6 +142,53 @@ describe('useProject placement', () => {
     });
   });
 
+  it('moves multiple elements in one undo step', () => {
+    const { result } = renderHook(() => useProject(placementSystem()));
+
+    let componentId = '';
+    act(() => {
+      componentId = result.current.addComponent(voltmeter()).id;
+    });
+    act(() => {
+      result.current.beginMove();
+      result.current.moveElements([
+        { kind: 'bus', id: 'b2', x: 6, y: 3 },
+        { kind: 'component', id: componentId, x: 2.5, y: 2.5 },
+      ]);
+      result.current.endMove();
+    });
+
+    expect(result.current.system.buses.find(item => item.id === 'b2')).toMatchObject({ x: 6, y: 3 });
+    expect(result.current.system.components?.find(item => item.id === componentId)).toMatchObject({
+      x: 2.5,
+      y: 2.5,
+    });
+
+    act(() => result.current.undo());
+    expect(result.current.system.buses.find(item => item.id === 'b2')).toMatchObject({ x: 4, y: 0 });
+    expect(result.current.system.components?.find(item => item.id === componentId)).toMatchObject({
+      x: 1,
+      y: 1,
+    });
+  });
+
+  it('deletes multiple elements in one undo step', () => {
+    const { result } = renderHook(() => useProject(placementSystem()));
+
+    act(() => {
+      result.current.deleteElements([
+        { type: 'bus', id: 'b2' },
+        { type: 'bus', id: 'b3' },
+      ]);
+    });
+    expect(result.current.system.buses.map(item => item.id)).toEqual(['b1']);
+    expect(result.current.system.lines).toHaveLength(0);
+
+    act(() => result.current.undo());
+    expect(result.current.system.buses.map(item => item.id)).toEqual(['b1', 'b2', 'b3']);
+    expect(result.current.system.lines).toHaveLength(1);
+  });
+
   it('keeps the catalog symbol on a device', () => {
     const { result } = renderHook(() => useProject(placementSystem()));
 

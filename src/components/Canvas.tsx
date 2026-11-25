@@ -10,7 +10,7 @@ import {
   useState,
 } from 'react';
 import { IECSymbolType, PowerFlowResult, PowerSystem } from '@/types';
-import { Selection } from '@/lib/useProject';
+import { Selection, selectionKey } from '@/lib/useProject';
 import { getComponentDefinition } from '@/lib/component-catalog';
 import { componentAnchor, componentCategoryShort } from '@/lib/component-utils';
 import { getSymbol, renderSymbol } from '@/lib/symbols';
@@ -27,7 +27,7 @@ export interface CanvasHandle {
 
 interface CanvasProps {
   system: PowerSystem;
-  selection: Selection;
+  selections: Selection[];
   tool: CanvasTool;
   results?: PowerFlowResult | null;
   showGrid: boolean;
@@ -35,11 +35,11 @@ interface CanvasProps {
   showBusNames: boolean;
   showVoltageOverlay: boolean;
   showFlowOverlay: boolean;
-  onSelect: (selection: Selection) => void;
+  onSelect: (selection: Selection, additive?: boolean) => void;
+  onSelectMany: (selections: Selection[], additive?: boolean) => void;
   onMoveStart: () => void;
   onMoveEnd: () => void;
-  onMoveBus: (busId: string, x: number, y: number) => void;
-  onMoveComponent: (componentId: string, x: number, y: number) => void;
+  onMoveElements: (moves: { kind: 'bus' | 'component'; id: string; x: number; y: number }[]) => void;
   onBranchConnect: (fromBus: string, toBus: string) => void;
   onDropComponent: (kind: string, position: { x: number; y: number }) => void;
   onContextMenu: (selection: Selection, clientX: number, clientY: number) => void;
@@ -55,11 +55,22 @@ interface DeviceHit {
   y: number;
 }
 
-interface DragState {
+interface MoveOrigin {
   kind: 'bus' | 'component';
   id: string;
-  dx: number;
-  dy: number;
+  x: number;
+  y: number;
+}
+
+interface DragState {
+  origins: MoveOrigin[];
+  startWorld: { x: number; y: number };
+}
+
+interface MarqueeState {
+  start: { x: number; y: number };
+  current: { x: number; y: number };
+  additive: boolean;
 }
 
 interface TransformerMarkerOptions {
@@ -124,10 +135,68 @@ function pointSegmentDistance(
   return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
 }
 
+interface RectBounds {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
+function pointInRect(x: number, y: number, rect: RectBounds): boolean {
+  return x >= rect.minX && x <= rect.maxX && y >= rect.minY && y <= rect.maxY;
+}
+
+function orientation(ax: number, ay: number, bx: number, by: number, cx: number, cy: number): number {
+  const value = (by - ay) * (cx - bx) - (bx - ax) * (cy - by);
+  if (Math.abs(value) < 1e-9) return 0;
+  return value > 0 ? 1 : 2;
+}
+
+function onSegment(ax: number, ay: number, bx: number, by: number, cx: number, cy: number): boolean {
+  return (
+    bx <= Math.max(ax, cx) &&
+    bx >= Math.min(ax, cx) &&
+    by <= Math.max(ay, cy) &&
+    by >= Math.min(ay, cy)
+  );
+}
+
+function segmentsIntersect(
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+  cx: number,
+  cy: number,
+  dx: number,
+  dy: number
+): boolean {
+  const o1 = orientation(ax, ay, bx, by, cx, cy);
+  const o2 = orientation(ax, ay, bx, by, dx, dy);
+  const o3 = orientation(cx, cy, dx, dy, ax, ay);
+  const o4 = orientation(cx, cy, dx, dy, bx, by);
+  if (o1 !== o2 && o3 !== o4) return true;
+  if (o1 === 0 && onSegment(ax, ay, cx, cy, bx, by)) return true;
+  if (o2 === 0 && onSegment(ax, ay, dx, dy, bx, by)) return true;
+  if (o3 === 0 && onSegment(cx, cy, ax, ay, dx, dy)) return true;
+  if (o4 === 0 && onSegment(cx, cy, bx, by, dx, dy)) return true;
+  return false;
+}
+
+function segmentIntersectsRect(x1: number, y1: number, x2: number, y2: number, rect: RectBounds): boolean {
+  if (pointInRect(x1, y1, rect) || pointInRect(x2, y2, rect)) return true;
+  return (
+    segmentsIntersect(x1, y1, x2, y2, rect.minX, rect.minY, rect.maxX, rect.minY) ||
+    segmentsIntersect(x1, y1, x2, y2, rect.maxX, rect.minY, rect.maxX, rect.maxY) ||
+    segmentsIntersect(x1, y1, x2, y2, rect.maxX, rect.maxY, rect.minX, rect.maxY) ||
+    segmentsIntersect(x1, y1, x2, y2, rect.minX, rect.maxY, rect.minX, rect.minY)
+  );
+}
+
 const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
   {
     system,
-    selection,
+    selections,
     tool,
     results,
     showGrid,
@@ -136,10 +205,10 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     showVoltageOverlay,
     showFlowOverlay,
     onSelect,
+    onSelectMany,
     onMoveStart,
     onMoveEnd,
-    onMoveBus,
-    onMoveComponent,
+    onMoveElements,
     onBranchConnect,
     onDropComponent,
     onContextMenu,
@@ -158,6 +227,7 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
   const [connectFrom, setConnectFrom] = useState<string | null>(null);
   const [cursorWorld, setCursorWorld] = useState<{ x: number; y: number } | null>(null);
   const [dropActive, setDropActive] = useState(false);
+  const [marquee, setMarquee] = useState<MarqueeState | null>(null);
   const dragRef = useRef<DragState | null>(null);
   const panRef = useRef<{ x: number; y: number; offsetX: number; offsetY: number } | null>(null);
   const deviceHitsRef = useRef<DeviceHit[]>([]);
@@ -347,8 +417,8 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     ctx.translate(size.width / 2 + offset.x, size.height / 2 + offset.y);
     ctx.scale(scale, scale);
 
-    const selected = (type: Selection['type'], id: string) =>
-      selection.type === type && selection.id === id;
+    const selectedKeys = new Set(selections.map(selectionKey));
+    const selected = (type: Selection['type'], id: string) => selectedKeys.has(`${type}:${id}`);
 
     const lineResults = new Map((results?.lineResults ?? []).map(item => [item.line, item]));
     const busResults = new Map((results?.busResults ?? []).map(item => [item.bus, item]));
@@ -770,7 +840,7 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     const genericComponents = system.components ?? [];
     genericComponents.forEach(component => {
       const anchor = componentAnchor(system, component);
-      const isSelected = selection.type === 'component' && selection.id === component.id;
+      const isSelected = selected('component', component.id);
       const isHovered = hover.type === 'component' && hover.id === component.id;
       const color = isSelected ? colors.selected : isHovered ? '#0f172a' : '#475569';
       const definition = getComponentDefinition(component.type);
@@ -844,6 +914,22 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
       ctx.restore();
     });
 
+    if (marquee) {
+      const minX = Math.min(marquee.start.x, marquee.current.x);
+      const minY = Math.min(marquee.start.y, marquee.current.y);
+      const width = Math.abs(marquee.current.x - marquee.start.x);
+      const height = Math.abs(marquee.current.y - marquee.start.y);
+      const crossing = marquee.current.x < marquee.start.x;
+      ctx.save();
+      ctx.fillStyle = crossing ? 'rgba(217,119,6,0.08)' : 'rgba(37,99,235,0.08)';
+      ctx.strokeStyle = crossing ? '#d97706' : '#2563eb';
+      ctx.lineWidth = 1.2 / Math.max(0.6, scale);
+      ctx.setLineDash([5 / Math.max(0.7, scale), 3 / Math.max(0.7, scale)]);
+      ctx.fillRect(minX, minY, width, height);
+      ctx.strokeRect(minX, minY, width, height);
+      ctx.restore();
+    }
+
     if (results && showVoltageOverlay) {
       const legendX = -size.width / 2 / scale + 14 / scale;
       const legendY = -size.height / 2 / scale + 14 / scale;
@@ -880,10 +966,11 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     connectFrom,
     cursorWorld,
     hover,
+    marquee,
     offset,
     results,
     scale,
-    selection,
+    selections,
     showBusNames,
     showFlowOverlay,
     showGrid,
@@ -985,30 +1072,88 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     }
   };
 
-  const beginElementDrag = (hit: Selection, world: { x: number; y: number }): boolean => {
-    if (hit.type === 'bus' && hit.id) {
-      const bus = busById.get(hit.id);
-      if (!bus) return false;
-      dragRef.current = {
-        kind: 'bus',
-        id: hit.id,
-        dx: world.x - bus.x * GRID_UNIT,
-        dy: world.y - bus.y * GRID_UNIT,
-      };
-      return true;
+  const selectedSet = new Set(selections.map(selectionKey));
+
+  const originForSelection = (item: Selection): MoveOrigin | null => {
+    if (item.type === 'bus' && item.id) {
+      const bus = busById.get(item.id);
+      return bus ? { kind: 'bus', id: bus.id, x: bus.x, y: bus.y } : null;
     }
-    if (hit.type !== 'component' || !hit.id) return false;
-    const component = (system.components ?? []).find(item => item.id === hit.id);
-    // Branch-like components are anchored to the midpoint of their two buses.
-    if (!component || (component.fromBus && component.toBus)) return false;
-    const anchor = componentAnchor(system, component);
-    dragRef.current = {
-      kind: 'component',
-      id: hit.id,
-      dx: world.x - anchor.x,
-      dy: world.y - anchor.y,
-    };
+    if (item.type === 'component' && item.id) {
+      const component = (system.components ?? []).find(entry => entry.id === item.id);
+      if (!component || (component.fromBus && component.toBus)) return null;
+      return { kind: 'component', id: component.id, x: component.x, y: component.y };
+    }
+    return null;
+  };
+
+  const draggableOrigins = (items: Selection[]): MoveOrigin[] =>
+    items.map(originForSelection).filter((item): item is MoveOrigin => item !== null);
+
+  const beginElementDrag = (hit: Selection, world: { x: number; y: number }, additive: boolean): boolean => {
+    if (!hit.type || !hit.id) return false;
+    if (additive) {
+      onSelect(hit, true);
+      return false;
+    }
+    const alreadySelected = selectedSet.has(selectionKey(hit));
+    const origins =
+      alreadySelected && selections.length > 1 ? draggableOrigins(selections) : draggableOrigins([hit]);
+    if (!alreadySelected) onSelect(hit);
+    if (origins.length === 0) return false;
+    dragRef.current = { origins, startWorld: world };
     return true;
+  };
+
+  const collectMarqueeSelection = (rect: RectBounds, crossing: boolean): Selection[] => {
+    const items: Selection[] = [];
+    const seen = new Set<string>();
+    const add = (item: Selection) => {
+      const key = selectionKey(item);
+      if (!item.type || !item.id || seen.has(key)) return;
+      seen.add(key);
+      items.push(item);
+    };
+    const branchSelected = (x1: number, y1: number, x2: number, y2: number) =>
+      crossing
+        ? segmentIntersectsRect(x1, y1, x2, y2, rect)
+        : pointInRect(x1, y1, rect) && pointInRect(x2, y2, rect);
+
+    system.buses.forEach(bus => {
+      if (pointInRect(bus.x * GRID_UNIT, bus.y * GRID_UNIT, rect)) add({ type: 'bus', id: bus.id });
+    });
+    system.lines.forEach(line => {
+      const from = busById.get(line.fromBus);
+      const to = busById.get(line.toBus);
+      if (from && to && branchSelected(from.x * GRID_UNIT, from.y * GRID_UNIT, to.x * GRID_UNIT, to.y * GRID_UNIT)) {
+        add({ type: 'line', id: line.id });
+      }
+    });
+    system.transformers.forEach(txf => {
+      const from = busById.get(txf.fromBus);
+      const to = busById.get(txf.toBus);
+      if (from && to && branchSelected(from.x * GRID_UNIT, from.y * GRID_UNIT, to.x * GRID_UNIT, to.y * GRID_UNIT)) {
+        add({ type: 'transformer', id: txf.id });
+      }
+    });
+    deviceHitsRef.current.forEach(device => {
+      if (pointInRect(device.x, device.y, rect)) add({ type: device.kind, id: device.id });
+    });
+    (system.components ?? []).forEach(component => {
+      const anchor = componentAnchor(system, component);
+      if (pointInRect(anchor.x, anchor.y, rect)) {
+        add({ type: 'component', id: component.id });
+        return;
+      }
+      if (component.fromBus && component.toBus) {
+        const from = busById.get(component.fromBus);
+        const to = busById.get(component.toBus);
+        if (from && to && branchSelected(from.x * GRID_UNIT, from.y * GRID_UNIT, to.x * GRID_UNIT, to.y * GRID_UNIT)) {
+          add({ type: 'component', id: component.id });
+        }
+      }
+    });
+    return items;
   };
 
   const handleMouseDown = (event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -1019,6 +1164,7 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     }
     if (event.button !== 0) return;
 
+    const additive = event.shiftKey || event.ctrlKey || event.metaKey;
     const world = toWorld(event.clientX, event.clientY);
     const hit = hitTest(world.x, world.y);
 
@@ -1027,8 +1173,13 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
       return;
     }
 
-    if (beginElementDrag(hit, world)) onMoveStart();
-    onSelect(hit);
+    if (hit.type && hit.id) {
+      if (beginElementDrag(hit, world, additive)) onMoveStart();
+      return;
+    }
+
+    if (!additive) onSelect({ type: null, id: null });
+    setMarquee({ start: world, current: world, additive });
   };
 
   const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -1044,18 +1195,24 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
       return;
     }
 
+    if (marquee) {
+      setMarquee(prev => (prev ? { ...prev, current: world } : prev));
+      return;
+    }
+
     if (dragRef.current) {
-      let x = (world.x - dragRef.current.dx) / GRID_UNIT;
-      let y = (world.y - dragRef.current.dy) / GRID_UNIT;
-      if (snapToGrid && !event.altKey) {
-        x = Math.round(x / SNAP) * SNAP;
-        y = Math.round(y / SNAP) * SNAP;
-      }
-      if (dragRef.current.kind === 'bus') {
-        onMoveBus(dragRef.current.id, x, y);
-      } else {
-        onMoveComponent(dragRef.current.id, x, y);
-      }
+      const dx = (world.x - dragRef.current.startWorld.x) / GRID_UNIT;
+      const dy = (world.y - dragRef.current.startWorld.y) / GRID_UNIT;
+      const moves = dragRef.current.origins.map(origin => {
+        let x = origin.x + dx;
+        let y = origin.y + dy;
+        if (snapToGrid && !event.altKey) {
+          x = Math.round(x / SNAP) * SNAP;
+          y = Math.round(y / SNAP) * SNAP;
+        }
+        return { kind: origin.kind, id: origin.id, x, y };
+      });
+      onMoveElements(moves);
       return;
     }
 
@@ -1069,11 +1226,27 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     panRef.current = null;
   };
 
+  const handleMouseUp = () => {
+    if (marquee) {
+      const rect: RectBounds = {
+        minX: Math.min(marquee.start.x, marquee.current.x),
+        minY: Math.min(marquee.start.y, marquee.current.y),
+        maxX: Math.max(marquee.start.x, marquee.current.x),
+        maxY: Math.max(marquee.start.y, marquee.current.y),
+      };
+      const crossing = marquee.current.x < marquee.start.x;
+      onSelectMany(collectMarqueeSelection(rect, crossing), marquee.additive);
+      setMarquee(null);
+      return;
+    }
+    endInteraction();
+  };
+
   const handleContextMenu = (event: React.MouseEvent<HTMLCanvasElement>) => {
     event.preventDefault();
     const world = toWorld(event.clientX, event.clientY);
     const hit = hitTest(world.x, world.y);
-    if (hit.type) onSelect(hit);
+    if (hit.type && hit.id && !selectedSet.has(selectionKey(hit))) onSelect(hit);
     onContextMenu(hit, event.clientX, event.clientY);
   };
 
@@ -1112,8 +1285,9 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
         title="Drag buses and components to reposition them. Hold Alt to bypass grid snap."
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
-        onMouseUp={endInteraction}
+        onMouseUp={handleMouseUp}
         onMouseLeave={() => {
+          setMarquee(null);
           endInteraction();
           setHover({ type: null, id: null });
           setCursorWorld(null);

@@ -16,7 +16,7 @@ import { AboutDialog, ShortcutsDialog, ValidationDialog } from '@/components/Inf
 import Canvas, { CanvasHandle, CanvasTool } from '@/components/Canvas';
 import Icon from '@/components/Icon';
 import { Bus } from '@/types';
-import { useProject, Selection } from '@/lib/useProject';
+import { useProject, Selection, ElementKind, selectionKey } from '@/lib/useProject';
 import { AppSettings, defaultSettings, loadSettings, saveSettings } from '@/lib/settings';
 import { buildDemoSystem, buildSample } from '@/lib/samples';
 import { ComponentDefinition, buildGenericComponent, getComponentDefinition } from '@/lib/component-catalog';
@@ -41,6 +41,11 @@ interface Toast {
   text: string;
 }
 
+interface SelectionState {
+  items: Selection[];
+  primary: Selection;
+}
+
 const studyLabels: Record<StudyKind, string> = {
   powerflow: 'Load Flow',
   cpf: 'Continuation Power Flow',
@@ -55,7 +60,12 @@ const ATTACH_RADIUS = 1.5;
 
 export default function Home() {
   const project = useProject(buildDemoSystem());
-  const [selection, setSelection] = useState<Selection>({ type: null, id: null });
+  const [selectionState, setSelectionState] = useState<SelectionState>({
+    items: [],
+    primary: { type: null, id: null },
+  });
+  const selection = selectionState.primary;
+  const selections = selectionState.items;
   const [tool, setTool] = useState<CanvasTool>('select');
   const [pendingBranch, setPendingBranch] = useState<ComponentDefinition | null>(null);
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
@@ -81,6 +91,43 @@ export default function Home() {
   const canvasRef = useRef<CanvasHandle>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const projectGeneration = useRef(0);
+
+  const setSelection = useCallback((next: Selection) => {
+    setSelectionState({
+      items: next.type && next.id ? [next] : [],
+      primary: next,
+    });
+  }, []);
+
+  const selectMany = useCallback((items: Selection[], additive = false) => {
+    setSelectionState(prev => {
+      const map = new Map((additive ? prev.items : []).map(item => [selectionKey(item), item]));
+      items.forEach(item => {
+        if (item.type && item.id) map.set(selectionKey(item), item);
+      });
+      const next = [...map.values()];
+      return { items: next, primary: next[next.length - 1] ?? { type: null, id: null } };
+    });
+  }, []);
+
+  const toggleSelection = useCallback((hit: Selection) => {
+    if (!hit.type || !hit.id) return;
+    setSelectionState(prev => {
+      const key = selectionKey(hit);
+      const exists = prev.items.some(item => selectionKey(item) === key);
+      const items = exists
+        ? prev.items.filter(item => selectionKey(item) !== key)
+        : [...prev.items, hit];
+      return {
+        items,
+        primary: exists ? items[items.length - 1] ?? { type: null, id: null } : hit,
+      };
+    });
+  }, []);
+
+  const clearSelection = useCallback(() => {
+    setSelectionState({ items: [], primary: { type: null, id: null } });
+  }, []);
 
   const log = useCallback((text: string) => {
     setMessages(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${text}`].slice(-400));
@@ -130,6 +177,25 @@ export default function Home() {
   const latestFaultRun = [...runs].reverse().find(run => run.kind === 'fault');
   const latestFaultStudy = latestFaultRun?.kind === 'fault' ? latestFaultRun.data : null;
   const errorCount = project.issues.filter(issue => issue.severity === 'error').length;
+
+  const allSelections = useMemo<Selection[]>(() => {
+    const system = project.system;
+    return [
+      ...system.buses.map(item => ({ type: 'bus' as const, id: item.id })),
+      ...system.lines.map(item => ({ type: 'line' as const, id: item.id })),
+      ...system.transformers.map(item => ({ type: 'transformer' as const, id: item.id })),
+      ...system.generators.map(item => ({ type: 'generator' as const, id: item.id })),
+      ...system.loads.map(item => ({ type: 'load' as const, id: item.id })),
+      ...(system.shunts ?? []).map(item => ({ type: 'shunt' as const, id: item.id })),
+      ...(system.components ?? []).map(item => ({ type: 'component' as const, id: item.id })),
+    ];
+  }, [project.system]);
+
+  const selectAll = useCallback(() => {
+    if (allSelections.length === 0) return;
+    selectMany(allSelections);
+    log(`Selected ${allSelections.length} elements.`);
+  }, [allSelections, log, selectMany]);
 
   const selectedBusId = useCallback((): string | null => {
     if (!selection.id) return project.system.buses[0]?.id ?? null;
@@ -225,7 +291,7 @@ export default function Home() {
     setTool('select');
     log('New project created.');
     setToast({ type: 'info', text: 'New project created' });
-  }, [confirmDiscard, log, project]);
+  }, [confirmDiscard, log, project, setSelection]);
 
   const openProject = useCallback(() => {
     if (!confirmDiscard('open another project')) return;
@@ -252,7 +318,7 @@ export default function Home() {
         setToast({ type: 'error', text: `Open failed: ${text}` });
       }
     },
-    [log, project]
+    [log, project, setSelection]
   );
 
   const loadSample = useCallback(
@@ -269,7 +335,7 @@ export default function Home() {
       log(`Loaded sample system "${system.name}".`);
       setToast({ type: 'success', text: `Loaded ${system.name}` });
     },
-    [confirmDiscard, log, project]
+    [confirmDiscard, log, project, setSelection]
   );
 
   const closeProject = useCallback(() => {
@@ -283,7 +349,7 @@ export default function Home() {
     setTool('select');
     log('Project closed. Open a .psa file or create a new project.');
     setToast({ type: 'info', text: 'Project closed' });
-  }, [confirmDiscard, log, project]);
+  }, [confirmDiscard, log, project, setSelection]);
 
   const addBus = useCallback(
     (type: Bus['type'], position?: { x: number; y: number }) => {
@@ -294,7 +360,7 @@ export default function Home() {
         setToast({ type: 'success', text: `Added ${type} bus` });
       }
     },
-    [log, project]
+    [log, project, setSelection]
   );
 
   const addDevice = useCallback(
@@ -409,7 +475,7 @@ export default function Home() {
       log(`Added ${definition.label}${busId ? ` at bus ${busId}` : ''}.`);
       setToast({ type: 'success', text: `Added ${definition.label}` });
     },
-    [log, project, resolveDeviceBus, selectedBusId]
+    [log, project, resolveDeviceBus, selectedBusId, setSelection]
   );
 
   const handleBranchConnect = useCallback(
@@ -461,12 +527,14 @@ export default function Home() {
   );
 
   const deleteSelection = useCallback(() => {
-    if (!selection.type || !selection.id) return;
-    const label = `${selection.type} ${selection.id}`;
-    project.deleteElement(selection.type, selection.id);
-    setSelection({ type: null, id: null });
-    log(`Deleted ${label}.`);
-  }, [log, project, selection]);
+    const targets = (selections.length > 0 ? selections : selection.type && selection.id ? [selection] : []).filter(
+      (item): item is { type: ElementKind; id: string } => Boolean(item.type && item.id)
+    );
+    if (targets.length === 0) return;
+    project.deleteElements(targets);
+    clearSelection();
+    log(`Deleted ${targets.length} element${targets.length === 1 ? '' : 's'}.`);
+  }, [clearSelection, log, project, selection, selections]);
 
   const duplicateSelection = useCallback(() => {
     if (!selection.type || !selection.id) return;
@@ -486,7 +554,7 @@ export default function Home() {
     project.deleteElement(selection.type, selection.id);
     setSelection({ type: null, id: null });
     log(`Cut ${selection.type}.`);
-  }, [log, project, selection]);
+  }, [log, project, selection, setSelection]);
 
   const exportCSV = useCallback(() => {
     if (!activeRun) {
@@ -575,10 +643,7 @@ export default function Home() {
         deleteSelection();
         break;
       case 'select-all':
-        if (project.system.buses[0]) {
-          setSelection({ type: 'bus', id: project.system.buses[0].id });
-          log('Selected the first bus. Use the project tree to navigate between elements.');
-        }
+        selectAll();
         break;
       case 'tool-select':
         setTool('select');
@@ -734,6 +799,7 @@ export default function Home() {
         setTool('select');
         setDialog(null);
         setContextMenu(null);
+        clearSelection();
         break;
       default:
         log(`Action "${action}" is not available.`);
@@ -774,6 +840,7 @@ export default function Home() {
           v: 'paste',
           x: 'cut',
           d: 'duplicate',
+          a: 'select-all',
           '0': 'fit',
           '=': 'zoom-in',
           '+': 'zoom-in',
@@ -863,7 +930,7 @@ export default function Home() {
         onTabChange={setActiveTab}
         onAction={handleAction}
         toggles={toggles}
-        hasSelection={Boolean(selection.id)}
+        hasSelection={selections.length > 0}
         canUndo={project.canUndo}
         canRedo={project.canRedo}
         canPaste={project.canPaste}
@@ -902,7 +969,7 @@ export default function Home() {
             <Canvas
               ref={canvasRef}
               system={project.system}
-              selection={selection}
+              selections={selections}
               tool={tool}
               results={activeRun?.kind === 'powerflow' ? activeRun.data : null}
               showGrid={settings.showGrid}
@@ -910,11 +977,14 @@ export default function Home() {
               showBusNames={settings.showBusNames}
               showVoltageOverlay={settings.showVoltageOverlay}
               showFlowOverlay={settings.showFlowOverlay}
-              onSelect={setSelection}
+              onSelect={(hit, additive) => {
+                if (additive) toggleSelection(hit);
+                else setSelection(hit);
+              }}
+              onSelectMany={selectMany}
               onMoveStart={project.beginMove}
               onMoveEnd={project.endMove}
-              onMoveBus={project.moveBus}
-              onMoveComponent={project.moveComponent}
+              onMoveElements={project.moveElements}
               onBranchConnect={handleBranchConnect}
               onDropComponent={handleDropComponent}
               onContextMenu={(hit, x, y) => setContextMenu({ x, y, selection: hit })}
@@ -1084,6 +1154,7 @@ export default function Home() {
           <span>Generators: {stats.generators}</span>
           <span>Shunts: {stats.shunts}</span>
           <span>Components: {stats.components}</span>
+          <span>Selected: {selections.length}</span>
         </div>
         <div className="flex items-center gap-3">
           {cursor && <span className="font-mono text-slate-500">X {cursor.x.toFixed(0)} Y {cursor.y.toFixed(0)}</span>}
