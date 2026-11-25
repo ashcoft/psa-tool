@@ -20,6 +20,7 @@ const shortcuts: { keys: string; action: string }[] = [
   { keys: 'F10', action: 'Open results' },
   { keys: 'Ctrl + 0', action: 'Fit diagram to window' },
   { keys: 'Ctrl + + / Ctrl + -', action: 'Zoom in / out' },
+  { keys: 'Ctrl + Shift + M', action: 'Show or hide the menu bar' },
   { keys: 'Esc', action: 'Cancel current tool or dialog' },
 ];
 
@@ -61,22 +62,22 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
   ];
 
   return (
-    <Dialog title="About PSAT Web" icon="about" onClose={onClose} width={560}>
+    <Dialog title="About PSA" icon="about" onClose={onClose} width={560}>
       <div className="p-3">
         <div className="flex items-center gap-3">
           <span className="flex h-12 w-12 items-center justify-center rounded bg-[#1f4d85] text-white">
             <Icon name="lightning" size={26} />
           </span>
           <div>
-            <div className="text-[16px] font-semibold text-slate-800">PSAT Web</div>
+            <div className="text-[16px] font-semibold text-slate-800">Power System Analysis Tool</div>
             <div className="text-[11px] text-slate-500">
-              Power System Analysis Toolbox · Web Edition {process.env.NEXT_PUBLIC_APP_VERSION ?? '1.2.0'}
+              PSA · Version {process.env.NEXT_PUBLIC_APP_VERSION ?? '1.3.0'}
             </div>
           </div>
         </div>
 
         <p className="mt-3 text-[11.5px] leading-relaxed text-slate-600">
-          PSAT Web is a browser-based power system analysis workbench derived from the open-source PSAT
+          PSA is a browser-based power system analysis workbench derived from the open-source PSAT
           (Power System Analysis Toolbox). It combines an ETAP-style one-line diagram editor with load flow,
           voltage stability, optimal power flow, short circuit, stability and time-domain studies.
         </p>

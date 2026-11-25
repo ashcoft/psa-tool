@@ -1,6 +1,6 @@
 # Architecture
 
-PSAT Web is a Next.js App Router application with a pure TypeScript analysis core. The UI never
+Power System Analysis Tool (PSA) is a Next.js App Router application with a pure TypeScript analysis core. The UI never
 performs power-system mathematics directly; it calls `src/lib` engines and renders the results.
 
 ```mermaid
@@ -87,7 +87,7 @@ component.
 
 ## Persistence
 
-- Projects are JSON files produced by `serializeProject` and validated by `deserializeProject` and
+- Projects are `.psa` files (JSON content) produced by `serializeProject` and validated by `deserializeProject` and
   `normalizeSystem`.
 - Settings are stored in `localStorage` under `psat-web.settings.v1`.
 - Study results are session-only. Export CSV or a report to keep them.

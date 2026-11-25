@@ -22,7 +22,7 @@ disclosure.
 
 ## Security model
 
-PSAT Web is a client-side application:
+Power System Analysis Tool (PSA) is a client-side application:
 
 - Project files are JSON and never leave the browser unless the user downloads them.
 - Study results are session-only and are not stored on a server.

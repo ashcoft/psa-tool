@@ -1,4 +1,4 @@
-# Contributing to PSAT Web
+# Contributing to Power System Analysis Tool (PSA)
 
 Thanks for helping improve the workbench. This project is a browser port of PSAT, so numerical
 correctness and honest assumptions matter more than feature count.

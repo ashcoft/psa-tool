@@ -10,7 +10,7 @@ vi.mock('@/components/Canvas', () => ({
   }),
 }));
 
-describe('PSAT Web application shell', () => {
+describe('Power System Analysis Tool application shell', () => {
   it('renders the ETAP-style workbench', () => {
     render(<HomePage />);
     expect(screen.getByTestId('titlebar')).toBeInTheDocument();
@@ -25,7 +25,7 @@ describe('PSAT Web application shell', () => {
 
   it('shows the project name and ribbon tabs', () => {
     render(<HomePage />);
-    expect(screen.getByText('PSAT Web')).toBeInTheDocument();
+    expect(screen.getByText('Power System Analysis Tool')).toBeInTheDocument();
     expect(screen.getByText('Demo 4-Bus System')).toBeInTheDocument();
     ['Home', 'Components', 'Analysis', 'Results', 'Tools'].forEach(tab => {
       expect(screen.getByRole('tab', { name: tab })).toBeInTheDocument();

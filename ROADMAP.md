@@ -1,4 +1,4 @@
-# PSAT Web Development Roadmap
+# Power System Analysis Tool (PSA) Development Roadmap
 
 Living plan of record for the workbench. Baseline: **v1.2.0** · Last reviewed: **2026-11-25**.
 
@@ -14,9 +14,9 @@ workflow), and `P3` (scale and ecosystem). Effort is `S` (≤ 2 days), `M` (≈ 
 
 ## 1. Product direction
 
-PSAT Web should be a **browser-native screening workbench** that is honest about its
-assumptions: engineering units in the model, per-unit internally, deterministic solvers, and
-visible notes whenever a result depends on an assumed value.
+The tool should be a **browser-native screening workbench** that is honest about its assumptions:
+engineering units in the model, per-unit internally, deterministic solvers, and visible notes
+whenever a result depends on an assumed value.
 
 Three principles drive the sequencing:
 
@@ -64,8 +64,11 @@ settings persistence.
 - Documentation set: user guide, architecture, numerical methods, deployment guide, screenshots,
   contributing, security, code of conduct, issue forms and a pull-request template.
 - GPL-3.0 `LICENSE`, `typecheck`/`verify` scripts and a package-derived version string.
+- Project files now save as `.psa` (JSON content); legacy `.json` files still open.
+- The app is branded as **Power System Analysis Tool** and the menu bar can be shown or hidden from
+  the titlebar, the View ribbon group, Settings, or `Ctrl+Shift+M`.
 - GitHub Pages static export deployed at <https://ashcoft.github.io/psat-web/>.
-- GHCR publishing workflow and a published `ghcr.io/ashcoft/psat-web:1.2.0` image.
+- GHCR publishing workflow and a published `ghcr.io/ashcoft/psat-web:1.3.0` image.
 
 ## 3. Gap analysis
 
@@ -223,7 +226,7 @@ users can operate dialogs and the canvas; reports can be delivered as PDF.
 Goal: handle networks and workflows beyond a single demo session.
 
 Exit criteria: 500-bus load flow completes in a worker under the agreed budget; large diagrams
-stay interactive; projects can move between PSAT Web and other tools.
+stay interactive; projects can move between Power System Analysis Tool and other tools.
 
 | ID | Item | Effort |
 |----|------|--------|

@@ -21,11 +21,11 @@ async function dragVoltmeterToCanvas(page: Page, target = { x: 420, y: 280 }) {
   return canvas;
 }
 
-test.describe('PSAT Web workbench', () => {
+test.describe('Power System Analysis Tool workbench', () => {
   test('loads the ETAP-style workbench', async ({ page }) => {
     await openApp(page);
     await expect(page).toHaveTitle(/Power System/i);
-    await expect(page.getByText('PSAT Web', { exact: true })).toBeVisible();
+    await expect(page.getByText('Power System Analysis Tool', { exact: true })).toBeVisible();
     await expect(page.getByRole('tab', { name: 'Home' })).toBeVisible();
     await expect(page.getByTestId('statusbar')).toContainText('Buses: 4');
     await expect(page.getByTestId('statusbar')).toContainText('Base: 100 MVA');
@@ -81,9 +81,9 @@ test.describe('PSAT Web workbench', () => {
     const downloadPromise = page.waitForEvent('download');
     await page.getByTestId('titlebar').getByTitle('Save (Ctrl+S)').click();
     const download = await downloadPromise;
-    expect(download.suggestedFilename()).toMatch(/\.json$/);
+    expect(download.suggestedFilename()).toMatch(/\.psa$/);
 
-    const path = `/tmp/psat-e2e-${Date.now()}.json`;
+    const path = `/tmp/psat-e2e-${Date.now()}.psa`;
     await download.saveAs(path);
 
     await page.locator('input[type="file"]').setInputFiles(path);
@@ -108,6 +108,20 @@ test.describe('PSAT Web workbench', () => {
     await expect(page.getByText('Study Report')).toBeVisible();
     await expect(page.getByRole('button', { name: 'HTML' })).toBeVisible();
     await page.getByRole('button', { name: 'Close', exact: true }).last().click();
+  });
+
+  test('shows and hides the menu bar', async ({ page }) => {
+    await openApp(page);
+    await expect(page.getByTestId('menubar')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Hide menu bar' }).click();
+    await expect(page.getByTestId('menubar')).toHaveCount(0);
+
+    await page.reload();
+    await expect(page.getByTestId('menubar')).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Show menu bar' }).click();
+    await expect(page.getByTestId('menubar')).toBeVisible();
   });
 
   test('shows the keyboard shortcuts dialog', async ({ page }) => {

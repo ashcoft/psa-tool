@@ -1,6 +1,6 @@
-# PSAT Web — Power System Analysis Toolbox
+# Power System Analysis Tool (PSA)
 
-A browser-native power system analysis workbench derived from the MATLAB-based
+Power System Analysis Tool (PSA) is a browser-native power system analysis workbench derived from the MATLAB-based
 [PSAT](https://faraday1.ucd.ie/psat.html). It follows the ETAP style: a ribbon, a one-line diagram
 editor, a component palette, a property grid, a study-case history and tabular/chart results.
 
@@ -14,7 +14,7 @@ editor, a component palette, a property grid, a study-case history and tabular/c
 [![React 19](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
 [![GHCR](https://img.shields.io/badge/ghcr.io-psat--web-blue?logo=github)](https://github.com/ashcoft/psat-web/pkgs/container/psat-web)
 
-![PSAT Web workbench](docs/screenshot.png)
+![Power System Analysis Tool workbench](docs/screenshot.png)
 
 **Live workbench:** [ashcoft.github.io/psat-web](https://ashcoft.github.io/psat-web/) ·
 **Container:** `ghcr.io/ashcoft/psat-web:latest` ·
@@ -22,9 +22,9 @@ editor, a component palette, a property grid, a study-case history and tabular/c
 [Numerical methods](docs/NUMERICAL-METHODS.md) · [Deployment](docs/DEPLOYMENT.md) ·
 [Roadmap](ROADMAP.md)
 
-## Why PSAT Web
+## Why this tool
 
-- **Everything stays in the browser.** Projects are JSON files; no account, server database or
+- **Everything stays in the browser.** Projects are `.psa` files; no account, server database or
   upload.
 - **A real one-line editor.** Drag components from the palette, place them anywhere, connect
   branches and rearrange the diagram without losing the electrical model.
@@ -119,6 +119,8 @@ same build is available locally with `npm run build:pages`.
 ### One-line diagram editor
 
 - Ribbon with Home, Components, Analysis, Results and Tools tabs.
+- Toggleable menu bar from the titlebar, Home → View → Menu Bar, or `Ctrl+Shift+M`; the choice is
+  persisted.
 - Complete PSAT component library with AC, DC, Instruments, Controls and Other palettes (sources,
   buses, branches, loads/motors, protection, conversion, meters, relays, AVR/governor/PSS, DC
   elements, DC control and composite items).
@@ -141,7 +143,7 @@ same build is available locally with `npm run build:pages`.
 
 ### Project management
 
-- JSON project save/open with validation and normalization.
+- `.psa` project save/open (JSON content) with validation and normalization.
 - Sample systems: Demo 4-bus, IEEE 9-bus, IEEE 14-bus and a distribution feeder.
 - Settings persisted in the browser (solver, tolerances, simulation, overlays).
 - Model check with clickable issues.
@@ -189,6 +191,7 @@ Specialty studies are screening calculations. Check the notes in each result and
 | `F10` | Open results |
 | `Ctrl+0` | Fit diagram to window |
 | `Ctrl++` / `Ctrl+-` | Zoom in / out |
+| `Ctrl+Shift+M` | Show or hide the menu bar |
 | `Esc` | Cancel the current tool or dialog |
 | `Alt` + drag | Free positioning without grid snap |
 
@@ -287,7 +290,9 @@ static workbench.
 
 ## Original PSAT
 
-This project is a web-based port of the original
+The application is abbreviated **PSA**. **PSAT** refers to the original toolbox it is derived from.
+
+This project is a browser-based port of the original
 [PSAT — Power System Analysis Toolbox](https://faraday1.ucd.ie/psat.html) developed by Federico
 Milano.
 

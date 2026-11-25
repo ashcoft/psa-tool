@@ -1,6 +1,6 @@
 # Deployment
 
-PSAT Web is a static Next.js application. It can run locally, as a container, on GitHub Pages or on
+Power System Analysis Tool (PSA) is a static Next.js application. It can run locally, as a container, on GitHub Pages or on
 Vercel.
 
 ## Local

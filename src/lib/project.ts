@@ -5,7 +5,7 @@
 import { PowerSystem, Bus, Line, Transformer, Generator, Load, Shunt, GenericComponent, ComponentCategory } from '@/types';
 
 export const PROJECT_VERSION = 1;
-export const PROJECT_APPLICATION = 'psat-web';
+export const PROJECT_APPLICATION = 'psa';
 
 export interface ProjectFile {
   version: number;

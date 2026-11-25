@@ -69,7 +69,7 @@ export default function Home() {
   const [mobileSidebar, setMobileSidebar] = useState(false);
   const [reportRunId, setReportRunId] = useState<string | null>(null);
   const [messages, setMessages] = useState<string[]>([
-    'PSAT Web ready. Demo 4-bus system loaded.',
+    'Power System Analysis Tool (PSA) ready. Demo 4-bus system loaded.',
     'Use the Components tab or drag components onto the diagram to build a network.',
     'Drag placed buses and components to reposition them; hold Alt for free placement.',
   ]);
@@ -179,7 +179,7 @@ export default function Home() {
     (name?: string) => {
       const finalName = (name ?? project.name).trim() || 'Untitled Project';
       const payload = serializeProject({ ...project.system, name: finalName }, finalName);
-      const filename = safeFileName(finalName, 'json');
+      const filename = safeFileName(finalName, 'psa');
       downloadFile(filename, payload, 'application/json');
       project.markSaved();
       log(`Project saved as ${filename}`);
@@ -456,7 +456,7 @@ export default function Home() {
   }, [activeRun, log, project.name, project.system]);
 
   const toggleSetting = useCallback(
-    (key: 'showGrid' | 'showBusNames' | 'showVoltageOverlay' | 'showFlowOverlay') => {
+    (key: 'showMenubar' | 'showGrid' | 'showBusNames' | 'showVoltageOverlay' | 'showFlowOverlay') => {
       const next = { ...settings, [key]: !settings[key] };
       setSettings(next);
       saveSettings(next);
@@ -490,7 +490,7 @@ export default function Home() {
       }
       case 'export':
         downloadFile(
-          safeFileName(project.name, 'json'),
+          safeFileName(project.name, 'psa'),
           serializeProject(project.system, project.name),
           'application/json'
         );
@@ -563,6 +563,9 @@ export default function Home() {
       case 'arrange':
         project.autoArrange();
         log('Auto-arranged the one-line diagram.');
+        break;
+      case 'toggle-menubar':
+        toggleSetting('showMenubar');
         break;
       case 'toggle-grid':
         toggleSetting('showGrid');
@@ -707,6 +710,11 @@ export default function Home() {
       }
       const ctrl = event.ctrlKey || event.metaKey;
       if (ctrl) {
+        if (event.shiftKey && event.key.toLowerCase() === 'm') {
+          event.preventDefault();
+          actionRef.current('toggle-menubar');
+          return;
+        }
         const key = event.key.toLowerCase();
         const map: Record<string, string> = {
           n: 'new',
@@ -777,6 +785,7 @@ export default function Home() {
     'tool-pan': tool === 'pan',
     'tool-line': tool === 'line',
     'tool-transformer': tool === 'transformer',
+    menubar: settings.showMenubar,
     grid: settings.showGrid,
     names: settings.showBusNames,
     voltage: settings.showVoltageOverlay,
@@ -790,6 +799,8 @@ export default function Home() {
         dirty={project.dirty}
         canUndo={project.canUndo}
         canRedo={project.canRedo}
+        showMenubar={settings.showMenubar}
+        onToggleMenubar={() => toggleSetting('showMenubar')}
         onAction={handleAction}
         onRename={name => {
           project.setName(name);
@@ -1038,7 +1049,7 @@ export default function Home() {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".json,application/json"
+        accept=".psa,.json,application/json"
         className="hidden"
         aria-label="Open project file"
         onChange={event => {

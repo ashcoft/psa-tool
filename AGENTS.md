@@ -1,4 +1,4 @@
-# PSAT Web repository guide
+# Power System Analysis Tool (PSA) repository guide
 
 ## Stack and commands
 
