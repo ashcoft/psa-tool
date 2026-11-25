@@ -9,11 +9,11 @@ import {
   useRef,
   useState,
 } from 'react';
-import { PowerFlowResult, PowerSystem } from '@/types';
+import { IECSymbolType, PowerFlowResult, PowerSystem } from '@/types';
 import { Selection } from '@/lib/useProject';
 import { getComponentDefinition } from '@/lib/component-catalog';
-import { componentAnchor } from '@/lib/component-utils';
-import { renderSymbol } from '@/lib/symbols';
+import { componentAnchor, componentCategoryShort } from '@/lib/component-utils';
+import { getSymbol, renderSymbol } from '@/lib/symbols';
 
 export type CanvasTool = 'select' | 'pan' | 'line' | 'transformer';
 
@@ -36,6 +36,8 @@ interface CanvasProps {
   showVoltageOverlay: boolean;
   showFlowOverlay: boolean;
   onSelect: (selection: Selection) => void;
+  onMoveStart: () => void;
+  onMoveEnd: () => void;
   onMoveBus: (busId: string, x: number, y: number) => void;
   onMoveComponent: (componentId: string, x: number, y: number) => void;
   onBranchConnect: (fromBus: string, toBus: string) => void;
@@ -123,6 +125,8 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     showVoltageOverlay,
     showFlowOverlay,
     onSelect,
+    onMoveStart,
+    onMoveEnd,
     onMoveBus,
     onMoveComponent,
     onBranchConnect,
@@ -335,11 +339,37 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     const lineResults = new Map((results?.lineResults ?? []).map(item => [item.line, item]));
     const busResults = new Map((results?.busResults ?? []).map(item => [item.bus, item]));
 
+    const drawCatalogSymbol = (
+      symbol: IECSymbolType | undefined,
+      x: number,
+      y: number,
+      symbolScale = 1
+    ): boolean => {
+      const definition = symbol ? getSymbol(symbol) : undefined;
+      if (!definition?.render) return false;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(symbolScale, symbolScale);
+      renderSymbol(ctx, symbol as IECSymbolType, 0, 0);
+      ctx.restore();
+      return true;
+    };
+
+    const drawSelectionOutline = (x: number, y: number, width: number, height: number) => {
+      ctx.save();
+      ctx.setLineDash([4 / Math.max(0.7, scale), 3 / Math.max(0.7, scale)]);
+      ctx.strokeStyle = colors.selected;
+      ctx.lineWidth = 1.2 / Math.max(0.6, scale);
+      ctx.strokeRect(x, y, width, height);
+      ctx.restore();
+    };
+
     const drawBranch = (
       id: string,
       fromId: string,
       toId: string,
-      kind: 'line' | 'transformer'
+      kind: 'line' | 'transformer',
+      symbol?: IECSymbolType
     ) => {
       const from = busById.get(fromId);
       const to = busById.get(toId);
@@ -366,24 +396,33 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
       ctx.stroke();
 
       if (kind === 'transformer') {
-        const angle = Math.atan2(y2 - y1, x2 - x1);
         const midX = (x1 + x2) / 2;
         const midY = (y1 + y2) / 2;
-        const gap = 9;
-        ctx.save();
-        ctx.translate(midX, midY);
-        ctx.rotate(angle);
-        ctx.fillStyle = '#ffffff';
-        ctx.lineWidth = 1.8 / Math.max(0.6, scale);
-        ctx.beginPath();
-        ctx.arc(-gap, 0, 11, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.arc(gap, 0, 11, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-        ctx.restore();
+        const definition = symbol ? getSymbol(symbol) : undefined;
+        if (definition?.render) {
+          const symbolScale = 0.8;
+          const width = definition.width * symbolScale;
+          const height = definition.height * symbolScale;
+          drawCatalogSymbol(symbol, midX - width / 2, midY - height / 2, symbolScale);
+          if (isSelected) drawSelectionOutline(midX - width / 2 - 4, midY - height / 2 - 4, width + 8, height + 8);
+        } else {
+          const angle = Math.atan2(y2 - y1, x2 - x1);
+          const gap = 9;
+          ctx.save();
+          ctx.translate(midX, midY);
+          ctx.rotate(angle);
+          ctx.fillStyle = '#ffffff';
+          ctx.lineWidth = 1.8 / Math.max(0.6, scale);
+          ctx.beginPath();
+          ctx.arc(-gap, 0, 11, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(gap, 0, 11, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+        }
       }
 
       if (result && showFlowOverlay) {
@@ -402,8 +441,10 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
       }
     };
 
-    system.lines.forEach(line => drawBranch(line.id, line.fromBus, line.toBus, 'line'));
-    system.transformers.forEach(txf => drawBranch(txf.id, txf.fromBus, txf.toBus, 'transformer'));
+    system.lines.forEach(line => drawBranch(line.id, line.fromBus, line.toBus, 'line', line.symbol));
+    system.transformers.forEach(txf =>
+      drawBranch(txf.id, txf.fromBus, txf.toBus, 'transformer', txf.symbol)
+    );
 
     if (connectFrom && cursorWorld) {
       const from = busById.get(connectFrom);
@@ -440,31 +481,57 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
       const isSelected = selected('generator', gen.id);
       const isHovered = hover.type === 'generator' && hover.id === gen.id;
       const color = isSelected ? colors.selected : isHovered ? '#0f172a' : '#15803d';
+      const definition = gen.symbol ? getSymbol(gen.symbol) : undefined;
 
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 1.8 / Math.max(0.6, scale);
-      ctx.beginPath();
-      ctx.moveTo(bx, by);
-      ctx.lineTo(gx, gy + 13);
-      ctx.stroke();
+      if (definition?.render) {
+        const symbolScale = 0.8;
+        const width = definition.width * symbolScale;
+        const height = definition.height * symbolScale;
+        const left = gx - width / 2;
+        const top = gy - height / 2;
 
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.arc(gx, gy, 13, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.8 / Math.max(0.6, scale);
+        ctx.beginPath();
+        ctx.moveTo(bx, by);
+        ctx.lineTo(gx, top + height);
+        ctx.stroke();
 
-      ctx.fillStyle = color;
-      ctx.font = 'bold 13px "Segoe UI", sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('G', gx, gy + 1);
-      ctx.textBaseline = 'alphabetic';
+        drawCatalogSymbol(gen.symbol, left, top, symbolScale);
+        if (isSelected) drawSelectionOutline(left - 4, top - 4, width + 8, height + 8);
 
-      if (showBusNames) {
-        ctx.fillStyle = '#334155';
-        ctx.font = '9px "Segoe UI", sans-serif';
-        ctx.fillText(gen.id, gx, gy + 25);
+        if (showBusNames) {
+          ctx.fillStyle = '#334155';
+          ctx.font = '9px "Segoe UI", sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(gen.id, gx, top + height + 12);
+        }
+      } else {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.8 / Math.max(0.6, scale);
+        ctx.beginPath();
+        ctx.moveTo(bx, by);
+        ctx.lineTo(gx, gy + 13);
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(gx, gy, 13, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = color;
+        ctx.font = 'bold 13px "Segoe UI", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('G', gx, gy + 1);
+        ctx.textBaseline = 'alphabetic';
+
+        if (showBusNames) {
+          ctx.fillStyle = '#334155';
+          ctx.font = '9px "Segoe UI", sans-serif';
+          ctx.fillText(gen.id, gx, gy + 25);
+        }
       }
 
       deviceHitsRef.current.push({ kind: 'generator', id: gen.id, x: gx, y: gy });
@@ -480,29 +547,57 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
       const isSelected = selected('load', load.id);
       const isHovered = hover.type === 'load' && hover.id === load.id;
       const color = isSelected ? colors.selected : isHovered ? '#0f172a' : '#b91c1c';
+      const definition = load.symbol ? getSymbol(load.symbol) : undefined;
+      let hitY = ly + 4;
 
-      ctx.strokeStyle = color;
-      ctx.fillStyle = color;
-      ctx.lineWidth = 1.8 / Math.max(0.6, scale);
-      ctx.beginPath();
-      ctx.moveTo(bx, by);
-      ctx.lineTo(bx, ly + 8);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(bx - 8, ly);
-      ctx.lineTo(bx + 8, ly);
-      ctx.lineTo(bx, ly + 12);
-      ctx.closePath();
-      ctx.fill();
+      if (definition?.render) {
+        const symbolScale = 0.8;
+        const width = definition.width * symbolScale;
+        const height = definition.height * symbolScale;
+        const left = bx - width / 2;
+        const top = ly;
+        hitY = top + height / 2;
 
-      if (showBusNames) {
-        ctx.fillStyle = '#7f1d1d';
-        ctx.font = '9px "Segoe UI", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(`${load.pl.toFixed(1)} MW`, bx, ly + 26);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.8 / Math.max(0.6, scale);
+        ctx.beginPath();
+        ctx.moveTo(bx, by);
+        ctx.lineTo(bx, top);
+        ctx.stroke();
+
+        drawCatalogSymbol(load.symbol, left, top, symbolScale);
+        if (isSelected) drawSelectionOutline(left - 4, top - 4, width + 8, height + 8);
+
+        if (showBusNames) {
+          ctx.fillStyle = '#7f1d1d';
+          ctx.font = '9px "Segoe UI", sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(`${load.pl.toFixed(1)} MW`, bx, top + height + 12);
+        }
+      } else {
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.lineWidth = 1.8 / Math.max(0.6, scale);
+        ctx.beginPath();
+        ctx.moveTo(bx, by);
+        ctx.lineTo(bx, ly + 8);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(bx - 8, ly);
+        ctx.lineTo(bx + 8, ly);
+        ctx.lineTo(bx, ly + 12);
+        ctx.closePath();
+        ctx.fill();
+
+        if (showBusNames) {
+          ctx.fillStyle = '#7f1d1d';
+          ctx.font = '9px "Segoe UI", sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(`${load.pl.toFixed(1)} MW`, bx, ly + 26);
+        }
       }
 
-      deviceHitsRef.current.push({ kind: 'load', id: load.id, x: bx, y: ly + 4 });
+      deviceHitsRef.current.push({ kind: 'load', id: load.id, x: bx, y: hitY });
     });
 
     (system.shunts ?? []).forEach(shunt => {
@@ -515,32 +610,60 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
       const isSelected = selected('shunt', shunt.id);
       const isHovered = hover.type === 'shunt' && hover.id === shunt.id;
       const color = isSelected ? colors.selected : isHovered ? '#0f172a' : '#7c3aed';
+      const definition = shunt.symbol ? getSymbol(shunt.symbol) : undefined;
+      let hitY = sy - 4;
 
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 1.8 / Math.max(0.6, scale);
-      ctx.beginPath();
-      ctx.moveTo(bx, by);
-      ctx.lineTo(bx, sy - 8);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(bx - 10, sy - 8);
-      ctx.lineTo(bx + 10, sy - 8);
-      ctx.moveTo(bx - 10, sy);
-      ctx.lineTo(bx + 10, sy);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(bx, sy);
-      ctx.lineTo(bx, sy + 10);
-      ctx.stroke();
+      if (definition?.render) {
+        const symbolScale = 0.8;
+        const width = definition.width * symbolScale;
+        const height = definition.height * symbolScale;
+        const left = bx - width / 2;
+        const top = sy - 8;
+        hitY = top + height / 2;
 
-      if (showBusNames) {
-        ctx.fillStyle = '#5b21b6';
-        ctx.font = '9px "Segoe UI", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(`${shunt.b.toFixed(3)} pu`, bx, sy + 22);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.8 / Math.max(0.6, scale);
+        ctx.beginPath();
+        ctx.moveTo(bx, by);
+        ctx.lineTo(bx, top);
+        ctx.stroke();
+
+        drawCatalogSymbol(shunt.symbol, left, top, symbolScale);
+        if (isSelected) drawSelectionOutline(left - 4, top - 4, width + 8, height + 8);
+
+        if (showBusNames) {
+          ctx.fillStyle = '#5b21b6';
+          ctx.font = '9px "Segoe UI", sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(`${shunt.b.toFixed(3)} pu`, bx, top + height + 12);
+        }
+      } else {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.8 / Math.max(0.6, scale);
+        ctx.beginPath();
+        ctx.moveTo(bx, by);
+        ctx.lineTo(bx, sy - 8);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(bx - 10, sy - 8);
+        ctx.lineTo(bx + 10, sy - 8);
+        ctx.moveTo(bx - 10, sy);
+        ctx.lineTo(bx + 10, sy);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(bx, sy);
+        ctx.lineTo(bx, sy + 10);
+        ctx.stroke();
+
+        if (showBusNames) {
+          ctx.fillStyle = '#5b21b6';
+          ctx.font = '9px "Segoe UI", sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(`${shunt.b.toFixed(3)} pu`, bx, sy + 22);
+        }
       }
 
-      deviceHitsRef.current.push({ kind: 'shunt', id: shunt.id, x: bx, y: sy - 4 });
+      deviceHitsRef.current.push({ kind: 'shunt', id: shunt.id, x: bx, y: hitY });
     });
 
     system.buses.forEach(bus => {
@@ -662,8 +785,7 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
         ctx.font = 'bold 8px "Segoe UI", sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        const short = component.category === 'Instrument' ? 'I' : component.category === 'Control' ? 'CS' : component.category === 'DC' ? 'DC' : component.category.slice(0, 2);
-        ctx.fillText(short, anchor.x, anchor.y + 1);
+        ctx.fillText(componentCategoryShort(component.category), anchor.x, anchor.y + 1);
         ctx.textBaseline = 'alphabetic';
       }
 
@@ -825,22 +947,22 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     }
   };
 
-  const beginElementDrag = (hit: Selection, world: { x: number; y: number }) => {
+  const beginElementDrag = (hit: Selection, world: { x: number; y: number }): boolean => {
     if (hit.type === 'bus' && hit.id) {
       const bus = busById.get(hit.id);
-      if (!bus) return;
+      if (!bus) return false;
       dragRef.current = {
         kind: 'bus',
         id: hit.id,
         dx: world.x - bus.x * GRID_UNIT,
         dy: world.y - bus.y * GRID_UNIT,
       };
-      return;
+      return true;
     }
-    if (hit.type !== 'component' || !hit.id) return;
+    if (hit.type !== 'component' || !hit.id) return false;
     const component = (system.components ?? []).find(item => item.id === hit.id);
     // Branch-like components are anchored to the midpoint of their two buses.
-    if (!component || (component.fromBus && component.toBus)) return;
+    if (!component || (component.fromBus && component.toBus)) return false;
     const anchor = componentAnchor(system, component);
     dragRef.current = {
       kind: 'component',
@@ -848,6 +970,7 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
       dx: world.x - anchor.x,
       dy: world.y - anchor.y,
     };
+    return true;
   };
 
   const handleMouseDown = (event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -866,7 +989,7 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
       return;
     }
 
-    beginElementDrag(hit, world);
+    if (beginElementDrag(hit, world)) onMoveStart();
     onSelect(hit);
   };
 
@@ -903,6 +1026,7 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
   };
 
   const endInteraction = () => {
+    if (dragRef.current) onMoveEnd();
     dragRef.current = null;
     panRef.current = null;
   };

@@ -56,7 +56,11 @@ describe('useProject placement', () => {
   it('moves a bus and restores it with undo and redo', () => {
     const { result } = renderHook(() => useProject(placementSystem()));
 
-    act(() => result.current.moveBus('b2', 5, 2));
+    act(() => {
+      result.current.beginMove();
+      result.current.moveBus('b2', 5, 2);
+      result.current.endMove();
+    });
     expect(result.current.system.buses.find(item => item.id === 'b2')).toMatchObject({ x: 5, y: 2 });
 
     act(() => result.current.undo());
@@ -66,16 +70,38 @@ describe('useProject placement', () => {
     expect(result.current.system.buses.find(item => item.id === 'b2')).toMatchObject({ x: 5, y: 2 });
   });
 
-  it('coalesces a drag into one undo step', () => {
+  it('groups a drag into one undo step', () => {
     const { result } = renderHook(() => useProject(placementSystem()));
 
     act(() => {
+      result.current.beginMove();
       result.current.moveBus('b2', 5, 1);
       result.current.moveBus('b2', 6, 2);
       result.current.moveBus('b2', 7, 3);
+      result.current.endMove();
     });
     expect(result.current.system.buses.find(item => item.id === 'b2')).toMatchObject({ x: 7, y: 3 });
 
+    act(() => result.current.undo());
+    expect(result.current.system.buses.find(item => item.id === 'b2')).toMatchObject({ x: 4, y: 0 });
+  });
+
+  it('keeps separate drags as separate undo steps', () => {
+    const { result } = renderHook(() => useProject(placementSystem()));
+
+    act(() => {
+      result.current.beginMove();
+      result.current.moveBus('b2', 5, 2);
+      result.current.endMove();
+    });
+    act(() => {
+      result.current.beginMove();
+      result.current.moveBus('b2', 6, 3);
+      result.current.endMove();
+    });
+
+    act(() => result.current.undo());
+    expect(result.current.system.buses.find(item => item.id === 'b2')).toMatchObject({ x: 5, y: 2 });
     act(() => result.current.undo());
     expect(result.current.system.buses.find(item => item.id === 'b2')).toMatchObject({ x: 4, y: 0 });
   });
@@ -87,7 +113,11 @@ describe('useProject placement', () => {
     act(() => {
       componentId = result.current.addComponent(voltmeter()).id;
     });
-    act(() => result.current.moveComponent(componentId, 3.5, 4.5));
+    act(() => {
+      result.current.beginMove();
+      result.current.moveComponent(componentId, 3.5, 4.5);
+      result.current.endMove();
+    });
     expect(result.current.system.components?.find(item => item.id === componentId)).toMatchObject({
       x: 3.5,
       y: 4.5,
@@ -98,6 +128,13 @@ describe('useProject placement', () => {
       x: 1,
       y: 1,
     });
+  });
+
+  it('keeps the catalog symbol on a device', () => {
+    const { result } = renderHook(() => useProject(placementSystem()));
+
+    act(() => result.current.addDevice('generator', 'b1', { symbol: 'wind-turbine' }));
+    expect(result.current.system.generators[0].symbol).toBe('wind-turbine');
   });
 
   it('arranges buses by network depth and keeps attached components nearby', () => {

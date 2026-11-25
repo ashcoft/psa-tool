@@ -127,6 +127,7 @@ export function normalizeSystem(input: unknown): PowerSystem {
       x: toNumber(source.x, index * 1.6),
       y: toNumber(source.y, 0),
       active: source.active !== false,
+      symbol: source.symbol,
       vScheduled: source.vScheduled,
       vbase: source.vbase,
       zone: source.zone,
@@ -153,6 +154,7 @@ export function normalizeSystem(input: unknown): PowerSystem {
       length: source.length,
       cost: source.cost,
       active: source.active !== false,
+      symbol: source.symbol,
       lineType: source.lineType,
     };
   }).filter(line => busIds.has(line.fromBus) && busIds.has(line.toBus));
@@ -174,6 +176,7 @@ export function normalizeSystem(input: unknown): PowerSystem {
       vectorGroup: source.vectorGroup,
       connection: source.connection,
       active: source.active !== false,
+      symbol: source.symbol,
     };
   }).filter(txf => busIds.has(txf.fromBus) && busIds.has(txf.toBus));
 
@@ -193,6 +196,7 @@ export function normalizeSystem(input: unknown): PowerSystem {
       cost: source.cost,
       model: source.model,
       active: source.active !== false,
+      symbol: source.symbol,
     };
   }).filter(gen => busIds.has(gen.bus));
 
@@ -209,6 +213,7 @@ export function normalizeSystem(input: unknown): PowerSystem {
       bl: source.bl,
       demandModel: source.demandModel,
       active: source.active !== false,
+      symbol: source.symbol,
     };
   }).filter(load => busIds.has(load.bus));
 
@@ -223,6 +228,7 @@ export function normalizeSystem(input: unknown): PowerSystem {
       vlow: source.vlow,
       vhigh: source.vhigh,
       active: source.active !== false,
+      symbol: source.symbol,
     };
   }).filter(shunt => busIds.has(shunt.bus));
 

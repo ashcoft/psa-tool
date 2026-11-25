@@ -5,6 +5,7 @@ import {
   Bus,
   Generator,
   GenericComponent,
+  IECSymbolType,
   Load,
   Line,
   PowerSystem,
@@ -56,7 +57,7 @@ export interface UseProjectResult {
   redo: () => void;
   markSaved: () => void;
   updateSystemMeta: (changes: Partial<Pick<PowerSystem, 'baseMVA' | 'baseFreq' | 'name'>>) => void;
-  addBus: (type: Bus['type'], position?: { x: number; y: number }, options?: { name?: string; subtype?: string }) => Bus | null;
+  addBus: (type: Bus['type'], position?: { x: number; y: number }, options?: { name?: string; subtype?: string; symbol?: IECSymbolType }) => Bus | null;
   addBranch: (kind: 'line' | 'transformer', fromBus: string, toBus: string, overrides?: Partial<Line> & Partial<Transformer>) => void;
   addDevice: (kind: 'generator' | 'load' | 'shunt', busId: string, overrides?: Partial<Generator> & Partial<Load> & Partial<Shunt>) => void;
   addComponent: (component: Omit<GenericComponent, 'id'>) => GenericComponent;
@@ -66,6 +67,8 @@ export interface UseProjectResult {
   copyElement: (kind: ElementKind, id: string) => void;
   pasteElement: () => void;
   setBusType: (busId: string, type: Bus['type']) => void;
+  beginMove: () => void;
+  endMove: () => void;
   moveBus: (busId: string, x: number, y: number) => void;
   moveComponent: (componentId: string, x: number, y: number) => void;
   autoArrange: () => void;
@@ -85,6 +88,7 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
   const [state, setState] = useState<ProjectState>(() => initialProject(initialSystem, initialName));
   const [clipboard, setClipboard] = useState<ClipboardPayload | null>(null);
   const lastCommit = useRef<{ description: string; time: number }>({ description: '', time: 0 });
+  const moveSnapshot = useRef<Snapshot | null>(null);
 
   // Updater functions must stay pure: StrictMode invokes them twice, so the
   // coalescing decision and lastCommit bookkeeping happen in the event handler.
@@ -115,12 +119,34 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
     [applyCommit, beginCommit]
   );
 
+  const beginMove = useCallback(() => {
+    lastCommit.current = { description: '', time: 0 };
+    moveSnapshot.current = { system: state.system, name: state.name };
+  }, [state.name, state.system]);
+
+  const endMove = useCallback(() => {
+    const snapshot = moveSnapshot.current;
+    moveSnapshot.current = null;
+    if (!snapshot) return;
+    setState(prev => {
+      if (prev.system === snapshot.system) return prev;
+      return {
+        ...prev,
+        past: [...prev.past, snapshot].slice(-HISTORY_LIMIT),
+        future: [],
+        dirty: true,
+      };
+    });
+  }, []);
+
   const replaceSystem = useCallback((system: PowerSystem, name?: string) => {
     lastCommit.current = { description: '', time: 0 };
     setState(initialProject(cloneSystem(system), name));
   }, []);
 
   const undo = useCallback(() => {
+    lastCommit.current = { description: '', time: 0 };
+    moveSnapshot.current = null;
     setState(prev => {
       if (prev.past.length === 0) return prev;
       const previous = prev.past[prev.past.length - 1];
@@ -135,6 +161,8 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
   }, []);
 
   const redo = useCallback(() => {
+    lastCommit.current = { description: '', time: 0 };
+    moveSnapshot.current = null;
     setState(prev => {
       if (prev.future.length === 0) return prev;
       const next = prev.future[0];
@@ -167,12 +195,13 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
     }));
   }, []);
 
-  const addBus = useCallback((type: Bus['type'], position?: { x: number; y: number }, options?: { name?: string; subtype?: string }): Bus | null => {
+  const addBus = useCallback((type: Bus['type'], position?: { x: number; y: number }, options?: { name?: string; subtype?: string; symbol?: IECSymbolType }): Bus | null => {
     const spot = position ?? findFreePosition(state.system);
     const bus: Bus = {
       id: nextId(state.system.buses, 'bus_'),
       name: options?.name ?? `Bus ${state.system.buses.length + 1}`,
       subtype: options?.subtype,
+      symbol: options?.symbol,
       type,
       voltage: type === 'pv' ? 1.02 : 1.0,
       angle: 0,
@@ -307,6 +336,7 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
 
   const updateElement = useCallback(
     (kind: ElementKind, element: Bus | Line | Transformer | Generator | Load | Shunt | GenericComponent) => {
+      lastCommit.current = { description: '', time: 0 };
       setState(prev => {
         const system = cloneSystem(prev.system);
         switch (kind) {
@@ -589,30 +619,31 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
   }, []);
 
   const moveBus = useCallback((busId: string, x: number, y: number) => {
-    const coalesce = beginCommit(`move-bus:${busId}`);
-    setState(prev => {
-      const system = {
+    setState(prev => ({
+      ...prev,
+      system: {
         ...prev.system,
         buses: prev.system.buses.map(bus => (bus.id === busId ? { ...bus, x, y } : bus)),
-      };
-      return applyCommit(prev, system, coalesce);
-    });
-  }, [applyCommit, beginCommit]);
+      },
+      dirty: true,
+    }));
+  }, []);
 
   const moveComponent = useCallback((componentId: string, x: number, y: number) => {
-    const coalesce = beginCommit(`move-component:${componentId}`);
-    setState(prev => {
-      const system = {
+    setState(prev => ({
+      ...prev,
+      system: {
         ...prev.system,
         components: (prev.system.components ?? []).map(component =>
           component.id === componentId ? { ...component, x, y } : component
         ),
-      };
-      return applyCommit(prev, system, coalesce);
-    });
-  }, [applyCommit, beginCommit]);
+      },
+      dirty: true,
+    }));
+  }, []);
 
   const autoArrange = useCallback(() => {
+    if (state.system.buses.length === 0) return;
     const coalesce = beginCommit('auto-arrange');
     setState(prev => {
       const system = cloneSystem(prev.system);
@@ -670,7 +701,7 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
 
       return applyCommit(prev, system, coalesce);
     });
-  }, [applyCommit, beginCommit]);
+  }, [applyCommit, beginCommit, state.system.buses.length]);
 
   const issues = useMemo(() => validateSystem(state.system), [state.system]);
 
@@ -699,6 +730,8 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
     copyElement,
     pasteElement,
     setBusType,
+    beginMove,
+    endMove,
     moveBus,
     moveComponent,
     autoArrange,

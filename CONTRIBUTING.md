@@ -16,6 +16,7 @@ Requirements: Node.js 26 (see `.nvmrc`) and npm.
 
 ```bash
 npm ci
+npx playwright install chromium
 npm run dev
 ```
 
@@ -32,8 +33,8 @@ BASE_URL=http://localhost:3000 npx playwright test
 
 - TypeScript strict mode is on. Avoid `any`; model new data in `src/types/index.ts`.
 - `src/lib/*` contains pure engines and utilities. Keep React and DOM code out of it.
-- The model stores engineering units (MW, Mvar, kV, degrees). Solvers convert to per-unit.
-- Bus angles are radians in the model; the property panel converts to degrees.
+- The model stores MW, Mvar and kV. Bus angles are radians in the model; the property panel converts
+  to degrees. Solvers convert to per-unit.
 - React compiler lint is strict: no synchronous `setState` in effects, no ref writes during render,
   unconditional hooks.
 - State updaters in `useProject` must stay pure. StrictMode calls them twice, so history and

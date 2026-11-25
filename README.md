@@ -73,6 +73,7 @@ Quality gates:
 npm run lint
 npm run typecheck
 npm run test:run
+npx playwright install chromium
 npm run test:e2e   # Chromium; starts the dev server on port 3456
 ```
 
@@ -107,11 +108,11 @@ is private by default: authenticate with `docker login ghcr.io` using a token th
 
 The static workbench is live at **https://ashcoft.github.io/psat-web/**.
 
-The repository includes `.github/workflows/pages.yml` to rebuild it from `main` and publish it to
-the `gh-pages` branch. GitHub Pages serves that branch: **Settings → Pages → Build and deployment →
-Source: Deploy from a branch → `gh-pages` / root**. The workflow builds with `NEXT_OUTPUT=export`
-and `NEXT_PUBLIC_BASE_PATH=/psat-web` and writes `out/.nojekyll`. The same build is available
-locally with `npm run build:pages`.
+The repository includes `.github/workflows/pages.yml`, which builds the static export and deploys
+it with the official Pages artifact and deployment actions. GitHub Pages must use the Actions
+source: **Settings → Pages → Build and deployment → Source: GitHub Actions**. The workflow builds
+with `NEXT_OUTPUT=export` and `NEXT_PUBLIC_BASE_PATH=/psat-web` and writes `out/.nojekyll`. The
+same build is available locally with `npm run build:pages`.
 
 ## Capabilities
 
@@ -122,6 +123,8 @@ locally with `npm run build:pages`.
   buses, branches, loads/motors, protection, conversion, meters, relays, AVR/governor/PSS, DC
   elements, DC control and composite items).
 - Component palette with category tabs, search and drag-and-drop placement.
+- The palette and diagram share the same IEC symbol renderer, including catalog-specific generator,
+  load, shunt and transformer symbols.
 - Every placed bus or non-branch specialty component can be dragged anywhere on the diagram.
   **Hold Alt** to bypass grid snap; the property panel X/Y fields accept exact coordinates.
 - Dropping a device away from a bus creates a bus at the drop point; bus-attached components stay
@@ -156,7 +159,7 @@ locally with `npm run build:pages`.
 | Study | Method | Output |
 |-------|--------|--------|
 | **Load flow** | Newton-Raphson (full Jacobian), fast-decoupled, DC, Gauss-Seidel | Bus, branch and generator tables; voltage profile; violations |
-| **Continuation power flow** | Predictor-corrector parameter continuation | PV curve, nose point, critical bus, loading margin |
+| **Continuation power flow** | Adaptive-step parameter continuation | PV curve, last converged point, critical bus, loading margin |
 | **Optimal power flow** | Merit-order/equal-incremental-cost dispatch with AC verification | Dispatch, cost, losses and overload report |
 | **Short circuit** | Bus impedance matrix (Zbus) | Three-phase, line-to-ground, line-to-line and double line-to-ground currents in kA, fault MVA, CT and breaker ratings |
 | **Small-signal stability** | Kron-reduced multimachine model, complex shifted QR | Eigenvalues, damping ratios, mode classification and plot |
@@ -243,8 +246,8 @@ study.
 
 ## Numerical notes
 
-- The model stores engineering units (MW, Mvar, kV, degrees) and converts to per-unit on the system
-  MVA base inside the solvers.
+- The model stores MW, Mvar and kV, and the property panel shows angles in degrees. Bus angles are
+  stored in radians and converted for display. Solvers convert to per-unit on the system MVA base.
 - Diagram coordinates are grid units; one unit is 100 px at 100 % zoom.
 - The short-circuit engine currently assumes `Xd″ = 0.05 p.u.` and `Z0 = 0.5 Z1` because sequence
   data is not part of the model.

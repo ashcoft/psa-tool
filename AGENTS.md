@@ -20,7 +20,8 @@
   `generator`, `load`, `shunt`) or become a `GenericComponent` stored in `system.components`.
   Generic components are persisted, drawn on the canvas, dragged to any position (Alt bypasses grid
   snap) and edited in the property panel. Dropping a device away from a bus creates a bus at the
-  drop point.
+  drop point. Model elements keep an optional `symbol` IEC type from the catalog so the palette and
+  the diagram render the same symbol.
 - `src/lib/useProject.ts` owns the system state, undo/redo history and element editing actions.
   `autoArrange` lays buses out by BFS depth from the slack bus and keeps bus-attached components
   beside their bus.
@@ -33,13 +34,14 @@
 
 ## Conventions
 
-- The model stores engineering units (MW, Mvar, kV, degrees in the UI). Solvers convert to per-unit
-  on `system.baseMVA` internally and return MW/Mvar/kA.
-- Bus `angle` is stored in radians; the property panel converts to/from degrees.
+- The model stores MW, Mvar and kV; bus angles are radians and the property panel shows degrees.
+  Solvers convert to per-unit on `system.baseMVA` internally and return MW/Mvar/kA.
 - React compiler lint is strict: avoid `setState` synchronously in effects, do not write refs during
   render, and keep hooks unconditional. Prefer deriving state or keyed remounts.
 - Keep `useProject` state updaters pure. StrictMode invokes them twice, so history coalescing and
   `lastCommit` bookkeeping happen in the event handler before `setState`.
+- Drag history is gesture-based: `Canvas` calls `beginMove` on mouse-down and `endMove` on mouse-up,
+  while `moveBus`/`moveComponent` only update coordinates.
 - Keep components accessible: dialogs use `role="dialog"`, tabs use `role="tab"`, icon-only buttons
   need `title`/`aria-label`.
 
@@ -57,9 +59,10 @@
 
 - Short circuit: generator subtransient reactance 0.05 p.u.; Z0 = 0.5 Z1 for unbalanced faults.
 - Stability and time-domain: classical multimachine model, Kron-reduced network, deterministic
-  inertia (2.5-8 s) and damping (1.5-2 p.u.).
-- Continuation power flow: parameter continuation scaling load and non-slack generation by `1+lambda`;
-  the step is halved when a solution is lost.
+  inertia (2.5-8 s), small-signal damping 1.5 p.u. and time-domain damping 2 p.u.
+- Continuation power flow: parameter continuation scaling load and non-slack generation by `1+lambda`,
+  capped at each generator's `pmax`; each step is solved with Newton-Raphson and the step is halved
+  when a solution is lost. The last point may be the configured maximum, not a verified collapse.
 - Optimal power flow: merit-order/equal-incremental-cost economic dispatch with AC verification;
   branch overloads are reported rather than optimised away.
 - Specialty studies are screening calculations: Lee arc-flash model, IEEE 519 harmonic limits,
