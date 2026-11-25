@@ -962,7 +962,9 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
           event.dataTransfer.dropEffect = 'copy';
           if (!dropActive) setDropActive(true);
         }}
-        onDragLeave={() => setDropActive(false)}
+        onDragLeave={() => {
+          setDropActive(false);
+        }}
         onDrop={handleDrop}
       />
       {dropActive && (
