@@ -5,8 +5,11 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:pages": "NEXT_OUTPUT=export NEXT_PUBLIC_BASE_PATH=/psat-web next build",
     "start": "next start",
     "lint": "eslint src/ --max-warnings 1",
+    "typecheck": "tsc --noEmit",
+    "verify": "npm run lint && npm run typecheck && npm run test:run && npm run build",
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
