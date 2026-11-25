@@ -57,7 +57,7 @@ Tags produced by the workflow:
 |-----|------|
 | `latest` | Default branch or a new release |
 | `main` | Branch push |
-| `1.2.0`, `1.2` | Release workflow, or a manual `v1.2.0` tag |
+| `1.3.0`, `1.3` | Release workflow, or a manual `v1.3.0` tag |
 | `sha-<short>` | Every main/tag build |
 
 The workflows use `GITHUB_TOKEN` with `packages: write`. No extra secret is required. The first

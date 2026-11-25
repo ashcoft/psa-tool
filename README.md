@@ -99,7 +99,7 @@ docker run --rm -p 3000:3000 ghcr.io/ashcoft/psat-web:latest
 ```
 
 Tags are produced by `.github/workflows/docker-publish.yml`: `latest` for the default branch,
-`1.2.0` and `1.2` for a `v1.2.0` tag, `main` for branch pushes and `sha-<short>` for every build.
+`1.3.0` and `1.3` for a `v1.3.0` tag, `main` for branch pushes and `sha-<short>` for every build.
 The workflow uses `GITHUB_TOKEN` with `packages: write`; no extra secret is required. The package
 is private by default: authenticate with `docker login ghcr.io` using a token that has
 `read:packages`, or make the package public in its package settings for anonymous pulls.
@@ -260,7 +260,7 @@ The full list is in [docs/NUMERICAL-METHODS.md](docs/NUMERICAL-METHODS.md) and `
 
 ## Testing and quality
 
-At v1.2.0 the repository has **269 unit/component tests** and **22 Chromium end-to-end specs**.
+At v1.3.0 the repository has **272 unit/component tests** and **22 Chromium end-to-end specs**.
 GitHub Actions runs lint, type check, unit tests, coverage, the production build and Playwright on
 pushes and pull requests. Codacy and SonarCloud provide static analysis.
 
