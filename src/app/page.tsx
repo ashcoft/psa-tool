@@ -547,6 +547,13 @@ export default function Home() {
     log(`Deleted ${targets.length} element${targets.length === 1 ? '' : 's'}.`);
   }, [clearSelection, log, project, selection, selections]);
 
+  const deletePrimarySelection = useCallback(() => {
+    if (!selection.type || !selection.id) return;
+    project.deleteElement(selection.type, selection.id);
+    clearSelection();
+    log(`Deleted ${selection.type} ${selection.id}.`);
+  }, [clearSelection, log, project, selection]);
+
   const duplicateSelection = useCallback(() => {
     if (!selection.type || !selection.id) return;
     project.duplicateElement(selection.type, selection.id);
@@ -1153,7 +1160,7 @@ export default function Home() {
             if (!kind) return;
             project.updateElement(kind, element);
           }}
-          onDelete={deleteSelection}
+          onDelete={deletePrimarySelection}
           onDuplicate={duplicateSelection}
           onMetaChange={changes => project.updateSystemMeta(changes)}
           onSelect={setSelection}

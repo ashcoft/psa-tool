@@ -71,6 +71,18 @@ test.describe('Power System Analysis Tool workbench', () => {
     await expect(page.getByTestId('statusbar')).toContainText('Selected: 0');
   });
 
+  test('properties Delete removes only the primary element', async ({ page }) => {
+    await openApp(page);
+    await page.keyboard.press('Control+A');
+    const status = page.getByTestId('statusbar');
+    await expect(status).toContainText('Selected: 11');
+
+    await page.getByTestId('properties-panel').getByRole('button', { name: 'Delete' }).click();
+    await expect(status).toContainText('Buses: 4');
+    await expect(status).toContainText('Loads: 1');
+    await expect(status).toContainText('Selected: 0');
+  });
+
   test('window-selects elements with a marquee', async ({ page }) => {
     await openApp(page);
     await page.waitForTimeout(300);

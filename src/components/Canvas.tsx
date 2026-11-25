@@ -66,6 +66,8 @@ interface MoveOrigin {
 interface DragState {
   origins: MoveOrigin[];
   startWorld: { x: number; y: number };
+  hit: Selection;
+  moved: boolean;
 }
 
 interface MarqueeState {
@@ -1130,7 +1132,7 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
       alreadySelected && selections.length > 1 ? draggableOrigins(selections) : draggableOrigins([hit]);
     if (!alreadySelected) onSelect(hit);
     if (origins.length === 0) return false;
-    dragRef.current = { origins, startWorld: world };
+    dragRef.current = { origins, startWorld: world, hit, moved: false };
     return true;
   };
 
@@ -1239,6 +1241,7 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     }
 
     if (dragRef.current) {
+      dragRef.current.moved = true;
       let dx = (world.x - dragRef.current.startWorld.x) / GRID_UNIT;
       let dy = (world.y - dragRef.current.startWorld.y) / GRID_UNIT;
       if (snapToGrid && !event.altKey) {
@@ -1266,6 +1269,10 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
   };
 
   const handleMouseUp = () => {
+    const activeDrag = dragRef.current;
+    if (activeDrag && !activeDrag.moved && activeDrag.hit.type && activeDrag.hit.id) {
+      onSelect(activeDrag.hit);
+    }
     const activeMarquee = marqueeRef.current;
     if (activeMarquee) {
       const rect: RectBounds = {
