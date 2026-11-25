@@ -87,6 +87,13 @@ function loadingColor(loading: number): string {
   return '#0f766e';
 }
 
+function cursorFor(tool: CanvasTool, hover: Selection): string {
+  if (tool === 'pan') return 'grab';
+  if (tool === 'line' || tool === 'transformer') return 'crosshair';
+  if (hover.type === 'bus' || hover.type === 'component') return 'grab';
+  return hover.type ? 'pointer' : 'default';
+}
+
 function pointSegmentDistance(
   px: number,
   py: number,
@@ -805,6 +812,44 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     [busById, system]
   );
 
+  const handleConnectClick = (hit: Selection) => {
+    if (!hit.id) return;
+    if (!connectFrom) {
+      setConnectFrom(hit.id);
+      onSelect(hit);
+    } else if (connectFrom !== hit.id) {
+      onBranchConnect(connectFrom, hit.id);
+      setConnectFrom(null);
+    } else {
+      setConnectFrom(null);
+    }
+  };
+
+  const beginElementDrag = (hit: Selection, world: { x: number; y: number }) => {
+    if (hit.type === 'bus' && hit.id) {
+      const bus = busById.get(hit.id);
+      if (!bus) return;
+      dragRef.current = {
+        kind: 'bus',
+        id: hit.id,
+        dx: world.x - bus.x * GRID_UNIT,
+        dy: world.y - bus.y * GRID_UNIT,
+      };
+      return;
+    }
+    if (hit.type !== 'component' || !hit.id) return;
+    const component = (system.components ?? []).find(item => item.id === hit.id);
+    // Branch-like components are anchored to the midpoint of their two buses.
+    if (!component || (component.fromBus && component.toBus)) return;
+    const anchor = componentAnchor(system, component);
+    dragRef.current = {
+      kind: 'component',
+      id: hit.id,
+      dx: world.x - anchor.x,
+      dy: world.y - anchor.y,
+    };
+  };
+
   const handleMouseDown = (event: React.MouseEvent<HTMLCanvasElement>) => {
     if (event.button === 1 || tool === 'pan') {
       panRef.current = { x: event.clientX, y: event.clientY, offsetX: offset.x, offsetY: offset.y };
@@ -817,41 +862,11 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     const hit = hitTest(world.x, world.y);
 
     if ((tool === 'line' || tool === 'transformer') && hit.type === 'bus' && hit.id) {
-      if (!connectFrom) {
-        setConnectFrom(hit.id);
-        onSelect(hit);
-      } else if (connectFrom !== hit.id) {
-        onBranchConnect(connectFrom, hit.id);
-        setConnectFrom(null);
-      } else {
-        setConnectFrom(null);
-      }
+      handleConnectClick(hit);
       return;
     }
 
-    if (hit.type === 'bus' && hit.id) {
-      const bus = busById.get(hit.id);
-      if (bus) {
-        dragRef.current = {
-          kind: 'bus',
-          id: hit.id,
-          dx: world.x - bus.x * GRID_UNIT,
-          dy: world.y - bus.y * GRID_UNIT,
-        };
-      }
-    } else if (hit.type === 'component' && hit.id) {
-      const component = (system.components ?? []).find(item => item.id === hit.id);
-      // Branch-like components are anchored to the midpoint of their two buses.
-      if (component && !(component.fromBus && component.toBus)) {
-        const anchor = componentAnchor(system, component);
-        dragRef.current = {
-          kind: 'component',
-          id: hit.id,
-          dx: world.x - anchor.x,
-          dy: world.y - anchor.y,
-        };
-      }
-    }
+    beginElementDrag(hit, world);
     onSelect(hit);
   };
 
@@ -924,16 +939,7 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     }
   };
 
-  const cursor =
-    tool === 'pan'
-      ? 'grab'
-      : tool === 'line' || tool === 'transformer'
-        ? 'crosshair'
-        : hover.type === 'bus' || hover.type === 'component'
-          ? 'grab'
-          : hover.type
-            ? 'pointer'
-            : 'default';
+  const cursor = cursorFor(tool, hover);
 
   return (
     <div ref={wrapRef} className="relative h-full w-full overflow-hidden bg-white" data-testid="canvas">

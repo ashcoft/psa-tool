@@ -12,6 +12,15 @@ async function runLoadFlow(page: Page): Promise<void> {
   await expect(page.getByText('COMPLETED')).toBeVisible();
 }
 
+async function dragVoltmeterToCanvas(page: Page, target = { x: 420, y: 280 }) {
+  const sidebar = page.getByTestId('sidebar');
+  const canvas = page.getByTestId('canvas').locator('canvas');
+  await sidebar.getByRole('button', { name: 'Ins', exact: true }).click();
+  await sidebar.getByRole('button', { name: 'Voltmeter' }).dragTo(canvas, { targetPosition: target });
+  await expect(page.getByTestId('statusbar')).toContainText('Components: 1');
+  return canvas;
+}
+
 test.describe('PSAT Web workbench', () => {
   test('loads the ETAP-style workbench', async ({ page }) => {
     await openApp(page);
@@ -132,28 +141,13 @@ test.describe('PSAT Web workbench', () => {
 
   test('drags a component from the palette onto the diagram', async ({ page }) => {
     await openApp(page);
-    const sidebar = page.getByTestId('sidebar');
-    const canvas = page.getByTestId('canvas').locator('canvas');
-
-    await sidebar.getByRole('button', { name: 'Ins', exact: true }).click();
-    await sidebar.getByRole('button', { name: 'Voltmeter' }).dragTo(canvas, {
-      targetPosition: { x: 420, y: 280 },
-    });
-
-    await expect(page.getByTestId('statusbar')).toContainText('Components: 1');
+    await dragVoltmeterToCanvas(page);
     await expect(page.getByRole('status')).toContainText('Added Voltmeter');
   });
 
   test('repositions a placed component and undoes the move', async ({ page }) => {
     await openApp(page);
-    const sidebar = page.getByTestId('sidebar');
-    const canvas = page.getByTestId('canvas').locator('canvas');
-
-    await sidebar.getByRole('button', { name: 'Ins', exact: true }).click();
-    await sidebar.getByRole('button', { name: 'Voltmeter' }).dragTo(canvas, {
-      targetPosition: { x: 420, y: 280 },
-    });
-    await expect(page.getByTestId('statusbar')).toContainText('Components: 1');
+    const canvas = await dragVoltmeterToCanvas(page);
 
     const panel = page.getByTestId('properties-panel');
     const xInput = panel.locator('label').filter({ hasText: /^X$/ }).locator('input');
