@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented in this file. This file is generated automatically by [semantic-release](https://github.com/semantic-release/semantic-release) from the commit history.
 
+# [1.5.0](https://github.com/ashcoft/psa-tool/compare/v1.4.0...v1.5.0) (2026-11-25)
+
+### Bug Fixes
+
+* address CAD selection review findings ([b06bdfa](https://github.com/ashcoft/psa-tool/commit/b06bdfa843a031547ff4185bbf3c7fa851e3ca26))
+* complete CAD selection review follow-ups ([4624508](https://github.com/ashcoft/psa-tool/commit/462450893004d73845ff85ae081bd170ffb5b4d6))
+* keep group and primary delete actions distinct ([9f82b5d](https://github.com/ashcoft/psa-tool/commit/9f82b5da92c4c810dc33b35b088d742c24bcdd63))
+* stabilize move callbacks and finish review follow-ups ([330269c](https://github.com/ashcoft/psa-tool/commit/330269c99d0427cd0774b7a0903252a1d3820c1d))
+
+### Features
+
+* add CAD-style multi-selection and select all ([a5487e1](https://github.com/ashcoft/psa-tool/commit/a5487e174e4c40dfa970e30005ac4a32606fe327))
+
 # [1.4.0](https://github.com/ashcoft/psa-tool/compare/v1.3.0...v1.4.0) (2026-11-25)
 
 ### Bug Fixes
