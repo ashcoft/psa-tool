@@ -454,10 +454,12 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
       }
     };
 
-    system.lines.forEach(line => drawBranch(line.id, line.fromBus, line.toBus, 'line', line.symbol));
-    system.transformers.forEach(txf =>
-      drawBranch(txf.id, txf.fromBus, txf.toBus, 'transformer', txf.symbol)
-    );
+    system.lines.forEach(line => {
+      drawBranch(line.id, line.fromBus, line.toBus, 'line', line.symbol);
+    });
+    system.transformers.forEach(txf => {
+      drawBranch(txf.id, txf.fromBus, txf.toBus, 'transformer', txf.symbol);
+    });
 
     if (connectFrom && cursorWorld) {
       const from = busById.get(connectFrom);
