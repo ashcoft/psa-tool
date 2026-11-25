@@ -103,6 +103,16 @@ export default function Home() {
   }, [toast]);
 
   useEffect(() => {
+    if (!project.dirty) return;
+    const remind = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', remind);
+    return () => window.removeEventListener('beforeunload', remind);
+  }, [project.dirty]);
+
+  useEffect(() => {
     const close = () => setContextMenu(null);
     window.addEventListener('mousedown', close);
     window.addEventListener('blur', close);
@@ -188,8 +198,17 @@ export default function Home() {
     [log, project]
   );
 
+  const confirmDiscard = useCallback(
+    (action: string): boolean => {
+      if (!project.dirty) return true;
+      if (typeof window === 'undefined') return true;
+      return window.confirm(`The current project has unsaved changes. Discard them and ${action}?`);
+    },
+    [project.dirty]
+  );
+
   const newProject = useCallback(() => {
-    if (project.dirty && typeof window !== 'undefined' && !window.confirm('Discard unsaved changes?')) return;
+    if (!confirmDiscard('create a new project')) return;
     project.replaceSystem(emptySystem('Untitled Project'));
     setRevision(value => value + 1);
     setRuns([]);
@@ -198,11 +217,12 @@ export default function Home() {
     setTool('select');
     log('New project created.');
     setToast({ type: 'info', text: 'New project created' });
-  }, [log, project]);
+  }, [confirmDiscard, log, project]);
 
   const openProject = useCallback(() => {
+    if (!confirmDiscard('open another project')) return;
     fileInputRef.current?.click();
-  }, []);
+  }, [confirmDiscard]);
 
   const loadProjectFile = useCallback(
     async (file: File) => {
@@ -228,6 +248,7 @@ export default function Home() {
 
   const loadSample = useCallback(
     (id: string) => {
+      if (!confirmDiscard('load a sample system')) return;
       const system = buildSample(id);
       project.replaceSystem(system, system.name);
       setRevision(value => value + 1);
@@ -238,8 +259,20 @@ export default function Home() {
       log(`Loaded sample system "${system.name}".`);
       setToast({ type: 'success', text: `Loaded ${system.name}` });
     },
-    [log, project]
+    [confirmDiscard, log, project]
   );
+
+  const closeProject = useCallback(() => {
+    if (!confirmDiscard('close the project')) return;
+    project.replaceSystem(emptySystem('Untitled Project'));
+    setRevision(value => value + 1);
+    setRuns([]);
+    setActiveRunId(null);
+    setSelection({ type: null, id: null });
+    setTool('select');
+    log('Project closed. Open a .psa file or create a new project.');
+    setToast({ type: 'info', text: 'Project closed' });
+  }, [confirmDiscard, log, project]);
 
   const addBus = useCallback(
     (type: Bus['type'], position?: { x: number; y: number }) => {
@@ -476,6 +509,9 @@ export default function Home() {
         break;
       case 'open':
         openProject();
+        break;
+      case 'close-project':
+        closeProject();
         break;
       case 'save':
         saveProject();

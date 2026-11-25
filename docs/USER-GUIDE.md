@@ -9,6 +9,7 @@ browser: no account, no server-side database, no upload.
 - Use **Tools → Samples** to load the IEEE 9-bus, IEEE 14-bus or distribution feeder cases.
 - **Home → New** starts an empty project.
 - **Home → Open** loads a `.psa` project saved by Power System Analysis Tool. Legacy `.json` projects still open.
+- **File → Close Project** clears the workspace. New, open and close ask before discarding unsaved changes.
 
 The status bar shows the element counts, base MVA, frequency and the last study result.
 

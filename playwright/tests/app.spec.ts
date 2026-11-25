@@ -58,6 +58,41 @@ test.describe('Power System Analysis Tool workbench', () => {
     await expect(page.getByTestId('statusbar')).toContainText('Buses: 5');
   });
 
+  test('closes the project with an unsaved-changes reminder', async ({ page }) => {
+    await openApp(page);
+    const status = page.getByTestId('statusbar');
+    await page.getByTestId('sidebar').getByRole('button', { name: 'Bus', exact: true }).click();
+    await expect(status).toContainText('Buses: 5');
+
+    page.once('dialog', dialog => dialog.dismiss());
+    await page.getByRole('button', { name: 'File' }).click();
+    await page.getByRole('button', { name: 'Close Project' }).click();
+    await expect(status).toContainText('Buses: 5');
+
+    page.once('dialog', dialog => dialog.accept());
+    await page.getByRole('button', { name: 'File' }).click();
+    await page.getByRole('button', { name: 'Close Project' }).click();
+    await expect(status).toContainText('Buses: 0');
+    await expect(page.getByRole('status')).toContainText('Project closed');
+  });
+
+  test('reminds before creating a new project over unsaved changes', async ({ page }) => {
+    await openApp(page);
+    const status = page.getByTestId('statusbar');
+    await page.getByTestId('sidebar').getByRole('button', { name: 'Bus', exact: true }).click();
+    await expect(status).toContainText('Buses: 5');
+
+    page.once('dialog', dialog => dialog.dismiss());
+    await page.getByRole('button', { name: 'File' }).click();
+    await page.getByRole('button', { name: 'New Project' }).click();
+    await expect(status).toContainText('Buses: 5');
+
+    page.once('dialog', dialog => dialog.accept());
+    await page.getByRole('button', { name: 'File' }).click();
+    await page.getByRole('button', { name: 'New Project' }).click();
+    await expect(status).toContainText('Buses: 0');
+  });
+
   test('loads the IEEE 9-bus sample', async ({ page }) => {
     await openApp(page);
     await page.getByTestId('ribbon').getByRole('button', { name: 'Samples' }).click();

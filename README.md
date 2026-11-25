@@ -144,6 +144,7 @@ same build is available locally with `npm run build:pages`.
 ### Project management
 
 - `.psa` project save/open (JSON content) with validation and normalization.
+- Close Project returns to an empty workspace; new, open and close remind you about unsaved changes.
 - Sample systems: Demo 4-bus, IEEE 9-bus, IEEE 14-bus and a distribution feeder.
 - Settings persisted in the browser (solver, tolerances, simulation, overlays).
 - Model check with clickable issues.
