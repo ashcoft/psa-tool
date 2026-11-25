@@ -67,6 +67,7 @@ export interface UseProjectResult {
   pasteElement: () => void;
   setBusType: (busId: string, type: Bus['type']) => void;
   moveBus: (busId: string, x: number, y: number) => void;
+  moveComponent: (componentId: string, x: number, y: number) => void;
   autoArrange: () => void;
 }
 
@@ -85,22 +86,34 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
   const [clipboard, setClipboard] = useState<ClipboardPayload | null>(null);
   const lastCommit = useRef<{ description: string; time: number }>({ description: '', time: 0 });
 
-  const commit = useCallback((system: PowerSystem, description: string) => {
-    setState(prev => {
-      const now = Date.now();
-      const coalesce =
-        lastCommit.current.description === description &&
-        now - lastCommit.current.time < COALESCE_MS &&
-        prev.past.length > 0;
-      lastCommit.current = { description, time: now };
-
-      const past = coalesce
-        ? prev.past
-        : [...prev.past, { system: prev.system, name: prev.name }].slice(-HISTORY_LIMIT);
-
-      return { ...prev, system, name: system.name ?? prev.name, past, future: [], dirty: true };
-    });
+  // Updater functions must stay pure: StrictMode invokes them twice, so the
+  // coalescing decision and lastCommit bookkeeping happen in the event handler.
+  const beginCommit = useCallback((description: string): boolean => {
+    const now = Date.now();
+    const coalesce =
+      lastCommit.current.description === description && now - lastCommit.current.time < COALESCE_MS;
+    lastCommit.current = { description, time: now };
+    return coalesce;
   }, []);
+
+  const applyCommit = useCallback(
+    (prev: ProjectState, system: PowerSystem, coalesce: boolean): ProjectState => {
+      const past =
+        coalesce && prev.past.length > 0
+          ? prev.past
+          : [...prev.past, { system: prev.system, name: prev.name }].slice(-HISTORY_LIMIT);
+      return { ...prev, system, name: system.name ?? prev.name, past, future: [], dirty: true };
+    },
+    []
+  );
+
+  const commit = useCallback(
+    (system: PowerSystem, description: string) => {
+      const coalesce = beginCommit(description);
+      setState(prev => applyCommit(prev, system, coalesce));
+    },
+    [applyCommit, beginCommit]
+  );
 
   const replaceSystem = useCallback((system: PowerSystem, name?: string) => {
     lastCommit.current = { description: '', time: 0 };
@@ -576,32 +589,88 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
   }, []);
 
   const moveBus = useCallback((busId: string, x: number, y: number) => {
+    const coalesce = beginCommit(`move-bus:${busId}`);
     setState(prev => {
       const system = {
         ...prev.system,
         buses: prev.system.buses.map(bus => (bus.id === busId ? { ...bus, x, y } : bus)),
       };
-      return { ...prev, system, dirty: true };
+      return applyCommit(prev, system, coalesce);
     });
-  }, []);
+  }, [applyCommit, beginCommit]);
+
+  const moveComponent = useCallback((componentId: string, x: number, y: number) => {
+    const coalesce = beginCommit(`move-component:${componentId}`);
+    setState(prev => {
+      const system = {
+        ...prev.system,
+        components: (prev.system.components ?? []).map(component =>
+          component.id === componentId ? { ...component, x, y } : component
+        ),
+      };
+      return applyCommit(prev, system, coalesce);
+    });
+  }, [applyCommit, beginCommit]);
 
   const autoArrange = useCallback(() => {
+    const coalesce = beginCommit('auto-arrange');
     setState(prev => {
       const system = cloneSystem(prev.system);
-      const columns = Math.max(2, Math.ceil(Math.sqrt(system.buses.length)));
-      system.buses.forEach((bus, index) => {
-        bus.x = (index % columns) * 2.2;
-        bus.y = Math.floor(index / columns) * 2.2;
+      if (system.buses.length === 0) return prev;
+
+      const adjacency = new Map<string, string[]>();
+      system.buses.forEach(bus => adjacency.set(bus.id, []));
+      [...system.lines, ...system.transformers].forEach(branch => {
+        if (branch.active === false) return;
+        adjacency.get(branch.fromBus)?.push(branch.toBus);
+        adjacency.get(branch.toBus)?.push(branch.fromBus);
       });
-      return {
-        ...prev,
-        system,
-        past: [...prev.past, { system: prev.system, name: prev.name }].slice(-HISTORY_LIMIT),
-        future: [],
-        dirty: true,
-      };
+
+      const slack = system.buses.find(bus => bus.type === 'slack') ?? system.buses[0];
+      const depth = new Map<string, number>([[slack.id, 0]]);
+      const queue = [slack.id];
+      while (queue.length > 0) {
+        const id = queue.shift() as string;
+        const next = (depth.get(id) ?? 0) + 1;
+        (adjacency.get(id) ?? []).forEach(neighbor => {
+          if (depth.has(neighbor)) return;
+          depth.set(neighbor, next);
+          queue.push(neighbor);
+        });
+      }
+
+      const fallbackDepth = Math.max(0, ...depth.values()) + 1;
+      system.buses.forEach(bus => {
+        if (!depth.has(bus.id)) depth.set(bus.id, fallbackDepth);
+      });
+
+      const layers = new Map<number, Bus[]>();
+      system.buses.forEach(bus => {
+        const level = depth.get(bus.id) ?? 0;
+        layers.set(level, [...(layers.get(level) ?? []), bus]);
+      });
+      layers.forEach((buses, level) => {
+        buses.sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+        buses.forEach((bus, index) => {
+          bus.x = level * 2.4;
+          bus.y = (index - (buses.length - 1) / 2) * 1.5;
+        });
+      });
+
+      const attached = new Map<string, number>();
+      (system.components ?? []).forEach(component => {
+        if (!component.bus) return;
+        const bus = system.buses.find(item => item.id === component.bus);
+        if (!bus) return;
+        const slot = attached.get(bus.id) ?? 0;
+        attached.set(bus.id, slot + 1);
+        component.x = bus.x + 0.9 + (slot % 2) * 0.75;
+        component.y = bus.y + 0.7 + Math.floor(slot / 2) * 0.7;
+      });
+
+      return applyCommit(prev, system, coalesce);
     });
-  }, []);
+  }, [applyCommit, beginCommit]);
 
   const issues = useMemo(() => validateSystem(state.system), [state.system]);
 
@@ -631,6 +700,7 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
     pasteElement,
     setBusType,
     moveBus,
+    moveComponent,
     autoArrange,
   };
 }

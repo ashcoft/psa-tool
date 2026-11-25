@@ -1,0 +1,52 @@
+name: Feature request
+description: Propose a study, component, workflow or deployment improvement.
+title: "[feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check [ROADMAP.md](../../ROADMAP.md) first; the item may already be planned.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Component library
+        - Diagram editing and layout
+        - Study or numerical method
+        - Results and reporting
+        - Project and settings
+        - Accessibility
+        - Performance and scale
+        - Build, Docker or deployment
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What engineering or workflow problem does this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the expected behaviour and any standards or references.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - Nice to have
+        - Important
+        - Blocks my work
+    validations:
+      required: true

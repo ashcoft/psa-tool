@@ -1,68 +1,174 @@
-# PSAT Web - Power System Analysis Toolbox
+# PSAT Web — Power System Analysis Toolbox
 
-A browser-based power system analysis workbench derived from the MATLAB-based
-[PSAT](https://faraday1.ucd.ie/psat.html). The interface follows the ETAP style:
-a ribbon, a one-line diagram editor, a component browser, a property grid, a
-study-case history and tabular/chart results.
+A browser-native power system analysis workbench derived from the MATLAB-based
+[PSAT](https://faraday1.ucd.ie/psat.html). It follows the ETAP style: a ribbon, a one-line diagram
+editor, a component palette, a property grid, a study-case history and tabular/chart results.
 
-![PSAT Web](https://img.shields.io/badge/version-1.1.0-blue.svg)
-![License](https://img.shields.io/badge/license-GPL--3.0-green.svg)
-![React](https://img.shields.io/badge/React-19-61dafb.svg)
-![Next.js](https://img.shields.io/badge/Next.js-16-000000.svg)
+[![CI](https://github.com/ashcoft/psat-web/actions/workflows/ci.yml/badge.svg)](https://github.com/ashcoft/psat-web/actions/workflows/ci.yml)
+[![Tests](https://github.com/ashcoft/psat-web/actions/workflows/test.yml/badge.svg)](https://github.com/ashcoft/psat-web/actions/workflows/test.yml)
+[![Pages](https://github.com/ashcoft/psat-web/actions/workflows/pages.yml/badge.svg)](https://github.com/ashcoft/psat-web/actions/workflows/pages.yml)
+[![Container](https://github.com/ashcoft/psat-web/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/ashcoft/psat-web/actions/workflows/docker-publish.yml)
+[![Release](https://img.shields.io/github/v/release/ashcoft/psat-web)](https://github.com/ashcoft/psat-web/releases)
+[![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-green.svg)](LICENSE)
+[![Next.js 16](https://img.shields.io/badge/Next.js-16-black.svg)](https://nextjs.org/)
+[![React 19](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
+[![GHCR](https://img.shields.io/badge/ghcr.io-psat--web-blue?logo=github)](https://github.com/ashcoft/psat-web/pkgs/container/psat-web)
+
+![PSAT Web workbench](docs/screenshot.png)
+
+**Live workbench:** [ashcoft.github.io/psat-web](https://ashcoft.github.io/psat-web/) ·
+**Container:** `ghcr.io/ashcoft/psat-web:latest` ·
+**Docs:** [User guide](docs/USER-GUIDE.md) · [Architecture](docs/ARCHITECTURE.md) ·
+[Numerical methods](docs/NUMERICAL-METHODS.md) · [Deployment](docs/DEPLOYMENT.md) ·
+[Roadmap](ROADMAP.md)
+
+## Why PSAT Web
+
+- **Everything stays in the browser.** Projects are JSON files; no account, server database or
+  upload.
+- **A real one-line editor.** Drag components from the palette, place them anywhere, connect
+  branches and rearrange the diagram without losing the electrical model.
+- **Transparent numbers.** Every solver is deterministic, and every assumed value is recorded in
+  the study log, the docs and `AGENTS.md`.
+- **One workspace for screening studies.** Load flow, PV curve, OPF, faults, modal analysis,
+  time domain and five specialty calculators share the same model, results history and export.
+
+## Table of contents
+
+- [Quick start](#quick-start)
+- [Docker and GHCR](#docker-and-ghcr)
+- [GitHub Pages](#github-pages)
+- [Capabilities](#capabilities)
+- [Studies](#studies)
+- [Keyboard shortcuts](#keyboard-shortcuts)
+- [Documentation](#documentation)
+- [Architecture](#architecture)
+- [Numerical notes](#numerical-notes)
+- [Testing and quality](#testing-and-quality)
+- [Releases](#releases)
+- [Contributing and security](#contributing-and-security)
+- [Original PSAT](#original-psat)
+- [License](#license)
+
+## Quick start
+
+Requirements: **Node.js 26** (see `.nvmrc`), npm and a modern browser. The test matrix also runs on
+Node 24 and 25.
+
+```bash
+npm ci
+npm run dev        # http://localhost:3000
+```
+
+Production build:
+
+```bash
+npm run build
+npm run start
+```
+
+Quality gates:
+
+```bash
+npm run lint
+npm run typecheck
+npm run test:run
+npm run test:e2e   # Chromium; starts the dev server on port 3456
+```
+
+`npm test` starts Vitest in watch mode; `npm run test:run` runs the suite once. `npm run verify`
+runs lint, type check, tests and the production build.
+
+## Docker and GHCR
+
+```bash
+docker build -t psat-web .
+docker run --rm -p 3000:3000 psat-web
+
+# or
+docker compose up -d
+```
+
+The image uses the Next.js standalone output, runs as a non-root user and serves on port 3000. A
+published image is available from the GitHub Container Registry:
+
+```bash
+docker pull ghcr.io/ashcoft/psat-web:latest
+docker run --rm -p 3000:3000 ghcr.io/ashcoft/psat-web:latest
+```
+
+Tags are produced by `.github/workflows/docker-publish.yml`: `latest` for the default branch,
+`1.2.0` and `1.2` for a `v1.2.0` tag, `main` for branch pushes and `sha-<short>` for every build.
+The workflow uses `GITHUB_TOKEN` with `packages: write`; no extra secret is required. The package
+is private by default: authenticate with `docker login ghcr.io` using a token that has
+`read:packages`, or make the package public in its package settings for anonymous pulls.
+
+## GitHub Pages
+
+The static workbench is live at **https://ashcoft.github.io/psat-web/**.
+
+The repository includes `.github/workflows/pages.yml` to rebuild it from `main` and publish it to
+the `gh-pages` branch. GitHub Pages serves that branch: **Settings → Pages → Build and deployment →
+Source: Deploy from a branch → `gh-pages` / root**. The workflow builds with `NEXT_OUTPUT=export`
+and `NEXT_PUBLIC_BASE_PATH=/psat-web` and writes `out/.nojekyll`. The same build is available
+locally with `npm run build:pages`.
 
 ## Capabilities
 
 ### One-line diagram editor
-- Ribbon with Home, Components, Analysis, Results and Tools tabs
-- Complete PSAT component library with AC, DC, Instruments, Controls and Other
-  palettes (sources, buses, branches, loads/motors, protection, conversion,
-  meters, relays, AVR/governor/PSS, DC elements, DC control and composite items)
-- Component palette with category tabs, search and drag-and-drop placement
-- Project tree for buses, lines, transformers, generators, loads, shunts and
-  specialty components
-- Select, pan, zoom (cursor-centred), fit, grid and snap-to-grid
-- Click-to-connect line and transformer tools
-- Context menu, duplicate, copy/paste, delete and undo/redo
-- Full property editing with validation feedback
-- IEEE-style bus, generator, load, shunt and transformer symbols
-- Result overlays for voltage limits and branch loading
 
-### Studies
-- **Load flow**: Newton-Raphson (full Jacobian), fast-decoupled, DC and
-  Gauss-Seidel. PV reactive-limit enforcement, bus/branch/generator tables,
-  voltage profile and violation report.
-- **Continuation power flow**: PV curve, nose point, critical bus and loading
-  margin.
-- **Optimal power flow**: merit-order economic dispatch with polynomial cost
-  curves, AC power-flow verification and branch overload reporting.
-- **Short circuit**: three-phase, line-to-ground, line-to-line and double
-  line-to-ground faults from the bus impedance matrix. Results in kA, fault
-  MVA, CT ratings and breaker/relay requirements.
-- **Small-signal stability**: Kron-reduced multimachine model, complex shifted
-  QR eigenvalues, damping ratios, mode classification and eigenvalue plot.
-- **Time-domain simulation**: classical swing equations, balanced-fault
-  disturbance, Euler/RK4/trapezoidal integration, rotor-angle and bus-voltage
-  plots plus transient stability assessment.
-- **Specialty studies** (Tools tab):
-  - Arc flash screening (Lee method) with incident energy, boundary and PPE category
-  - Motor starting with locked-rotor current, terminal voltage and voltage dip
-  - Harmonic distortion with a 6-pulse spectrum and IEEE 519 THD check
-  - Protection coordination with IEC/IEEE inverse-time curves and TCC plots
-  - Ground grid screening (IEEE 80) with conductor sizing, GPR and touch/step voltages
-
-### Results and reporting
-- Study-case history for the current session
-- Sortable-looking result tables with engineering units
-- SVG charts (voltage profile, PV curve, dispatch, fault currents, eigenvalue
-  scatter, time-domain traces)
-- CSV export of every study, and HTML/CSV/JSON report export
-- Print support
+- Ribbon with Home, Components, Analysis, Results and Tools tabs.
+- Complete PSAT component library with AC, DC, Instruments, Controls and Other palettes (sources,
+  buses, branches, loads/motors, protection, conversion, meters, relays, AVR/governor/PSS, DC
+  elements, DC control and composite items).
+- Component palette with category tabs, search and drag-and-drop placement.
+- Every placed bus or non-branch specialty component can be dragged anywhere on the diagram.
+  **Hold Alt** to bypass grid snap; the property panel X/Y fields accept exact coordinates.
+- Dropping a device away from a bus creates a bus at the drop point; bus-attached components stay
+  free when no bus is nearby.
+- Topology-aware **Auto Arrange** lays buses out by network depth from the slack bus and keeps
+  attached components beside their bus.
+- Project tree for buses, lines, transformers, generators, loads, shunts and specialty components.
+- Select, pan, zoom (cursor-centred), fit, grid and snap-to-grid.
+- Click-to-connect line and transformer tools.
+- Context menu, duplicate, copy/paste, delete and undo/redo, including moves.
+- Full property editing with validation feedback.
+- IEEE-style bus, generator, load, shunt and transformer symbols.
+- Result overlays for voltage limits and branch loading.
 
 ### Project management
-- JSON project save/open with validation and normalization
-- Sample systems: Demo 4-bus, IEEE 9-bus, IEEE 14-bus and a distribution feeder
-- Settings persisted in the browser (solver, tolerances, simulation, overlays)
-- Model check with clickable issues
+
+- JSON project save/open with validation and normalization.
+- Sample systems: Demo 4-bus, IEEE 9-bus, IEEE 14-bus and a distribution feeder.
+- Settings persisted in the browser (solver, tolerances, simulation, overlays).
+- Model check with clickable issues.
+
+### Results and reporting
+
+- Study-case history for the current session.
+- Result tables with engineering units.
+- SVG charts (voltage profile, PV curve, dispatch, fault currents, eigenvalue scatter,
+  time-domain traces).
+- CSV export of every study, HTML/CSV/JSON report export and print support.
+
+## Studies
+
+| Study | Method | Output |
+|-------|--------|--------|
+| **Load flow** | Newton-Raphson (full Jacobian), fast-decoupled, DC, Gauss-Seidel | Bus, branch and generator tables; voltage profile; violations |
+| **Continuation power flow** | Predictor-corrector parameter continuation | PV curve, nose point, critical bus, loading margin |
+| **Optimal power flow** | Merit-order/equal-incremental-cost dispatch with AC verification | Dispatch, cost, losses and overload report |
+| **Short circuit** | Bus impedance matrix (Zbus) | Three-phase, line-to-ground, line-to-line and double line-to-ground currents in kA, fault MVA, CT and breaker ratings |
+| **Small-signal stability** | Kron-reduced multimachine model, complex shifted QR | Eigenvalues, damping ratios, mode classification and plot |
+| **Time-domain simulation** | Classical swing equations, Euler/RK4/trapezoidal | Rotor angles, bus voltages, transient stability and critical clearing time |
+| **Arc flash** | Lee spherical radiation model | Incident energy, boundary and PPE category |
+| **Motor starting** | Locked-rotor current and terminal-voltage dip | Starting current, terminal voltage and voltage dip |
+| **Harmonics** | Frequency-dependent network | Harmonic voltages, THD and IEEE 519 screening |
+| **Protection** | IEC/IEEE inverse-time curves | Trip times, TCC plot and coordination margin |
+| **Ground grid** | IEEE 80 simplified equations | Conductor size, GPR, touch and step voltages |
+
+Specialty studies are screening calculations. Check the notes in each result and the assumptions in
+[docs/NUMERICAL-METHODS.md](docs/NUMERICAL-METHODS.md) before using the numbers for design.
 
 ## Keyboard shortcuts
 
@@ -81,42 +187,24 @@ study-case history and tabular/chart results.
 | `Ctrl+0` | Fit diagram to window |
 | `Ctrl++` / `Ctrl+-` | Zoom in / out |
 | `Esc` | Cancel the current tool or dialog |
+| `Alt` + drag | Free positioning without grid snap |
 
-## Getting started
+## Documentation
 
-Requirements: Node.js 20+ and npm.
-
-```bash
-npm install
-npm run dev        # http://localhost:3000
-npm run build      # production build
-npm run start      # production server
-npm test           # unit and component tests (Vitest)
-npm run test:e2e   # end-to-end tests (Chromium)
-npm run lint       # ESLint
-```
-
-Playwright uses `BASE_URL` (default `http://localhost:3456`). To run the e2e
-suite against an already running development server:
-
-```bash
-BASE_URL=http://localhost:3000 npx playwright test
-```
-
-### Docker
-
-```bash
-docker build -t psat-web .
-docker-compose up -d
-```
-
-The image uses the Next.js standalone output, runs as a non-root user and
-serves on port 3000. Set `NEXT_TELEMETRY_DISABLED=1` if you do not want
-build telemetry.
+| Document | Contents |
+|----------|----------|
+| [User guide](docs/USER-GUIDE.md) | Build a diagram, place components, run studies, read results, troubleshoot |
+| [Architecture](docs/ARCHITECTURE.md) | Layers, model, study pipeline, editing state, testing and how to add a study |
+| [Numerical methods](docs/NUMERICAL-METHODS.md) | Solver behaviour and every current assumption |
+| [Deployment](docs/DEPLOYMENT.md) | Local, Docker, GHCR, GitHub Pages, Vercel and release flow |
+| [Roadmap](ROADMAP.md) | Gap analysis, milestones, prioritized backlog and quality gates |
+| [Changelog](CHANGELOG.md) | Release history generated by semantic-release |
+| [Contributing](CONTRIBUTING.md) | Setup, conventions, commit format and PR checklist |
+| [Security](SECURITY.md) | Reporting policy and security model |
 
 ## Architecture
 
-```
+```text
 src/
 ├── app/                 # Next.js App Router (page shell, global styles)
 ├── components/          # UI
@@ -144,82 +232,65 @@ src/
 │   ├── samples.ts            # Ready-to-run systems
 │   ├── settings.ts           # Persisted application settings
 │   └── useProject.ts         # Project state, history and editing actions
-└── types/               # Shared TypeScript data structures
+├── types/               # Shared TypeScript data structures
+└── test/                # Vitest setup
+docs/                    # User, architecture, numerical and deployment guides
+playwright/              # End-to-end specs
 ```
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the data flow and the checklist for adding a
+study.
 
 ## Numerical notes
 
-- The network model stores engineering units (MW, Mvar, kV) and converts to
-  per-unit on the system MVA base inside the solvers.
-- Bus diagram coordinates are stored in grid units; one unit is 100 px at
-  100 % zoom.
-- The short-circuit engine assumes a generator subtransient reactance of
-  0.05 p.u. to provide a ground reference, and Z0 = 0.5 Z1 for unbalanced
-  faults because zero-sequence data is not part of the model.
-- The stability and time-domain studies use a classical multimachine model
-  with a Kron-reduced network and deterministic inertia/damping values.
-- Continuation power flow scales both load and non-slack generation by
-  `1 + lambda` and halves the step when a solution is lost.
+- The model stores engineering units (MW, Mvar, kV, degrees) and converts to per-unit on the system
+  MVA base inside the solvers.
+- Diagram coordinates are grid units; one unit is 100 px at 100 % zoom.
+- The short-circuit engine currently assumes `Xd″ = 0.05 p.u.` and `Z0 = 0.5 Z1` because sequence
+  data is not part of the model.
+- Stability and time-domain studies use a classical multimachine model with deterministic inertia
+  and damping values.
+- Continuation power flow scales both load and non-slack generation by `1 + lambda` and halves the
+  step when a solution is lost.
 
-## Available scripts
+The full list is in [docs/NUMERICAL-METHODS.md](docs/NUMERICAL-METHODS.md) and `AGENTS.md`.
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start the development server |
-| `npm run build` | Build for production |
-| `npm run start` | Start the production server |
-| `npm test` | Run the Vitest suite |
-| `npm run test:run` | Run the Vitest suite once |
-| `npm run test:e2e` | Run the Playwright end-to-end suite |
-| `npm run test:coverage` | Coverage report |
-| `npm run lint` | ESLint |
-| `npm run release` | semantic-release (normally run by CI) |
+## Testing and quality
+
+At v1.2.0 the repository has **269 unit/component tests** and **22 Chromium end-to-end specs**.
+GitHub Actions runs lint, type check, unit tests, coverage, the production build and Playwright on
+pushes and pull requests. Codacy and SonarCloud provide static analysis.
+
+```bash
+npm run test:coverage   # coverage report
+npm run verify          # lint + typecheck + tests + build
+```
 
 ## Releases
 
 Releases are automated with [semantic-release](https://github.com/semantic-release/semantic-release)
-and driven by [Conventional Commits](https://www.conventionalcommits.org/).
-The `Release` workflow runs on every push to `main`; commit messages determine
-the version bump (`fix:` patch, `feat:` minor, `feat!:`/`BREAKING CHANGE:` major).
+and driven by [Conventional Commits](https://www.conventionalcommits.org/). The `Release` workflow
+runs on every push to `main`; commit messages determine the version bump (`fix:` patch, `feat:`
+minor, `feat!:`/`BREAKING CHANGE:` major).
 
-## Continuous integration
+The container workflow publishes the matching image to GHCR, and the Pages workflow rebuilds the
+static workbench.
 
-GitHub Actions runs lint, type check, unit tests, the production build and the
-Playwright suite on pushes and pull requests, including pull requests that
-target review or release branches. Codacy and SonarCloud provide static
-analysis. The Vercel workflow deploys only when `VERCEL_TOKEN` is configured.
+## Contributing and security
 
-## Vercel deployment
-
-The repository includes `vercel.json` and `.github/workflows/vercel.yml`. To let
-the workflow publish https://psat-web.vercel.app/ on every push to `main`, add
-these repository secrets in GitHub (`Settings` → `Secrets and variables` →
-`Actions`):
-
-| Secret | Purpose |
-|--------|---------|
-| `VERCEL_TOKEN` | Vercel personal access token |
-| `VERCEL_ORG_ID` | Vercel team/user id |
-| `VERCEL_PROJECT_ID` | Vercel project id for `psat-web` |
-
-You can also deploy manually from a machine logged in to Vercel:
-
-```bash
-npx vercel@latest deploy --prod
-```
-
-If the workflow runs without `VERCEL_TOKEN`, it skips the deployment instead of
-failing.
+- Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
+- Report vulnerabilities privately through [SECURITY.md](SECURITY.md); do not open a public issue.
+- The development plan and prioritized backlog are in [ROADMAP.md](ROADMAP.md).
 
 ## Original PSAT
 
 This project is a web-based port of the original
-[PSAT - Power System Analysis Toolbox](https://faraday1.ucd.ie/psat.html)
-developed by Federico Milano.
+[PSAT — Power System Analysis Toolbox](https://faraday1.ucd.ie/psat.html) developed by Federico
+Milano.
 
-Original PSAT is Copyright (C) 2002-2016 Federico Milano and is free software
-under the GNU General Public License v3.
+Original PSAT is Copyright (C) 2002–2016 Federico Milano and is free software under the GNU General
+Public License v3.
 
 ## License
 
-GPL-3.0. See the LICENSE file for details.
+GPL-3.0. See [LICENSE](LICENSE) for the full text.

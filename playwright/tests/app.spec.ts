@@ -12,6 +12,15 @@ async function runLoadFlow(page: Page): Promise<void> {
   await expect(page.getByText('COMPLETED')).toBeVisible();
 }
 
+async function dragVoltmeterToCanvas(page: Page, target = { x: 420, y: 280 }) {
+  const sidebar = page.getByTestId('sidebar');
+  const canvas = page.getByTestId('canvas').locator('canvas');
+  await sidebar.getByRole('button', { name: 'Ins', exact: true }).click();
+  await sidebar.getByRole('button', { name: 'Voltmeter' }).dragTo(canvas, { targetPosition: target });
+  await expect(page.getByTestId('statusbar')).toContainText('Components: 1');
+  return canvas;
+}
+
 test.describe('PSAT Web workbench', () => {
   test('loads the ETAP-style workbench', async ({ page }) => {
     await openApp(page);
@@ -128,6 +137,39 @@ test.describe('PSAT Web workbench', () => {
     await sidebar.getByRole('button', { name: 'Project' }).click();
     await expect(sidebar.getByText('DC Bus')).toBeVisible();
     await expect(sidebar.getByText('Voltmeter')).toBeVisible();
+  });
+
+  test('drags a component from the palette onto the diagram', async ({ page }) => {
+    await openApp(page);
+    await dragVoltmeterToCanvas(page);
+    await expect(page.getByRole('status')).toContainText('Added Voltmeter');
+  });
+
+  test('repositions a placed component and undoes the move', async ({ page }) => {
+    await openApp(page);
+    const canvas = await dragVoltmeterToCanvas(page);
+
+    const panel = page.getByTestId('properties-panel');
+    const xInput = panel.locator('label').filter({ hasText: /^X$/ }).locator('input');
+    const before = Number(await xInput.inputValue());
+
+    const box = await canvas.boundingBox();
+    if (!box) throw new Error('Canvas is not visible');
+    const startX = box.x + 420;
+    const startY = box.y + 280;
+    await page.mouse.move(startX, startY);
+    await page.mouse.down();
+    await page.mouse.move(startX + 120, startY, { steps: 6 });
+    await page.mouse.up();
+
+    await expect.poll(async () => Number(await xInput.inputValue())).not.toBe(before);
+
+    await page.getByTestId('ribbon').getByRole('button', { name: 'Undo' }).click();
+    await expect(page.getByTestId('statusbar')).toContainText('Components: 1');
+
+    await page.mouse.click(startX, startY);
+    await expect(xInput).toBeVisible();
+    expect(Number(await xInput.inputValue())).toBe(before);
   });
 
   test('runs every analysis study', async ({ page }) => {

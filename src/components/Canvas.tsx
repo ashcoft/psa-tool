@@ -37,6 +37,7 @@ interface CanvasProps {
   showFlowOverlay: boolean;
   onSelect: (selection: Selection) => void;
   onMoveBus: (busId: string, x: number, y: number) => void;
+  onMoveComponent: (componentId: string, x: number, y: number) => void;
   onBranchConnect: (fromBus: string, toBus: string) => void;
   onDropComponent: (kind: string, position: { x: number; y: number }) => void;
   onContextMenu: (selection: Selection, clientX: number, clientY: number) => void;
@@ -50,6 +51,13 @@ interface DeviceHit {
   id: string;
   x: number;
   y: number;
+}
+
+interface DragState {
+  kind: 'bus' | 'component';
+  id: string;
+  dx: number;
+  dy: number;
 }
 
 const GRID_UNIT = 100;
@@ -77,6 +85,13 @@ function loadingColor(loading: number): string {
   if (loading > 100) return '#dc2626';
   if (loading > 80) return '#d97706';
   return '#0f766e';
+}
+
+function cursorFor(tool: CanvasTool, hover: Selection): string {
+  if (tool === 'pan') return 'grab';
+  if (tool === 'line' || tool === 'transformer') return 'crosshair';
+  if (hover.type === 'bus' || hover.type === 'component') return 'grab';
+  return hover.type ? 'pointer' : 'default';
 }
 
 function pointSegmentDistance(
@@ -109,6 +124,7 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     showFlowOverlay,
     onSelect,
     onMoveBus,
+    onMoveComponent,
     onBranchConnect,
     onDropComponent,
     onContextMenu,
@@ -126,7 +142,8 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
   const [hover, setHover] = useState<Selection>({ type: null, id: null });
   const [connectFrom, setConnectFrom] = useState<string | null>(null);
   const [cursorWorld, setCursorWorld] = useState<{ x: number; y: number } | null>(null);
-  const dragRef = useRef<{ busId: string; dx: number; dy: number } | null>(null);
+  const [dropActive, setDropActive] = useState(false);
+  const dragRef = useRef<DragState | null>(null);
   const panRef = useRef<{ x: number; y: number; offsetX: number; offsetY: number } | null>(null);
   const deviceHitsRef = useRef<DeviceHit[]>([]);
   const didFitRef = useRef(false);
@@ -795,6 +812,44 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     [busById, system]
   );
 
+  const handleConnectClick = (hit: Selection) => {
+    if (!hit.id) return;
+    if (!connectFrom) {
+      setConnectFrom(hit.id);
+      onSelect(hit);
+    } else if (connectFrom !== hit.id) {
+      onBranchConnect(connectFrom, hit.id);
+      setConnectFrom(null);
+    } else {
+      setConnectFrom(null);
+    }
+  };
+
+  const beginElementDrag = (hit: Selection, world: { x: number; y: number }) => {
+    if (hit.type === 'bus' && hit.id) {
+      const bus = busById.get(hit.id);
+      if (!bus) return;
+      dragRef.current = {
+        kind: 'bus',
+        id: hit.id,
+        dx: world.x - bus.x * GRID_UNIT,
+        dy: world.y - bus.y * GRID_UNIT,
+      };
+      return;
+    }
+    if (hit.type !== 'component' || !hit.id) return;
+    const component = (system.components ?? []).find(item => item.id === hit.id);
+    // Branch-like components are anchored to the midpoint of their two buses.
+    if (!component || (component.fromBus && component.toBus)) return;
+    const anchor = componentAnchor(system, component);
+    dragRef.current = {
+      kind: 'component',
+      id: hit.id,
+      dx: world.x - anchor.x,
+      dy: world.y - anchor.y,
+    };
+  };
+
   const handleMouseDown = (event: React.MouseEvent<HTMLCanvasElement>) => {
     if (event.button === 1 || tool === 'pan') {
       panRef.current = { x: event.clientX, y: event.clientY, offsetX: offset.x, offsetY: offset.y };
@@ -807,28 +862,11 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     const hit = hitTest(world.x, world.y);
 
     if ((tool === 'line' || tool === 'transformer') && hit.type === 'bus' && hit.id) {
-      if (!connectFrom) {
-        setConnectFrom(hit.id);
-        onSelect(hit);
-      } else if (connectFrom !== hit.id) {
-        onBranchConnect(connectFrom, hit.id);
-        setConnectFrom(null);
-      } else {
-        setConnectFrom(null);
-      }
+      handleConnectClick(hit);
       return;
     }
 
-    if (hit.type === 'bus' && hit.id) {
-      const bus = busById.get(hit.id);
-      if (bus) {
-        dragRef.current = {
-          busId: hit.id,
-          dx: world.x - bus.x * GRID_UNIT,
-          dy: world.y - bus.y * GRID_UNIT,
-        };
-      }
-    }
+    beginElementDrag(hit, world);
     onSelect(hit);
   };
 
@@ -848,11 +886,15 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     if (dragRef.current) {
       let x = (world.x - dragRef.current.dx) / GRID_UNIT;
       let y = (world.y - dragRef.current.dy) / GRID_UNIT;
-      if (snapToGrid) {
+      if (snapToGrid && !event.altKey) {
         x = Math.round(x / SNAP) * SNAP;
         y = Math.round(y / SNAP) * SNAP;
       }
-      onMoveBus(dragRef.current.busId, x, y);
+      if (dragRef.current.kind === 'bus') {
+        onMoveBus(dragRef.current.id, x, y);
+      } else {
+        onMoveComponent(dragRef.current.id, x, y);
+      }
       return;
     }
 
@@ -875,12 +917,13 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
 
   const handleDrop = (event: React.DragEvent<HTMLCanvasElement>) => {
     event.preventDefault();
+    setDropActive(false);
     const kind = event.dataTransfer.getData('application/x-psat-component');
     if (!kind) return;
     const world = toWorld(event.clientX, event.clientY);
     let x = world.x / GRID_UNIT;
     let y = world.y / GRID_UNIT;
-    if (snapToGrid) {
+    if (snapToGrid && !event.altKey) {
       x = Math.round(x / SNAP) * SNAP;
       y = Math.round(y / SNAP) * SNAP;
     }
@@ -896,14 +939,7 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     }
   };
 
-  const cursor =
-    tool === 'pan'
-      ? 'grab'
-      : tool === 'line' || tool === 'transformer'
-        ? 'crosshair'
-        : hover.type
-          ? 'pointer'
-          : 'default';
+  const cursor = cursorFor(tool, hover);
 
   return (
     <div ref={wrapRef} className="relative h-full w-full overflow-hidden bg-white" data-testid="canvas">
@@ -911,6 +947,7 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
         ref={canvasRef}
         className="block"
         style={{ cursor }}
+        title="Drag buses and components to reposition them. Hold Alt to bypass grid snap."
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={endInteraction}
@@ -926,9 +963,23 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
         }}
         onContextMenu={handleContextMenu}
         onDoubleClick={handleDoubleClick}
-        onDragOver={event => event.preventDefault()}
+        onDragOver={event => {
+          event.preventDefault();
+          event.dataTransfer.dropEffect = 'copy';
+          if (!dropActive) setDropActive(true);
+        }}
+        onDragLeave={() => {
+          setDropActive(false);
+        }}
         onDrop={handleDrop}
       />
+      {dropActive && (
+        <div className="pointer-events-none absolute inset-1 flex items-start justify-center rounded border-2 border-dashed border-[#1f4d85]/60 bg-[#1f4d85]/5 pt-2">
+          <span className="rounded bg-[#1f4d85] px-2 py-0.5 text-[10px] font-medium text-white">
+            Drop to place · hold Alt for free positioning
+          </span>
+        </div>
+      )}
       {connectFrom && (
         <div className="pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 rounded bg-blue-600 px-3 py-1 text-xs font-medium text-white shadow">
           Select the second bus to create the {tool === 'line' ? 'line' : 'transformer'} (Esc to cancel)

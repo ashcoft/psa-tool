@@ -1,0 +1,65 @@
+name: Bug report
+description: Report a reproducible problem in the workbench or a study result.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a problem. Please do not include secrets or private project data.
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: The release tag, commit SHA or deployment URL.
+      placeholder: v1.2.0
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - One-line diagram or component placement
+        - Load flow
+        - Continuation power flow
+        - Optimal power flow
+        - Short circuit
+        - Stability
+        - Time-domain simulation
+        - Specialty study
+        - Project save/open
+        - Results, export or report
+        - Build, Docker or deployment
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List the exact steps and, if possible, attach the project JSON.
+      placeholder: |
+        1. Load the IEEE 9-bus sample
+        2. Change ...
+        3. Run ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      description: Include the study log, console output or a screenshot.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Browser, operating system and Node.js version.
+      placeholder: Chrome 140 on Ubuntu 24.04, Node 26

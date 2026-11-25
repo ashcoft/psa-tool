@@ -69,7 +69,9 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
           </span>
           <div>
             <div className="text-[16px] font-semibold text-slate-800">PSAT Web</div>
-            <div className="text-[11px] text-slate-500">Power System Analysis Toolbox · Web Edition 1.1</div>
+            <div className="text-[11px] text-slate-500">
+              Power System Analysis Toolbox · Web Edition {process.env.NEXT_PUBLIC_APP_VERSION ?? '1.2.0'}
+            </div>
           </div>
         </div>
 

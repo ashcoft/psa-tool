@@ -31,6 +31,24 @@ export function findNearestBusId(system: PowerSystem, position: { x: number; y: 
   ).id;
 }
 
+/** Returns the closest bus only when it is within `maxDistance` grid units. */
+export function findNearestBusIdWithin(
+  system: PowerSystem,
+  position: { x: number; y: number },
+  maxDistance: number
+): string | undefined {
+  let bestId: string | undefined;
+  let bestDistance = maxDistance;
+  system.buses.forEach(bus => {
+    const distance = Math.hypot(bus.x - position.x, bus.y - position.y);
+    if (distance <= bestDistance) {
+      bestId = bus.id;
+      bestDistance = distance;
+    }
+  });
+  return bestId;
+}
+
 export function componentCategoryLabel(component: GenericComponent): string {
   return getComponentDefinition(component.type)?.label ?? component.name;
 }

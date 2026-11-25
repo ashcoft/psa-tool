@@ -3,8 +3,10 @@
 ## Stack and commands
 
 - Next.js 16 App Router, React 19, TypeScript, Tailwind CSS v4.
-- `npm install`, `npm run dev`, `npm run build`, `npm run lint`, `npm test`.
+- `npm ci`, `npm run dev`, `npm run build`, `npm run lint`, `npm test`.
+- `npm run verify` runs lint, type check, unit tests and the production build.
 - End-to-end: `BASE_URL=http://localhost:3000 npx playwright test` (Chromium).
+- `npm run build:pages` produces the static export for GitHub Pages with base path `/psat-web`.
 
 ## Architecture
 
@@ -16,10 +18,16 @@
 - `src/lib/component-catalog.ts` is the source of truth for the AC/DC/Instrument/Control/Other
   palettes. Definitions either map to a real model element (`bus`, `line`, `transformer`,
   `generator`, `load`, `shunt`) or become a `GenericComponent` stored in `system.components`.
-  Generic components are persisted, drawn on the canvas and edited in the property panel.
+  Generic components are persisted, drawn on the canvas, dragged to any position (Alt bypasses grid
+  snap) and edited in the property panel. Dropping a device away from a bus creates a bus at the
+  drop point.
 - `src/lib/useProject.ts` owns the system state, undo/redo history and element editing actions.
+  `autoArrange` lays buses out by BFS depth from the slack bus and keeps bus-attached components
+  beside their bus.
 - `src/components/Canvas.tsx` draws the one-line diagram and handles selection, dragging, connection
-  and view transforms. Bus coordinates are grid units where 1 unit = 100 px at 100 % zoom.
+  and view transforms. Bus coordinates are grid units where 1 unit = 100 px at 100 % zoom. Buses and
+  non-branch generic components are draggable; branch-like components stay anchored to their bus
+  midpoint.
 - The app shell is `src/app/page.tsx`; the ribbon definition is `src/components/Ribbon.tsx` and
   actions are dispatched by `handleAction` in the page.
 
@@ -30,8 +38,20 @@
 - Bus `angle` is stored in radians; the property panel converts to/from degrees.
 - React compiler lint is strict: avoid `setState` synchronously in effects, do not write refs during
   render, and keep hooks unconditional. Prefer deriving state or keyed remounts.
+- Keep `useProject` state updaters pure. StrictMode invokes them twice, so history coalescing and
+  `lastCommit` bookkeeping happen in the event handler before `setState`.
 - Keep components accessible: dialogs use `role="dialog"`, tabs use `role="tab"`, icon-only buttons
   need `title`/`aria-label`.
+
+## Documentation and deployment
+
+- `docs/` holds the user guide, architecture, numerical methods and deployment guides. Update them
+  with behaviour or assumption changes.
+- `README.md` is the project landing page; `ROADMAP.md` is the plan of record.
+- `.github/workflows/pages.yml` builds the static export and force-pushes it to `gh-pages`; GitHub
+  Pages serves that branch at <https://ashcoft.github.io/psat-web/>.
+- `.github/workflows/docker-publish.yml` publishes the container to GHCR on `main`, version tags and
+  manual dispatch.
 
 ## Numerical assumptions
 
