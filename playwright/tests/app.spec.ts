@@ -21,6 +21,21 @@ async function dragVoltmeterToCanvas(page: Page, target = { x: 420, y: 280 }) {
   return canvas;
 }
 
+async function addBusFromPalette(page: Page): Promise<void> {
+  await page.getByTestId('sidebar').getByRole('button', { name: 'Bus', exact: true }).click();
+  await expect(page.getByTestId('statusbar')).toContainText('Buses: 5');
+}
+
+async function chooseFileAction(
+  page: Page,
+  action: 'Close Project' | 'New Project',
+  response: 'accept' | 'dismiss'
+): Promise<void> {
+  page.once('dialog', dialog => (response === 'accept' ? dialog.accept() : dialog.dismiss()));
+  await page.getByRole('button', { name: 'File' }).click();
+  await page.getByRole('button', { name: action }).click();
+}
+
 test.describe('Power System Analysis Tool workbench', () => {
   test('loads the ETAP-style workbench', async ({ page }) => {
     await openApp(page);
@@ -61,17 +76,12 @@ test.describe('Power System Analysis Tool workbench', () => {
   test('closes the project with an unsaved-changes reminder', async ({ page }) => {
     await openApp(page);
     const status = page.getByTestId('statusbar');
-    await page.getByTestId('sidebar').getByRole('button', { name: 'Bus', exact: true }).click();
+    await addBusFromPalette(page);
+
+    await chooseFileAction(page, 'Close Project', 'dismiss');
     await expect(status).toContainText('Buses: 5');
 
-    page.once('dialog', dialog => dialog.dismiss());
-    await page.getByRole('button', { name: 'File' }).click();
-    await page.getByRole('button', { name: 'Close Project' }).click();
-    await expect(status).toContainText('Buses: 5');
-
-    page.once('dialog', dialog => dialog.accept());
-    await page.getByRole('button', { name: 'File' }).click();
-    await page.getByRole('button', { name: 'Close Project' }).click();
+    await chooseFileAction(page, 'Close Project', 'accept');
     await expect(status).toContainText('Buses: 0');
     await expect(page.getByRole('status')).toContainText('Project closed');
   });
@@ -79,17 +89,12 @@ test.describe('Power System Analysis Tool workbench', () => {
   test('reminds before creating a new project over unsaved changes', async ({ page }) => {
     await openApp(page);
     const status = page.getByTestId('statusbar');
-    await page.getByTestId('sidebar').getByRole('button', { name: 'Bus', exact: true }).click();
+    await addBusFromPalette(page);
+
+    await chooseFileAction(page, 'New Project', 'dismiss');
     await expect(status).toContainText('Buses: 5');
 
-    page.once('dialog', dialog => dialog.dismiss());
-    await page.getByRole('button', { name: 'File' }).click();
-    await page.getByRole('button', { name: 'New Project' }).click();
-    await expect(status).toContainText('Buses: 5');
-
-    page.once('dialog', dialog => dialog.accept());
-    await page.getByRole('button', { name: 'File' }).click();
-    await page.getByRole('button', { name: 'New Project' }).click();
+    await chooseFileAction(page, 'New Project', 'accept');
     await expect(status).toContainText('Buses: 0');
   });
 
