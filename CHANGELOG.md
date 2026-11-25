@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file. This file is generated automatically by [semantic-release](https://github.com/semantic-release/semantic-release) from the commit history.
 
+# [1.4.0](https://github.com/ashcoft/psa-tool/compare/v1.3.0...v1.4.0) (2026-11-25)
+
+### Bug Fixes
+
+* address PR 250 review findings ([db4b2c3](https://github.com/ashcoft/psa-tool/commit/db4b2c31aebb86c4bd3bdc3c92fc98429a3d7b46))
+* address review feedback across placement, symbols and deployment ([5c1660b](https://github.com/ashcoft/psa-tool/commit/5c1660b0f22d9dd607d28b515e403a731671b59e))
+* satisfy SonarCloud and Codacy on close project changes ([252022c](https://github.com/ashcoft/psa-tool/commit/252022c815bf8998d0e071d1e4b1151b07f1602e))
+* satisfy SonarCloud on workflow permissions and canvas complexity ([e1031ec](https://github.com/ashcoft/psa-tool/commit/e1031ec81a59075c75f08fbf1345cdbec5b4d2cc))
+
+### Features
+
+* close project and remind about unsaved changes ([012af7a](https://github.com/ashcoft/psa-tool/commit/012af7add32329e3d1afb0f327d72863636873a2))
+* move Pages to ashcoft.github.io/psa ([8ed72b1](https://github.com/ashcoft/psa-tool/commit/8ed72b1551fa206d7de5359c452babea5eaba9d3))
+* rename to PSA, save .psa projects and add a toggleable menu bar ([56da1d9](https://github.com/ashcoft/psa-tool/commit/56da1d96a95f3c84207c58ccc3c50eba547d4d6b))
+
 # [1.3.0](https://github.com/ashcoft/psat-web/compare/v1.2.0...v1.3.0) (2026-11-25)
 
 ### Features
