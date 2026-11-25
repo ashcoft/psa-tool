@@ -74,4 +74,6 @@ Keep commits focused. Do not mix refactors with numerical changes.
 
 ## License
 
-By contributing, you agree that your contribution is licensed under GPL-3.0.
+By contributing, you agree that your contribution to the original code is licensed under MIT.
+Contributions to PSAT-derived files in `psat-converted/` remain under their upstream GPL terms;
+see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

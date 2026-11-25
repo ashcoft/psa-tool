@@ -22,7 +22,7 @@
     "simulation"
   ],
   "author": "PSA Team",
-  "license": "GPL-3.0",
+  "license": "MIT",
   "overrides": {
     "postcss": "8.5.33",
     "browserslist": "4.29.6",

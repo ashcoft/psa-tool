@@ -63,7 +63,8 @@ settings persistence.
   the palette.
 - Documentation set: user guide, architecture, numerical methods, deployment guide, screenshots,
   contributing, security, code of conduct, issue forms and a pull-request template.
-- GPL-3.0 `LICENSE`, `typecheck`/`verify` scripts and a package-derived version string.
+- MIT `LICENSE` with third-party GPL notices, `typecheck`/`verify` scripts and a package-derived
+  version string.
 - Project files now save as `.psa` (JSON content); legacy `.json` files still open.
 - The app is branded as **Power System Analysis Tool** and the menu bar can be shown or hidden from
   the titlebar, the View ribbon group, Settings, or `Ctrl+Shift+M`.
@@ -243,7 +244,7 @@ stay interactive; projects can move between Power System Analysis Tool and other
 
 | Rank | ID | Item | Why now | Effort |
 |------|----|------|---------|--------|
-| 1 | Q-01 | Add `LICENSE` | Legal/compliance blocker for a GPL-3.0 project | S |
+| 1 | Q-01 | Add `LICENSE` | Legal/compliance blocker for the project | S |
 | 2 | Q-02 | Node/engine alignment | Release and CI run on different Node versions today | S |
 | 3 | Q-05 | Remove dead solver and editor hooks | 1 000+ lines of untested, misleading code | S |
 | 4 | Q-10 | Test `useProject` | Core editing state is the least covered module | M |
