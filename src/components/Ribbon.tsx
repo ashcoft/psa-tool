@@ -52,6 +52,7 @@ export const ribbonTabs: RibbonTab[] = [
           { id: 'paste', label: 'Paste', icon: 'paste', action: 'paste', size: 'small', shortcut: 'Ctrl+V', requires: 'paste' },
           { id: 'duplicate', label: 'Duplicate', icon: 'duplicate', action: 'duplicate', size: 'small', requires: 'selection' },
           { id: 'delete', label: 'Delete', icon: 'delete', action: 'delete', size: 'small', shortcut: 'Del', requires: 'selection' },
+          { id: 'select-all', label: 'Select All', icon: 'select', action: 'select-all', size: 'small', shortcut: 'Ctrl+A' },
         ],
       },
       {

@@ -129,6 +129,11 @@ same build is available locally with `npm run build:pages`.
   load, shunt and transformer symbols.
 - Every placed bus or non-branch specialty component can be dragged anywhere on the diagram.
   **Hold Alt** to bypass grid snap; the property panel X/Y fields accept exact coordinates.
+- CAD-style selection: **Ctrl+A** selects the whole workspace, **Ctrl/Shift+click** adds or removes
+  items, and dragging on empty canvas selects with a window (left-to-right) or crossing
+  (right-to-left) marquee. Selected buses and non-branch specialty components move as a group;
+  branches stay anchored to their bus endpoints. Workspace Delete removes the whole selection,
+  while the Properties panel Delete removes only the primary element.
 - Dropping a device away from a bus creates a bus at the drop point; bus-attached components stay
   free when no bus is nearby.
 - Topology-aware **Auto Arrange** lays buses out by network depth from the slack bus and keeps
@@ -182,6 +187,7 @@ Specialty studies are screening calculations. Check the notes in each result and
 |----------|--------|
 | `Ctrl+N` / `Ctrl+O` / `Ctrl+S` | New / open / save project |
 | `Ctrl+Z` / `Ctrl+Y` | Undo / redo |
+| `Ctrl+A` | Select all workspace elements |
 | `Ctrl+C` / `Ctrl+V` / `Ctrl+X` / `Ctrl+D` | Copy / paste / cut / duplicate |
 | `Delete` | Delete the selected element |
 | `F5` | Load flow |
@@ -193,7 +199,7 @@ Specialty studies are screening calculations. Check the notes in each result and
 | `Ctrl+0` | Fit diagram to window |
 | `Ctrl++` / `Ctrl+-` | Zoom in / out |
 | `Ctrl+Shift+M` | Show or hide the menu bar |
-| `Esc` | Cancel the current tool or dialog |
+| `Esc` | Cancel the current tool, clear selection or close a dialog |
 | `Alt` + drag | Free positioning without grid snap |
 
 ## Documentation

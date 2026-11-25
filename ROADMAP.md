@@ -68,6 +68,8 @@ settings persistence.
 - Project files now save as `.psa` (JSON content); legacy `.json` files still open.
 - File → Close Project returns to an empty workspace, and new/open/close prompt before discarding
   unsaved changes.
+- CAD-style workspace selection: Ctrl+A, Ctrl/Shift click, window/crossing marquee, group move and
+  group delete.
 - The app is branded as **Power System Analysis Tool** and the menu bar can be shown or hidden from
   the titlebar, the View ribbon group, Settings, or `Ctrl+Shift+M`.
 - GitHub Pages static export deployed at <https://ashcoft.github.io/psa-tool/>.
@@ -106,7 +108,7 @@ integration work: a `StudyRun` variant, tables, chart, report section, export an
 
 ### 3.3 Workbench UX
 
-- Single selection only; `select-all` selects the first bus. No marquee, group move or alignment.
+- Multi-select, marquee and group move/delete are implemented; alignment and distribution are not.
 - No autosave, crash recovery, recent projects or `beforeunload` guard. Only settings persist.
 - `theme` is a dead setting: `light`/`dark` is stored but no component consumes it.
 - Specialty calculators keep results in local dialog state, so they never reach study history,
@@ -216,7 +218,7 @@ users can operate dialogs and the canvas; reports can be delivered as PDF.
 
 | ID | Item | Effort |
 |----|------|--------|
-| U-01 | Multi-select, marquee, group move/delete, align and distribute | L |
+| U-01 | Align and distribute commands for multi-selection | M |
 | U-02 | Autosave to IndexedDB/localStorage, crash recovery prompt, recent projects, `beforeunload` guard | M |
 | U-03 | Real light/dark theme driven by `settings.theme`, including canvas colours | M |
 | U-04 | Results comparison: select two runs and diff bus voltages, loadings and losses | M |
@@ -262,7 +264,7 @@ stay interactive; projects can move between Power System Analysis Tool and other
 | 15 | S-05 | Critical clearing time | Engine already exists | S |
 | 16 | S-10 | Specialty results as `StudyRun` | Unifies history, export and reports | M |
 | 17 | U-02 | Autosave and recovery | Prevents data loss in long sessions | M |
-| 18 | U-01 | Multi-select | Biggest daily editing limitation | L |
+| 18 | U-01 | Align and distribute | Finishes the CAD-style selection workflow | M |
 | 19 | P-01 | Worker and sparse solve | Required for realistic network sizes | XL |
 | 20 | I-01 | MATPOWER/PSAT import | Removes manual re-entry as the main adoption barrier | XL |
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Bus,
   Generator,
@@ -19,6 +19,10 @@ export type ElementKind = 'bus' | 'line' | 'transformer' | 'generator' | 'load' 
 export interface Selection {
   type: ElementKind | null;
   id: string | null;
+}
+
+export function selectionKey(selection: Selection): string {
+  return selection.type && selection.id ? `${selection.type}:${selection.id}` : '';
 }
 
 interface Snapshot {
@@ -63,6 +67,7 @@ export interface UseProjectResult {
   addComponent: (component: Omit<GenericComponent, 'id'>) => GenericComponent;
   updateElement: (kind: ElementKind, element: Bus | Line | Transformer | Generator | Load | Shunt | GenericComponent) => void;
   deleteElement: (kind: ElementKind, id: string) => void;
+  deleteElements: (items: { type: ElementKind; id: string }[]) => void;
   duplicateElement: (kind: ElementKind, id: string) => void;
   copyElement: (kind: ElementKind, id: string) => void;
   pasteElement: () => void;
@@ -71,6 +76,7 @@ export interface UseProjectResult {
   endMove: () => void;
   moveBus: (busId: string, x: number, y: number) => void;
   moveComponent: (componentId: string, x: number, y: number) => void;
+  moveElements: (moves: { kind: 'bus' | 'component'; id: string; x: number; y: number }[]) => void;
   autoArrange: () => void;
 }
 
@@ -84,11 +90,50 @@ function initialProject(system: PowerSystem, name?: string): ProjectState {
   };
 }
 
+function removeElement(system: PowerSystem, kind: ElementKind, id: string): void {
+  switch (kind) {
+    case 'bus':
+      system.buses = system.buses.filter(item => item.id !== id);
+      system.lines = system.lines.filter(item => item.fromBus !== id && item.toBus !== id);
+      system.transformers = system.transformers.filter(item => item.fromBus !== id && item.toBus !== id);
+      system.generators = system.generators.filter(item => item.bus !== id);
+      system.loads = system.loads.filter(item => item.bus !== id);
+      system.shunts = (system.shunts ?? []).filter(item => item.bus !== id);
+      system.components = (system.components ?? []).filter(
+        item => item.bus !== id && item.fromBus !== id && item.toBus !== id
+      );
+      break;
+    case 'line':
+      system.lines = system.lines.filter(item => item.id !== id);
+      break;
+    case 'transformer':
+      system.transformers = system.transformers.filter(item => item.id !== id);
+      break;
+    case 'generator':
+      system.generators = system.generators.filter(item => item.id !== id);
+      break;
+    case 'load':
+      system.loads = system.loads.filter(item => item.id !== id);
+      break;
+    case 'shunt':
+      system.shunts = (system.shunts ?? []).filter(item => item.id !== id);
+      break;
+    case 'component':
+      system.components = (system.components ?? []).filter(item => item.id !== id);
+      break;
+  }
+}
+
 export function useProject(initialSystem: PowerSystem, initialName?: string): UseProjectResult {
   const [state, setState] = useState<ProjectState>(() => initialProject(initialSystem, initialName));
   const [clipboard, setClipboard] = useState<ClipboardPayload | null>(null);
   const lastCommit = useRef<{ description: string; time: number }>({ description: '', time: 0 });
   const moveSnapshot = useRef<Snapshot | null>(null);
+  const stateRef = useRef(state);
+
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   // Updater functions must stay pure: StrictMode invokes them twice, so the
   // coalescing decision and lastCommit bookkeeping happen in the event handler.
@@ -121,8 +166,8 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
 
   const beginMove = useCallback(() => {
     lastCommit.current = { description: '', time: 0 };
-    moveSnapshot.current = { system: state.system, name: state.name };
-  }, [state.name, state.system]);
+    moveSnapshot.current = { system: stateRef.current.system, name: stateRef.current.name };
+  }, []);
 
   const endMove = useCallback(() => {
     const snapshot = moveSnapshot.current;
@@ -384,41 +429,12 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
     [endMove]
   );
 
-  const deleteElement = useCallback((kind: ElementKind, id: string) => {
+  const deleteElements = useCallback((items: { type: ElementKind; id: string }[]) => {
+    if (items.length === 0) return;
     endMove();
     setState(prev => {
       const system = cloneSystem(prev.system);
-      switch (kind) {
-        case 'bus':
-          system.buses = system.buses.filter(item => item.id !== id);
-          system.lines = system.lines.filter(item => item.fromBus !== id && item.toBus !== id);
-          system.transformers = system.transformers.filter(item => item.fromBus !== id && item.toBus !== id);
-          system.generators = system.generators.filter(item => item.bus !== id);
-          system.loads = system.loads.filter(item => item.bus !== id);
-          system.shunts = (system.shunts ?? []).filter(item => item.bus !== id);
-          system.components = (system.components ?? []).filter(
-            item => item.bus !== id && item.fromBus !== id && item.toBus !== id
-          );
-          break;
-        case 'line':
-          system.lines = system.lines.filter(item => item.id !== id);
-          break;
-        case 'transformer':
-          system.transformers = system.transformers.filter(item => item.id !== id);
-          break;
-        case 'generator':
-          system.generators = system.generators.filter(item => item.id !== id);
-          break;
-        case 'load':
-          system.loads = system.loads.filter(item => item.id !== id);
-          break;
-        case 'shunt':
-          system.shunts = (system.shunts ?? []).filter(item => item.id !== id);
-          break;
-        case 'component':
-          system.components = (system.components ?? []).filter(item => item.id !== id);
-          break;
-      }
+      items.forEach(item => removeElement(system, item.type, item.id));
       return {
         ...prev,
         system,
@@ -428,6 +444,13 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
       };
     });
   }, [endMove]);
+
+  const deleteElement = useCallback(
+    (kind: ElementKind, id: string) => {
+      deleteElements([{ type: kind, id }]);
+    },
+    [deleteElements]
+  );
 
   const copyElement = useCallback((kind: ElementKind, id: string) => {
     setState(prev => {
@@ -645,8 +668,36 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
     }));
   }, []);
 
+  const moveElements = useCallback(
+    (moves: { kind: 'bus' | 'component'; id: string; x: number; y: number }[]) => {
+      if (moves.length === 0) return;
+      setState(prev => {
+        const busMoves = new Map(moves.filter(move => move.kind === 'bus').map(move => [move.id, move]));
+        const componentMoves = new Map(
+          moves.filter(move => move.kind === 'component').map(move => [move.id, move])
+        );
+        return {
+          ...prev,
+          system: {
+            ...prev.system,
+            buses: prev.system.buses.map(bus => {
+              const move = busMoves.get(bus.id);
+              return move ? { ...bus, x: move.x, y: move.y } : bus;
+            }),
+            components: (prev.system.components ?? []).map(component => {
+              const move = componentMoves.get(component.id);
+              return move ? { ...component, x: move.x, y: move.y } : component;
+            }),
+          },
+          dirty: true,
+        };
+      });
+    },
+    []
+  );
+
   const autoArrange = useCallback(() => {
-    if (state.system.buses.length === 0) return;
+    if (stateRef.current.system.buses.length === 0) return;
     const coalesce = beginCommit('auto-arrange');
     setState(prev => {
       const system = cloneSystem(prev.system);
@@ -704,7 +755,7 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
 
       return applyCommit(prev, system, coalesce);
     });
-  }, [applyCommit, beginCommit, state.system.buses.length]);
+  }, [applyCommit, beginCommit]);
 
   const issues = useMemo(() => validateSystem(state.system), [state.system]);
 
@@ -729,6 +780,7 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
     addComponent,
     updateElement,
     deleteElement,
+    deleteElements,
     duplicateElement,
     copyElement,
     pasteElement,
@@ -737,6 +789,7 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
     endMove,
     moveBus,
     moveComponent,
+    moveElements,
     autoArrange,
   };
 }
