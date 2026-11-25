@@ -20,6 +20,7 @@ export interface Bus {
   x: number;            // Graphical position
   y: number;            // Graphical position
   active: boolean;
+  symbol?: IECSymbolType;  // IEC symbol chosen from the catalog
   // Extended properties
   vScheduled?: number;  // Scheduled voltage (p.u.)
   vbase?: number;        // Base voltage (kV)
@@ -45,6 +46,7 @@ export interface Line {
   length?: number;       // km
   cost?: number;         // $/mile
   active: boolean;
+  symbol?: IECSymbolType;
   lineType?: LineType;
 }
 
@@ -65,6 +67,7 @@ export interface Transformer {
   vectorGroup?: VectorGroup;
   connection?: TransformerConnection;
   active: boolean;
+  symbol?: IECSymbolType;
 }
 
 export type VectorGroup = 'Yy0' | 'Yy6' | 'Dy1' | 'Dy11' | 'Dy5' | 'Dy7' | 'Yy4' | 'Yy8';
@@ -84,6 +87,7 @@ export interface Generator {
   cost?: GeneratorCost;
   model?: string;
   active: boolean;
+  symbol?: IECSymbolType;
 }
 
 export interface GeneratorCost {
@@ -107,6 +111,7 @@ export interface Load {
   bl?: number;
   demandModel?: DemandModel;
   active: boolean;
+  symbol?: IECSymbolType;
 }
 
 export type DemandModel = 'constant-power' | 'constant-impedance' | 'constant-current' | 'mixed';
@@ -120,6 +125,7 @@ export interface Shunt {
   vlow?: number;
   vhigh?: number;
   active: boolean;
+  symbol?: IECSymbolType;
 }
 
 export interface Area {

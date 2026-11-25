@@ -272,6 +272,26 @@ export default function Home() {
     [log, project, selectedBusId]
   );
 
+  const resolveDeviceBus = useCallback(
+    (position?: { x: number; y: number }): string | null => {
+      if (position) {
+        const existing = findNearestBusIdWithin(project.system, position, ATTACH_RADIUS);
+        if (existing) return existing;
+        const hasSlack = project.system.buses.some(bus => bus.type === 'slack');
+        const busType: Bus['type'] = project.system.buses.length === 0 || !hasSlack ? 'slack' : 'pq';
+        const bus = project.addBus(busType, position);
+        if (bus) log(`Created ${busType} bus "${bus.name}" at the drop point.`);
+        return bus?.id ?? null;
+      }
+      const selected = selectedBusId();
+      if (selected) return selected;
+      const bus = project.addBus('slack');
+      if (bus) log(`Created slack bus "${bus.name}" for the new device.`);
+      return bus?.id ?? null;
+    },
+    [log, project, selectedBusId]
+  );
+
   const addCatalogComponent = useCallback(
     (definitionId: string, position?: { x: number; y: number }) => {
       const definition = getComponentDefinition(definitionId);
@@ -284,6 +304,7 @@ export default function Home() {
         const bus = project.addBus(definition.busType ?? 'pq', position, {
           name: definition.label,
           subtype: definition.busKind,
+          symbol: definition.symbol,
         });
         if (bus) {
           setSelection({ type: 'bus', id: bus.id });
@@ -302,11 +323,7 @@ export default function Home() {
       }
 
       if (definition.model === 'generator' || definition.model === 'load' || definition.model === 'shunt') {
-        let busId = selectedBusId();
-        if (!busId) {
-          const bus = project.addBus('slack', position);
-          busId = bus?.id ?? null;
-        }
+        const busId = resolveDeviceBus(position);
         if (!busId) {
           log(`Cannot add ${definition.label}: no bus available.`);
           return;
@@ -348,7 +365,7 @@ export default function Home() {
       log(`Added ${definition.label}${busId ? ` at bus ${busId}` : ''}.`);
       setToast({ type: 'success', text: `Added ${definition.label}` });
     },
-    [log, project, selectedBusId]
+    [log, project, resolveDeviceBus, selectedBusId]
   );
 
   const handleBranchConnect = useCallback(
@@ -386,14 +403,7 @@ export default function Home() {
         return;
       }
       if (kind === 'generator' || kind === 'load' || kind === 'shunt') {
-        let busId = findNearestBusIdWithin(project.system, position, ATTACH_RADIUS);
-        if (!busId) {
-          const hasSlack = project.system.buses.some(bus => bus.type === 'slack');
-          const busType: Bus['type'] = project.system.buses.length === 0 || !hasSlack ? 'slack' : 'pq';
-          const bus = project.addBus(busType, position);
-          busId = bus?.id;
-          if (bus) log(`Created ${busType} bus "${bus.name}" at the drop point.`);
-        }
+        const busId = resolveDeviceBus(position);
         if (busId) {
           project.addDevice(kind, busId);
           log(`Added ${kind} at bus ${busId}.`);
@@ -403,7 +413,7 @@ export default function Home() {
       }
       log(`Component "${kind}" is a protection/measurement device. It is considered in the Short Circuit study.`);
     },
-    [addBus, addCatalogComponent, log, project]
+    [addBus, addCatalogComponent, log, project, resolveDeviceBus]
   );
 
   const deleteSelection = useCallback(() => {
@@ -840,6 +850,8 @@ export default function Home() {
               showVoltageOverlay={settings.showVoltageOverlay}
               showFlowOverlay={settings.showFlowOverlay}
               onSelect={setSelection}
+              onMoveStart={project.beginMove}
+              onMoveEnd={project.endMove}
               onMoveBus={project.moveBus}
               onMoveComponent={project.moveComponent}
               onBranchConnect={handleBranchConnect}

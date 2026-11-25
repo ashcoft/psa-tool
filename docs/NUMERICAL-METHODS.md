@@ -27,9 +27,11 @@ not currently split disconnected islands; run **Check Model** before a study.
 
 ## Continuation power flow
 
-`src/lib/cpf.ts` scales both load and non-slack generation by `1 + lambda` and traces the PV curve
-with a predictor-corrector continuation. The step is halved when a solution is lost. The nose point
-is the last converged loading factor below the configured maximum.
+`src/lib/cpf.ts` increases load and non-slack generation by `1 + lambda`, capping each non-slack
+generator at `pmax`. It does not use a predictor-corrector step: each loading level is solved
+directly with Newton-Raphson, and the step is halved when a solution is lost. The recorded nose
+point is the last converged loading level. If every step converges through `lambdaMax`, that point
+is the configured endpoint, not a verified voltage-collapse point.
 
 ## Optimal power flow
 
@@ -59,15 +61,15 @@ entered.
 
 `src/lib/stability.ts` uses a classical multimachine model with a Kron-reduced network. It forms the
 state matrix and computes complex eigenvalues with a shifted QR iteration. Inertia is derived from
-generator rating (`2.5` to `8` s) and damping is deterministic (`1.5` to `2` p.u.) because the model
-does not yet store machine dynamic data.
+generator rating (`2.5` to `8` s) and every active generator uses a fixed damping of `1.5` p.u.
+because the model does not yet store machine dynamic data.
 
 ## Time-domain simulation
 
 `src/lib/timeseries.ts` integrates the classical swing equations with Euler, RK4 or trapezoidal
-integration. A balanced fault at the selected bus is the standard disturbance. `checkStability`
-classifies the response from speed deviation and angle bounds; `calculateCriticalClearingTime`
-bisects the fault duration.
+integration. A balanced fault at the selected bus is the standard disturbance. The time-domain
+generator model uses a fixed damping of `2` p.u. `checkStability` classifies the response from speed
+deviation and angle bounds; `calculateCriticalClearingTime` bisects the fault duration.
 
 ## Specialty studies
 

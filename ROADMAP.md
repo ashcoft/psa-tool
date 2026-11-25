@@ -55,8 +55,12 @@ settings persistence.
   bus create a new bus at the drop point, and bus-attached components stay free when no bus is near.
 - Topology-aware auto-arrange lays buses out by BFS depth from the slack bus and keeps attached
   components beside their bus.
-- Moves are undoable and coalesce into one history step; the property panel tracks canvas drags live.
+- Moves are grouped by drag gesture (`beginMove`/`endMove`), so pauses do not split a drag and quick
+  separate drags remain separate undo steps. The property panel tracks canvas drags live.
 - Fixed a StrictMode bug where the first move of a drag could be lost from the undo history.
+- Palette and diagram share the same IEC symbol renderer. Catalog symbols are stored on model
+  elements, so wind, PV, battery, motor and transformer choices appear on the canvas as they do in
+  the palette.
 - Documentation set: user guide, architecture, numerical methods, deployment guide, screenshots,
   contributing, security, code of conduct, issue forms and a pull-request template.
 - GPL-3.0 `LICENSE`, `typecheck`/`verify` scripts and a package-derived version string.

@@ -41,8 +41,10 @@ The Compose service includes a health check against `http://127.0.0.1:3000/`.
 
 ## GitHub Container Registry (GHCR)
 
-Every push to `main`, every `v*` tag and manual dispatch publishes an image with the workflow in
-`.github/workflows/docker-publish.yml`.
+Every push to `main`, every `v*` tag and manual dispatch publishes an image with
+`.github/workflows/docker-publish.yml`. The release workflow also publishes the version-tagged
+image after semantic-release, because tags created with `GITHUB_TOKEN` do not trigger a downstream
+push workflow.
 
 ```bash
 docker pull ghcr.io/ashcoft/psat-web:latest
@@ -53,24 +55,25 @@ Tags produced by the workflow:
 
 | Tag | When |
 |-----|------|
-| `latest` | Default branch |
+| `latest` | Default branch or a new release |
 | `main` | Branch push |
-| `1.2.0`, `1.2` | Semantic version tag `v1.2.0` |
-| `sha-<short>` | Every build |
+| `1.2.0`, `1.2` | Release workflow, or a manual `v1.2.0` tag |
+| `sha-<short>` | Every main/tag build |
 
-The workflow uses `GITHUB_TOKEN` with `packages: write`. No extra secret is required. The first
+The workflows use `GITHUB_TOKEN` with `packages: write`. No extra secret is required. The first
 publish creates the package; make it public in the repository package settings if anonymous pulls
-are required.
+are required. `docker/metadata-action` runs with `latest=false`, so an older version tag cannot move
+`latest` backwards.
 
 ## GitHub Pages
 
 The workbench is live at **https://ashcoft.github.io/psat-web/**.
 
-The repository includes `.github/workflows/pages.yml`, which rebuilds the static export from `main`
-and force-pushes it to the `gh-pages` branch.
+The repository includes `.github/workflows/pages.yml`, which builds the static export and deploys
+it with the official Pages artifact and deployment actions.
 
 - URL: `https://ashcoft.github.io/psat-web/`
-- Source: **Settings → Pages → Build and deployment → Source: Deploy from a branch → `gh-pages` / root**.
+- Source: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
 - The workflow writes `out/.nojekyll` so the `_next` asset directory is served.
 - The static export is configured in `next.config.js` when `NEXT_OUTPUT=export`.
 
