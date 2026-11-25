@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file. This file is generated automatically by [semantic-release](https://github.com/semantic-release/semantic-release) from the commit history.
 
+# [1.3.0](https://github.com/ashcoft/psat-web/compare/v1.2.0...v1.3.0) (2026-11-25)
+
+### Features
+
+* free component placement and topology-aware layout ([e3d1009](https://github.com/ashcoft/psat-web/commit/e3d1009cb2cb6bf9586d4fed983a16475120c981))
+
 # [1.2.0](https://github.com/ashcoft/psat-web/compare/v1.1.2...v1.2.0) (2026-11-24)
 
 ### Features
