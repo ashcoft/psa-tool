@@ -30,8 +30,10 @@ not currently split disconnected islands; run **Check Model** before a study.
 `src/lib/cpf.ts` increases load and non-slack generation by `1 + lambda`, capping each non-slack
 generator at `pmax`. It does not use a predictor-corrector step: each loading level is solved
 directly with Newton-Raphson, and the step is halved when a solution is lost. The recorded nose
-point is the last converged loading level. If every step converges through `lambdaMax`, that point
-is the configured endpoint, not a verified voltage-collapse point.
+point is the last converged loading level. If every step converges through the endpoint, that point
+is the configured endpoint, not a verified voltage-collapse point. The effective endpoint is
+`max(lambdaMax, stepSize)`. If the base case converges but no positive loading level converges, no
+nose point is recorded.
 
 ## Optimal power flow
 

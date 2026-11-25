@@ -162,6 +162,11 @@ test.describe('Power System Analysis Tool workbench', () => {
 
     await page.getByRole('button', { name: 'Show menu bar' }).click();
     await expect(page.getByTestId('menubar')).toBeVisible();
+
+    await page.getByTestId('ribbon').getByRole('button', { name: 'Options' }).click();
+    await page.keyboard.press('Control+Shift+M');
+    await page.getByRole('button', { name: 'Save Settings' }).click();
+    await expect(page.getByTestId('menubar')).toBeVisible();
   });
 
   test('shows the keyboard shortcuts dialog', async ({ page }) => {

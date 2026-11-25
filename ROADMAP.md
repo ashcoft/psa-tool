@@ -246,7 +246,6 @@ stay interactive; projects can move between Power System Analysis Tool and other
 
 | Rank | ID | Item | Why now | Effort |
 |------|----|------|---------|--------|
-| 1 | Q-01 | Add `LICENSE` | Legal/compliance blocker for the project | S |
 | 2 | Q-02 | Node/engine alignment | Release and CI run on different Node versions today | S |
 | 3 | Q-05 | Remove dead solver and editor hooks | 1 000+ lines of untested, misleading code | S |
 | 4 | Q-10 | Test `useProject` | Core editing state is the least covered module | M |
@@ -273,7 +272,7 @@ Versions are proposals; `semantic-release` still decides the actual bump from co
 
 | Release | Theme | Representative scope | Gate |
 |---------|-------|----------------------|------|
-| v1.2.x | Baseline fixes | Q-01…Q-09 | `verify` green, zero skips |
+| v1.2.x | Baseline fixes | Q-02…Q-09 | `verify` green, zero skips |
 | v1.3.0 | Trusted results | M-01…M-04, M-07, S-04, S-05 | Schema v2 migration, golden IEEE cases |
 | v1.4.0 | Study breadth | S-01…S-03, S-08…S-10 | Each study exported and E2E tested |
 | v1.5.0 | Workbench | U-01…U-07 | Keyboard-only and recovery tests |

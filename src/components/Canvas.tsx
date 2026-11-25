@@ -280,6 +280,9 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
   useEffect(() => {
     if (fitKey === undefined || lastFitKey.current === fitKey) return;
     lastFitKey.current = fitKey;
+    setConnectFrom(null);
+    dragRef.current = null;
+    panRef.current = null;
     if (system.buses.length > 0) fit();
   }, [fitKey, fit, system.buses.length]);
 

@@ -31,6 +31,7 @@ export default function SymbolPreview({ symbol, fallbackLabel, size = 30 }: Read
     if (definition?.render) {
       const scale = Math.min((size - 6) / definition.width, (size - 6) / definition.height, 0.8);
       ctx.scale(scale, scale);
+      ctx.translate(-definition.width / 2, -definition.height / 2);
       renderSymbol(ctx, symbol as IECSymbolType, 0, 0);
     } else {
       ctx.strokeStyle = '#475569';

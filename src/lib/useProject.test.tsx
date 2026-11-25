@@ -86,6 +86,18 @@ describe('useProject placement', () => {
     expect(result.current.system.buses.find(item => item.id === 'b2')).toMatchObject({ x: 4, y: 0 });
   });
 
+  it('undoes an active drag before older history', () => {
+    const { result } = renderHook(() => useProject(placementSystem()));
+
+    act(() => {
+      result.current.beginMove();
+      result.current.moveBus('b2', 5, 2);
+      result.current.undo();
+    });
+
+    expect(result.current.system.buses.find(item => item.id === 'b2')).toMatchObject({ x: 4, y: 0 });
+  });
+
   it('keeps separate drags as separate undo steps', () => {
     const { result } = renderHook(() => useProject(placementSystem()));
 

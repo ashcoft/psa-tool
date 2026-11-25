@@ -141,12 +141,13 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
 
   const replaceSystem = useCallback((system: PowerSystem, name?: string) => {
     lastCommit.current = { description: '', time: 0 };
+    moveSnapshot.current = null;
     setState(initialProject(cloneSystem(system), name));
   }, []);
 
   const undo = useCallback(() => {
+    endMove();
     lastCommit.current = { description: '', time: 0 };
-    moveSnapshot.current = null;
     setState(prev => {
       if (prev.past.length === 0) return prev;
       const previous = prev.past[prev.past.length - 1];
@@ -158,11 +159,11 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
         dirty: true,
       };
     });
-  }, []);
+  }, [endMove]);
 
   const redo = useCallback(() => {
+    endMove();
     lastCommit.current = { description: '', time: 0 };
-    moveSnapshot.current = null;
     setState(prev => {
       if (prev.future.length === 0) return prev;
       const next = prev.future[0];
@@ -174,7 +175,7 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
         dirty: true,
       };
     });
-  }, []);
+  }, [endMove]);
 
   const setName = useCallback((name: string) => {
     setState(prev => ({ ...prev, name, system: { ...prev.system, name }, dirty: true }));
@@ -336,6 +337,7 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
 
   const updateElement = useCallback(
     (kind: ElementKind, element: Bus | Line | Transformer | Generator | Load | Shunt | GenericComponent) => {
+      endMove();
       lastCommit.current = { description: '', time: 0 };
       setState(prev => {
         const system = cloneSystem(prev.system);
@@ -379,10 +381,11 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
         };
       });
     },
-    []
+    [endMove]
   );
 
   const deleteElement = useCallback((kind: ElementKind, id: string) => {
+    endMove();
     setState(prev => {
       const system = cloneSystem(prev.system);
       switch (kind) {
@@ -424,7 +427,7 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
         dirty: true,
       };
     });
-  }, []);
+  }, [endMove]);
 
   const copyElement = useCallback((kind: ElementKind, id: string) => {
     setState(prev => {

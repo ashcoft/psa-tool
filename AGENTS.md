@@ -50,8 +50,8 @@
 - `docs/` holds the user guide, architecture, numerical methods and deployment guides. Update them
   with behaviour or assumption changes.
 - `README.md` is the project landing page; `ROADMAP.md` is the plan of record.
-- `.github/workflows/pages.yml` builds the static export and force-pushes it to `gh-pages`; GitHub
-  Pages serves that branch at <https://ashcoft.github.io/psa-tool/>.
+- `.github/workflows/pages.yml` builds the static export and deploys it with the Pages artifact and
+  deployment actions. The site is served at <https://ashcoft.github.io/psa-tool/>.
 - `.github/workflows/docker-publish.yml` publishes the container to GHCR on `main`, version tags and
   manual dispatch.
 

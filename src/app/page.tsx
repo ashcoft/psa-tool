@@ -80,6 +80,7 @@ export default function Home() {
 
   const canvasRef = useRef<CanvasHandle>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const projectGeneration = useRef(0);
 
   const log = useCallback((text: string) => {
     setMessages(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${text}`].slice(-400));
@@ -162,7 +163,12 @@ export default function Home() {
 
       setBusy(true);
       log(`Running ${studyLabels[kind]}...`);
+      const generation = projectGeneration.current;
       window.setTimeout(() => {
+        if (generation !== projectGeneration.current) {
+          setBusy(false);
+          return;
+        }
         try {
           const run = executeStudy(kind, project.system, settings);
           setRuns(prev => [...prev, run]);
@@ -210,6 +216,7 @@ export default function Home() {
 
   const newProject = useCallback(() => {
     if (!confirmDiscard('create a new project')) return;
+    projectGeneration.current += 1;
     project.replaceSystem(emptySystem('Untitled Project'));
     setRevision(value => value + 1);
     setRuns([]);
@@ -230,6 +237,7 @@ export default function Home() {
       try {
         const text = await file.text();
         const { system, name } = deserializeProject(text);
+        projectGeneration.current += 1;
         project.replaceSystem(system, name);
         setRevision(value => value + 1);
         setRuns([]);
@@ -251,6 +259,7 @@ export default function Home() {
     (id: string) => {
       if (!confirmDiscard('load a sample system')) return;
       const system = buildSample(id);
+      projectGeneration.current += 1;
       project.replaceSystem(system, system.name);
       setRevision(value => value + 1);
       setRuns([]);
@@ -265,6 +274,7 @@ export default function Home() {
 
   const closeProject = useCallback(() => {
     if (!confirmDiscard('close the project')) return;
+    projectGeneration.current += 1;
     project.replaceSystem(emptySystem('Untitled Project'));
     setRevision(value => value + 1);
     setRuns([]);
@@ -748,6 +758,7 @@ export default function Home() {
       const ctrl = event.ctrlKey || event.metaKey;
       if (ctrl) {
         if (event.shiftKey && event.key.toLowerCase() === 'm') {
+          if (document.querySelector('[role="dialog"]')) return;
           event.preventDefault();
           actionRef.current('toggle-menubar');
           return;

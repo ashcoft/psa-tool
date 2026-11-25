@@ -20,6 +20,11 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      released: ${{ steps.release.outputs.released }}
+      version: ${{ steps.release.outputs.version }}
+      version_major_minor: ${{ steps.release.outputs.version_major_minor }}
+      sha: ${{ steps.release.outputs.sha }}
     permissions:
       contents: write
       issues: write
