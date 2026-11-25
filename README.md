@@ -131,8 +131,9 @@ same build is available locally with `npm run build:pages`.
   **Hold Alt** to bypass grid snap; the property panel X/Y fields accept exact coordinates.
 - CAD-style selection: **Ctrl+A** selects the whole workspace, **Ctrl/Shift+click** adds or removes
   items, and dragging on empty canvas selects with a window (left-to-right) or crossing
-  (right-to-left) marquee. Selected buses and components move as a group; Delete removes the whole
-  selection.
+  (right-to-left) marquee. Selected buses and non-branch specialty components move as a group;
+  branches stay anchored to their bus endpoints. Workspace Delete removes the whole selection,
+  while the Properties panel Delete removes only the primary element.
 - Dropping a device away from a bus creates a bus at the drop point; bus-attached components stay
   free when no bus is nearby.
 - Topology-aware **Auto Arrange** lays buses out by network depth from the slack bus and keeps

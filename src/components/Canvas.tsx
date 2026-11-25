@@ -1129,9 +1129,8 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     const origins =
       alreadySelected && selections.length > 1 ? draggableOrigins(selections) : draggableOrigins([hit]);
     if (!alreadySelected) onSelect(hit);
-    if (origins.length === 0) return false;
     dragRef.current = { origins, startWorld: world, hit, moved: false };
-    return true;
+    return origins.length > 0;
   };
 
   const collectMarqueeSelection = (rect: RectBounds, crossing: boolean): Selection[] => {
@@ -1147,13 +1146,14 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
       crossing
         ? segmentIntersectsRect(x1, y1, x2, y2, rect)
         : pointInRect(x1, y1, rect) && pointInRect(x2, y2, rect);
+    const boundsAt = (x: number, y: number, halfWidth: number, halfHeight: number): RectBounds => ({
+      minX: x - halfWidth,
+      maxX: x + halfWidth,
+      minY: y - halfHeight,
+      maxY: y + halfHeight,
+    });
     const selectedByBounds = (x: number, y: number, halfWidth: number, halfHeight: number) => {
-      const bounds = {
-        minX: x - halfWidth,
-        maxX: x + halfWidth,
-        minY: y - halfHeight,
-        maxY: y + halfHeight,
-      };
+      const bounds = boundsAt(x, y, halfWidth, halfHeight);
       return crossing ? rectsIntersect(rect, bounds) : rectContains(rect, bounds);
     };
 
@@ -1172,9 +1172,16 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     system.transformers.forEach(txf => {
       const from = busById.get(txf.fromBus);
       const to = busById.get(txf.toBus);
-      if (from && to && branchSelected(from.x * GRID_UNIT, from.y * GRID_UNIT, to.x * GRID_UNIT, to.y * GRID_UNIT)) {
-        add({ type: 'transformer', id: txf.id });
-      }
+      if (!from || !to) return;
+      const x1 = from.x * GRID_UNIT;
+      const y1 = from.y * GRID_UNIT;
+      const x2 = to.x * GRID_UNIT;
+      const y2 = to.y * GRID_UNIT;
+      const marker = boundsAt((x1 + x2) / 2, (y1 + y2) / 2, 22, 22);
+      const selected = crossing
+        ? segmentIntersectsRect(x1, y1, x2, y2, rect) || rectsIntersect(rect, marker)
+        : pointInRect(x1, y1, rect) && pointInRect(x2, y2, rect) && rectContains(rect, marker);
+      if (selected) add({ type: 'transformer', id: txf.id });
     });
     deviceHitsRef.current.forEach(device => {
       if (selectedByBounds(device.x, device.y, 20, 20)) add({ type: device.kind, id: device.id });
@@ -1239,7 +1246,13 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     }
 
     if (dragRef.current) {
+      const distance = Math.hypot(
+        world.x - dragRef.current.startWorld.x,
+        world.y - dragRef.current.startWorld.y
+      );
+      if (!dragRef.current.moved && distance <= 3 / scale) return;
       dragRef.current.moved = true;
+      if (dragRef.current.origins.length === 0) return;
       let dx = (world.x - dragRef.current.startWorld.x) / GRID_UNIT;
       let dy = (world.y - dragRef.current.startWorld.y) / GRID_UNIT;
       if (snapToGrid && !event.altKey) {

@@ -56,10 +56,12 @@ starts the two-click connection tool.
 - **Ctrl + A** selects every bus, branch, device and specialty component in the workspace.
 - Drag on empty canvas to draw a selection marquee: left-to-right selects fully enclosed elements,
   right-to-left selects crossing elements.
-- Selected buses and specialty components move together when you drag one of them.
+- Selected buses and non-branch specialty components move together when you drag one of them;
+  branches stay anchored to their bus endpoints.
 - The right-hand **Properties** panel edits the primary (last selected) element.
 - **Ctrl + C / Ctrl + V / Ctrl + X / Ctrl + D** copy, paste, cut and duplicate the primary element.
-- **Delete** removes the whole selection. **Ctrl + Z / Ctrl + Y** undo and redo, including moves.
+- **Delete** removes the whole workspace selection. The Properties panel **Delete** button removes only
+  the displayed primary element. **Ctrl + Z / Ctrl + Y** undo and redo, including moves.
 - **Esc** clears the selection and cancels the current tool.
 
 ## 3. Run a study

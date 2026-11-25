@@ -538,6 +538,7 @@ export default function Home() {
   );
 
   const deleteSelection = useCallback(() => {
+    canvasRef.current?.cancelGesture();
     const candidates = selections.length > 0 ? selections : [selection];
     const targets = candidates.filter(
       (item): item is { type: ElementKind; id: string } => Boolean(item.type && item.id)
@@ -550,6 +551,7 @@ export default function Home() {
 
   const deletePrimarySelection = useCallback(() => {
     if (!selection.type || !selection.id) return;
+    canvasRef.current?.cancelGesture();
     project.deleteElement(selection.type, selection.id);
     clearSelection();
     log(`Deleted ${selection.type} ${selection.id}.`);
@@ -569,6 +571,7 @@ export default function Home() {
 
   const cutSelection = useCallback(() => {
     if (!selection.type || !selection.id) return;
+    canvasRef.current?.cancelGesture();
     project.copyElement(selection.type, selection.id);
     project.deleteElement(selection.type, selection.id);
     setSelection({ type: null, id: null });
@@ -841,6 +844,7 @@ export default function Home() {
       ) {
         return;
       }
+      if (document.querySelector('[role="dialog"]') && event.key !== 'Escape') return;
       const ctrl = event.ctrlKey || event.metaKey;
       if (ctrl) {
         if (event.shiftKey && event.key.toLowerCase() === 'm') {
