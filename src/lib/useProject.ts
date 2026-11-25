@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Bus,
   Generator,
@@ -129,6 +129,11 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
   const [clipboard, setClipboard] = useState<ClipboardPayload | null>(null);
   const lastCommit = useRef<{ description: string; time: number }>({ description: '', time: 0 });
   const moveSnapshot = useRef<Snapshot | null>(null);
+  const stateRef = useRef(state);
+
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   // Updater functions must stay pure: StrictMode invokes them twice, so the
   // coalescing decision and lastCommit bookkeeping happen in the event handler.
@@ -161,8 +166,8 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
 
   const beginMove = useCallback(() => {
     lastCommit.current = { description: '', time: 0 };
-    moveSnapshot.current = { system: state.system, name: state.name };
-  }, [state.name, state.system]);
+    moveSnapshot.current = { system: stateRef.current.system, name: stateRef.current.name };
+  }, []);
 
   const endMove = useCallback(() => {
     const snapshot = moveSnapshot.current;
@@ -692,7 +697,7 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
   );
 
   const autoArrange = useCallback(() => {
-    if (state.system.buses.length === 0) return;
+    if (stateRef.current.system.buses.length === 0) return;
     const coalesce = beginCommit('auto-arrange');
     setState(prev => {
       const system = cloneSystem(prev.system);
@@ -750,7 +755,7 @@ export function useProject(initialSystem: PowerSystem, initialName?: string): Us
 
       return applyCommit(prev, system, coalesce);
     });
-  }, [applyCommit, beginCommit, state.system.buses.length]);
+  }, [applyCommit, beginCommit]);
 
   const issues = useMemo(() => validateSystem(state.system), [state.system]);
 
