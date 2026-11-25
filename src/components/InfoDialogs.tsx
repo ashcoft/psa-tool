@@ -92,7 +92,7 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="mt-3 border-t border-slate-200 pt-2 text-[10px] text-slate-400">
-          Licensed under GPL-3.0. Numerical engines ported from PSAT MATLAB routines.
+          Licensed under MIT. PSAT-derived routines remain under their upstream GPL terms.
         </div>
       </div>
     </Dialog>
