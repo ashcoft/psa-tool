@@ -22,6 +22,7 @@ export interface CanvasHandle {
   zoomOut: () => void;
   fit: () => void;
   reset: () => void;
+  cancelGesture: () => void;
   getScale: () => number;
 }
 
@@ -193,6 +194,19 @@ function segmentIntersectsRect(x1: number, y1: number, x2: number, y2: number, r
   );
 }
 
+function rectContains(outer: RectBounds, inner: RectBounds): boolean {
+  return (
+    inner.minX >= outer.minX &&
+    inner.maxX <= outer.maxX &&
+    inner.minY >= outer.minY &&
+    inner.maxY <= outer.maxY
+  );
+}
+
+function rectsIntersect(a: RectBounds, b: RectBounds): boolean {
+  return a.minX <= b.maxX && a.maxX >= b.minX && a.minY <= b.maxY && a.maxY >= b.minY;
+}
+
 const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
   {
     system,
@@ -228,6 +242,7 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
   const [cursorWorld, setCursorWorld] = useState<{ x: number; y: number } | null>(null);
   const [dropActive, setDropActive] = useState(false);
   const [marquee, setMarquee] = useState<MarqueeState | null>(null);
+  const marqueeRef = useRef<MarqueeState | null>(null);
   const dragRef = useRef<DragState | null>(null);
   const panRef = useRef<{ x: number; y: number; offsetX: number; offsetY: number } | null>(null);
   const deviceHitsRef = useRef<DeviceHit[]>([]);
@@ -280,6 +295,19 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     setOffset({ x: 0, y: 0 });
   }, []);
 
+  const updateMarquee = useCallback((next: MarqueeState | null) => {
+    marqueeRef.current = next;
+    setMarquee(next);
+  }, []);
+
+  const cancelGesture = useCallback(() => {
+    updateMarquee(null);
+    setConnectFrom(null);
+    panRef.current = null;
+    if (dragRef.current) onMoveEnd();
+    dragRef.current = null;
+  }, [onMoveEnd, updateMarquee]);
+
   const zoomBy = useCallback((factor: number, anchor?: { x: number; y: number }) => {
     setScale(current => {
       const next = Math.max(MIN_SCALE, Math.min(MAX_SCALE, current * factor));
@@ -310,9 +338,10 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
       zoomOut: () => zoomBy(1 / 1.2),
       fit,
       reset,
+      cancelGesture,
       getScale: () => scale,
     }),
-    [fit, reset, scale, zoomBy]
+    [cancelGesture, fit, reset, scale, zoomBy]
   );
 
   useEffect(() => {
@@ -1118,9 +1147,20 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
       crossing
         ? segmentIntersectsRect(x1, y1, x2, y2, rect)
         : pointInRect(x1, y1, rect) && pointInRect(x2, y2, rect);
+    const selectedByBounds = (x: number, y: number, halfWidth: number, halfHeight: number) => {
+      const bounds = {
+        minX: x - halfWidth,
+        maxX: x + halfWidth,
+        minY: y - halfHeight,
+        maxY: y + halfHeight,
+      };
+      return crossing ? rectsIntersect(rect, bounds) : rectContains(rect, bounds);
+    };
 
     system.buses.forEach(bus => {
-      if (pointInRect(bus.x * GRID_UNIT, bus.y * GRID_UNIT, rect)) add({ type: 'bus', id: bus.id });
+      if (selectedByBounds(bus.x * GRID_UNIT, bus.y * GRID_UNIT, BUS_HALF_WIDTH, 12)) {
+        add({ type: 'bus', id: bus.id });
+      }
     });
     system.lines.forEach(line => {
       const from = busById.get(line.fromBus);
@@ -1137,21 +1177,19 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
       }
     });
     deviceHitsRef.current.forEach(device => {
-      if (pointInRect(device.x, device.y, rect)) add({ type: device.kind, id: device.id });
+      if (selectedByBounds(device.x, device.y, 20, 20)) add({ type: device.kind, id: device.id });
     });
     (system.components ?? []).forEach(component => {
-      const anchor = componentAnchor(system, component);
-      if (pointInRect(anchor.x, anchor.y, rect)) {
-        add({ type: 'component', id: component.id });
-        return;
-      }
       if (component.fromBus && component.toBus) {
         const from = busById.get(component.fromBus);
         const to = busById.get(component.toBus);
         if (from && to && branchSelected(from.x * GRID_UNIT, from.y * GRID_UNIT, to.x * GRID_UNIT, to.y * GRID_UNIT)) {
           add({ type: 'component', id: component.id });
         }
+        return;
       }
+      const anchor = componentAnchor(system, component);
+      if (selectedByBounds(anchor.x, anchor.y, 20, 20)) add({ type: 'component', id: component.id });
     });
     return items;
   };
@@ -1179,7 +1217,7 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     }
 
     if (!additive) onSelect({ type: null, id: null });
-    setMarquee({ start: world, current: world, additive });
+    updateMarquee({ start: world, current: world, additive });
   };
 
   const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -1196,22 +1234,23 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     }
 
     if (marquee) {
-      setMarquee(prev => (prev ? { ...prev, current: world } : prev));
+      updateMarquee(marqueeRef.current ? { ...marqueeRef.current, current: world } : null);
       return;
     }
 
     if (dragRef.current) {
-      const dx = (world.x - dragRef.current.startWorld.x) / GRID_UNIT;
-      const dy = (world.y - dragRef.current.startWorld.y) / GRID_UNIT;
-      const moves = dragRef.current.origins.map(origin => {
-        let x = origin.x + dx;
-        let y = origin.y + dy;
-        if (snapToGrid && !event.altKey) {
-          x = Math.round(x / SNAP) * SNAP;
-          y = Math.round(y / SNAP) * SNAP;
-        }
-        return { kind: origin.kind, id: origin.id, x, y };
-      });
+      let dx = (world.x - dragRef.current.startWorld.x) / GRID_UNIT;
+      let dy = (world.y - dragRef.current.startWorld.y) / GRID_UNIT;
+      if (snapToGrid && !event.altKey) {
+        dx = Math.round(dx / SNAP) * SNAP;
+        dy = Math.round(dy / SNAP) * SNAP;
+      }
+      const moves = dragRef.current.origins.map(origin => ({
+        kind: origin.kind,
+        id: origin.id,
+        x: origin.x + dx,
+        y: origin.y + dy,
+      }));
       onMoveElements(moves);
       return;
     }
@@ -1227,16 +1266,17 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
   };
 
   const handleMouseUp = () => {
-    if (marquee) {
+    const activeMarquee = marqueeRef.current;
+    if (activeMarquee) {
       const rect: RectBounds = {
-        minX: Math.min(marquee.start.x, marquee.current.x),
-        minY: Math.min(marquee.start.y, marquee.current.y),
-        maxX: Math.max(marquee.start.x, marquee.current.x),
-        maxY: Math.max(marquee.start.y, marquee.current.y),
+        minX: Math.min(activeMarquee.start.x, activeMarquee.current.x),
+        minY: Math.min(activeMarquee.start.y, activeMarquee.current.y),
+        maxX: Math.max(activeMarquee.start.x, activeMarquee.current.x),
+        maxY: Math.max(activeMarquee.start.y, activeMarquee.current.y),
       };
-      const crossing = marquee.current.x < marquee.start.x;
-      onSelectMany(collectMarqueeSelection(rect, crossing), marquee.additive);
-      setMarquee(null);
+      const crossing = activeMarquee.current.x < activeMarquee.start.x;
+      onSelectMany(collectMarqueeSelection(rect, crossing), activeMarquee.additive);
+      updateMarquee(null);
       return;
     }
     endInteraction();
@@ -1246,7 +1286,6 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     event.preventDefault();
     const world = toWorld(event.clientX, event.clientY);
     const hit = hitTest(world.x, world.y);
-    if (hit.type && hit.id && !selectedSet.has(selectionKey(hit))) onSelect(hit);
     onContextMenu(hit, event.clientX, event.clientY);
   };
 
@@ -1287,7 +1326,7 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={() => {
-          setMarquee(null);
+          updateMarquee(null);
           endInteraction();
           setHover({ type: null, id: null });
           setCursorWorld(null);

@@ -129,6 +129,17 @@ export default function Home() {
     setSelectionState({ items: [], primary: { type: null, id: null } });
   }, []);
 
+  const setPrimary = useCallback((hit: Selection) => {
+    if (!hit.type || !hit.id) return;
+    setSelectionState(prev => {
+      const key = selectionKey(hit);
+      if (prev.items.some(item => selectionKey(item) === key)) {
+        return { ...prev, primary: hit };
+      }
+      return { items: [hit], primary: hit };
+    });
+  }, []);
+
   const log = useCallback((text: string) => {
     setMessages(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${text}`].slice(-400));
   }, []);
@@ -795,6 +806,7 @@ export default function Home() {
         log('Edit the selected element in the Properties panel.');
         break;
       case 'escape':
+        canvasRef.current?.cancelGesture();
         setPendingBranch(null);
         setTool('select');
         setDialog(null);
@@ -987,7 +999,10 @@ export default function Home() {
               onMoveElements={project.moveElements}
               onBranchConnect={handleBranchConnect}
               onDropComponent={handleDropComponent}
-              onContextMenu={(hit, x, y) => setContextMenu({ x, y, selection: hit })}
+              onContextMenu={(hit, x, y) => {
+                if (hit.type && hit.id) setPrimary(hit);
+                setContextMenu({ x, y, selection: hit });
+              }}
               onCursorMove={setCursor}
               onDoubleClickElement={() => {
                 /* selection already updates the properties panel */
