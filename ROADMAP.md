@@ -1,6 +1,6 @@
 # Power System Analysis Tool (PSA) Development Roadmap
 
-Living plan of record for the workbench. Baseline: **v1.2.0** · Last reviewed: **2026-11-25**.
+Living plan of record for the workbench. Baseline: **v1.5.0** (package version) · Last reviewed: **2026-11-25**.
 
 This document answers three questions:
 
@@ -34,13 +34,36 @@ Three principles drive the sequencing:
 
 | Gate | Command | Current result |
 |------|---------|----------------|
-| Unit and component tests | `npm run test:run` | 269 passed, 2 skipped, 21 files |
-| Coverage | `npm run test:coverage` | 64.7 % statements, 51.5 % branches, 62.1 % functions, 65.1 % lines |
+| Unit and component tests | `npm run test:run` | 276 passed, 2 skipped, 21 files |
+| Coverage | `npm run test:coverage` | 68.6 % statements, 51.3 % branches, 65.6 % functions, 69.7 % lines |
 | Lint | `npm run lint` | Pass |
 | Type check | `tsc --noEmit` (CI) / `next build` | Pass |
 | Production build | `npm run build` | Pass, static `/` route, Next.js 16.4.6 |
 | End-to-end | `npx playwright test` | 22 Chromium specs, including mobile viewports |
 | Dependency install | `npm install` | Pass, but Node 24 emits `EBADENGINE` for `semantic-release` (requires ≥ 26.13) |
+
+### Roadmap progress
+
+Status values used in the milestone tables:
+
+- ✅ **Done** — shipped and verifiable in the repository.
+- 🟡 **Partial** — some code or tests exist, but the acceptance criteria are not met.
+- ⬜ **Planned** — not started.
+- ⛔ **Blocked** — cannot start until a dependency is finished.
+
+Snapshot at this review (43 tracked items):
+
+| Milestone | Done | Partial | Planned | Started |
+|-----------|------|---------|---------|---------|
+| M0 — Trust the baseline | 0 | 2 | 7 | 22 % |
+| M1 — Model fidelity | 0 | 1 | 8 | 11 % |
+| M2 — Study breadth | 0 | 0 | 10 | 0 % |
+| M3 — Workbench ergonomics | 0 | 3 | 4 | 43 % |
+| M4 — Scale and interoperability | 0 | 1 | 7 | 13 % |
+| **Total** | **0** | **7** | **36** | **16 %** |
+
+The package version is 1.5.0, but the M0 and M1 gates are still open. The release themes in
+section 6 are targets, not a record of what shipped.
 
 Implemented today: one-line editor, full component catalog, load flow (NR, fast-decoupled, DC,
 Gauss-Seidel), continuation power flow, OPF, short circuit, small-signal stability, time-domain
@@ -74,6 +97,11 @@ settings persistence.
   the titlebar, the View ribbon group, Settings, or `Ctrl+Shift+M`.
 - GitHub Pages static export deployed at <https://ashcoft.github.io/psa-tool/>.
 - GHCR publishing workflow and a published `ghcr.io/ashcoft/psa-tool:1.3.0` image.
+- The left component pane, right property pane and toolbar are independently collapsible from the
+  pane headers, the View menu, the View ribbon group or `Ctrl+B` / `Ctrl+Shift+B` / `Ctrl+Shift+T`.
+  The toolbar collapses to a thin strip like the output bar.
+- The component palette uses compact, ETAP-style category colours, shows no text labels and exposes
+  each component name and description as a tooltip.
 
 ## 3. Gap analysis
 
@@ -127,8 +155,8 @@ integration work: a `StudyRun` variant, tables, chart, report section, export an
 
 ### 3.5 Quality and operations
 
-- Coverage is 64.7 % overall, with the largest gaps in `useProject.ts` (34 %), `symbols/*`
-  (≈ 12 %), `component-utils.ts` (38 %), `ReportDialog.tsx` (6 %) and `SettingsDialog.tsx` (31 %).
+- Coverage is 68.6 % statements and 51.3 % branches, with the largest gaps in `useProject.ts`
+  (44.7 %), `reports.ts` (57 %), `symbols/*` (72.8 %) and `results-export.ts` (68.9 %).
 - Two skipped tests: Gauss-Seidel finite results and canvas symbol rendering.
 - E2E is Chromium-only; no visual regression, no accessibility assertions, no Firefox/WebKit.
 - No coverage thresholds in `vitest.config.ts`.
@@ -146,7 +174,7 @@ M0 Trust the baseline ──► M1 Model fidelity ──► M2 Study breadth ─
                                └── golden cases ───────┘
 ```
 
-### M0 — Trust the baseline (1–2 weeks)
+### M0 — Trust the baseline (1–2 weeks) · 0 done / 2 partial / 7 planned
 
 Goal: every published claim is backed by the repository, and the quality gates cannot silently
 regress.
@@ -157,19 +185,19 @@ version.
 
 `LICENSE` and the `typecheck`/`verify` scripts are already delivered; the remaining items are:
 
-| ID | Item | Effort |
-|----|------|--------|
-| Q-02 | Add `engines` and align the CI test matrix on Node 26; document the release requirement | S |
-| Q-04 | Add coverage thresholds (start at 65 % statements / 55 % branches) and ratchet them each milestone | S |
-| Q-05 | Remove `src/lib/editor-hooks.ts` and `src/lib/powerflow.ts`, or mark and test them as supported APIs | S |
-| Q-06 | Fix Gauss-Seidel convergence or disable the method with an explicit warning; unskip the test | M |
-| Q-07 | Add a canvas context stub and unskip symbol rendering tests | S |
-| Q-08 | Add `app/error.tsx` and an error boundary around dialogs and canvas | S |
-| Q-09 | Remove `package-lock.json` from `.gitignore`; verify `npm ci` reproducibility | S |
-| Q-10 | Extend `useProject` tests to dirty state, clipboard and element editing; add settings migration tests | M |
-| Q-11 | Add E2E coverage for every specialty tab, validation dialog, property edits and delete/undo | M |
+| ID | Item | Effort | Status | Evidence |
+|----|------|--------|--------|----------|
+| Q-02 | Add `engines` and align the CI test matrix on Node 26; document the release requirement | S | ⬜ Planned | `package.json` has no `engines`; `.nvmrc` is 26. |
+| Q-04 | Add coverage thresholds (start at 68 % statements / 51 % branches) and ratchet them each milestone | S | ⬜ Planned | `vitest.config.ts` has no coverage thresholds. |
+| Q-05 | Remove `src/lib/editor-hooks.ts` and `src/lib/powerflow.ts`, or mark and test them as supported APIs | S | ⬜ Planned | `editor-hooks.ts` and `powerflow.ts` are still present. |
+| Q-06 | Fix Gauss-Seidel convergence or disable the method with an explicit warning; unskip the test | M | ⬜ Planned | Gauss-Seidel test is still `it.skip`. |
+| Q-07 | Add a canvas context stub and unskip symbol rendering tests | S | ⬜ Planned | Symbol canvas test is still `it.skip`. |
+| Q-08 | Add `app/error.tsx` and an error boundary around dialogs and canvas | S | ⬜ Planned | No `src/app/error.tsx` or error boundary. |
+| Q-09 | Remove `package-lock.json` from `.gitignore`; verify `npm ci` reproducibility | S | ⬜ Planned | `package-lock.json` is still in `.gitignore`. |
+| Q-10 | Extend `useProject` tests to dirty state, clipboard and element editing; add settings migration tests | M | 🟡 Partial | 9 placement/drag tests; dirty state, clipboard, editing and settings migration untested. |
+| Q-11 | Add E2E coverage for every specialty tab, validation dialog, property edits and delete/undo | M | 🟡 Partial | 29 Chromium specs; specialty tabs, validation and property edits not covered end to end. |
 
-### M1 — Model fidelity (4–6 weeks)
+### M1 — Model fidelity (4–6 weeks) · 0 done / 1 partial / 8 planned
 
 Goal: studies read real network and machine data instead of assumed constants.
 
@@ -177,96 +205,96 @@ Exit criteria: sequence and dynamic fields round-trip through save/open; unbalan
 real Z2/Z0; load models affect results; IEEE 9/14 results match reference values within a stated
 tolerance.
 
-| ID | Item | Effort |
-|----|------|--------|
-| M-01 | Project schema v2: generator sequence and dynamic data (`Xd″`, `X2`, `X0`, `H`, `D`, `Xd′`, `Tdo′`), transformer zero-sequence and vector group, line zero-sequence | L |
-| M-02 | Migration and validation for v1 files; keep opening old projects lossless | M |
-| M-03 | Short circuit uses real sequence data with explicit fallback flags when fields are empty | L |
-| M-04 | Implement ZIP, constant-current and constant-impedance loads in NR, fast-decoupled and CPF | M |
-| M-05 | Wire piecewise generator costs into OPF and surface cost curves in the UI | S |
-| M-06 | Three-winding transformer star-equivalent model with per-winding ratings | L |
-| M-07 | Connectivity and island validation shared by validation, load flow and contingency | M |
-| M-08 | Golden-case regression tests for IEEE 9/14 against `psat-converted` reference results | M |
-| M-09 | Generator capability limits reported consistently in load flow and OPF | M |
+| ID | Item | Effort | Status | Evidence |
+|----|------|--------|--------|----------|
+| M-01 | Project schema v2: generator sequence and dynamic data (`Xd″`, `X2`, `X0`, `H`, `D`, `Xd′`, `Tdo′`), transformer zero-sequence and vector group, line zero-sequence | L | ⬜ Planned | Generator, transformer and line types carry no sequence or dynamic fields. |
+| M-02 | Migration and validation for v1 files; keep opening old projects lossless | M | ⬜ Planned | No project schema migration beyond version checks. |
+| M-03 | Short circuit uses real sequence data with explicit fallback flags when fields are empty | L | ⬜ Planned | `fault.ts` still uses `Z0 = 0.5 Z1` and `Xd″ = 0.05 p.u.`. |
+| M-04 | Implement ZIP, constant-current and constant-impedance loads in NR, fast-decoupled and CPF | M | ⬜ Planned | `demandModel` is stored but no solver reads it. |
+| M-05 | Wire piecewise generator costs into OPF and surface cost curves in the UI | S | 🟡 Partial | `opf.ts` evaluates piecewise costs; `studies.ts` still maps every generator to polynomial. |
+| M-06 | Three-winding transformer star-equivalent model with per-winding ratings | L | ⬜ Planned | Three-winding transformer is a diagram-only generic component. |
+| M-07 | Connectivity and island validation shared by validation, load flow and contingency | M | ⬜ Planned | Validation only flags buses without a branch; no shared island analysis. |
+| M-08 | Golden-case regression tests for IEEE 9/14 against `psat-converted` reference results | M | ⬜ Planned | Sample tests check IDs and names, not reference results. |
+| M-09 | Generator capability limits reported consistently in load flow and OPF | M | ⬜ Planned | Capability limits are not reported consistently by load flow and OPF. |
 
-### M2 — Study breadth (6–8 weeks)
+### M2 — Study breadth (6–8 weeks) · 0 done / 0 partial / 10 planned
 
 Goal: close the most requested ETAP/PSAT study gaps, preferring existing engines.
 
 Exit criteria: each study is a `StudyRun`, appears in history, has tables, a chart where useful,
 CSV and report sections, and unit plus E2E tests.
 
-| ID | Item | Effort |
-|----|------|--------|
-| S-01 | **N-1 contingency study**: branch and generator outages, island detection, overload/voltage violations, severity ranking | L |
-| S-02 | Surface security-constrained OPF as a redispatch study (not just a violation list) | M |
-| S-03 | Surface unit commitment with a 24 h schedule chart and cost table | M |
-| S-04 | Add voltage-collapse margin and L-index to the CPF report | S |
-| S-05 | Add critical clearing time to time-domain results | S |
-| S-06 | State estimation (WLS) with a measurement model and bad-data screening | XL |
-| S-07 | Quasi-steady-state / long-term simulation for load restoration and tap-changer sequences | XL |
-| S-08 | Harmonic frequency scan and IEEE 519 compliance curves | M |
-| S-09 | Cable and transformer sizing/ampacity screening | M |
-| S-10 | Move specialty calculators into `StudyRun` so their results are exportable and comparable | M |
+| ID | Item | Effort | Status | Evidence |
+|----|------|--------|--------|----------|
+| S-01 | **N-1 contingency study**: branch and generator outages, island detection, overload/voltage violations, severity ranking | L | ⬜ Planned | No N-1 contingency engine or UI. |
+| S-02 | Surface security-constrained OPF as a redispatch study (not just a violation list) | M | ⬜ Planned | `solveSecurityConstrainedOPF` is tested but not exposed. |
+| S-03 | Surface unit commitment with a 24 h schedule chart and cost table | M | ⬜ Planned | `solveUnitCommitment` is tested but not exposed. |
+| S-04 | Add voltage-collapse margin and L-index to the CPF report | S | ⬜ Planned | `analyzeVoltageCollapse` and `calculateLIndex` are not in the CPF report. |
+| S-05 | Add critical clearing time to time-domain results | S | ⬜ Planned | `calculateCriticalClearingTime` is not in time-domain results. |
+| S-06 | State estimation (WLS) with a measurement model and bad-data screening | XL | ⬜ Planned | No state-estimation engine. |
+| S-07 | Quasi-steady-state / long-term simulation for load restoration and tap-changer sequences | XL | ⬜ Planned | No quasi-steady-state simulation. |
+| S-08 | Harmonic frequency scan and IEEE 519 compliance curves | M | ⬜ Planned | `analyzeHarmonics` reports spectra but has no frequency scan or IEEE 519 curves. |
+| S-09 | Cable and transformer sizing/ampacity screening | M | ⬜ Planned | No cable or transformer sizing screen. |
+| S-10 | Move specialty calculators into `StudyRun` so their results are exportable and comparable | M | ⬜ Planned | Specialty calculators still keep results in dialog-local state. |
 
-### M3 — Workbench ergonomics (3–4 weeks)
+### M3 — Workbench ergonomics (3–4 weeks) · 0 done / 3 partial / 4 planned
 
 Goal: make the editor comfortable for real projects and long sessions.
 
 Exit criteria: multi-select works end to end; autosave restores after a reload; keyboard-only
 users can operate dialogs and the canvas; reports can be delivered as PDF.
 
-| ID | Item | Effort |
-|----|------|--------|
-| U-01 | Align and distribute commands for multi-selection | M |
-| U-02 | Autosave to IndexedDB/localStorage, crash recovery prompt, recent projects, `beforeunload` guard | M |
-| U-03 | Real light/dark theme driven by `settings.theme`, including canvas colours | M |
-| U-04 | Results comparison: select two runs and diff bus voltages, loadings and losses | M |
-| U-05 | PDF report export and a print stylesheet; include time-series and specialty sections | M |
-| U-06 | Accessibility: focus trap, initial focus, `aria-live` study status, canvas keyboard navigation, contrast audit | M |
-| U-07 | Command palette and a complete, discoverable shortcut map | S |
+| ID | Item | Effort | Status | Evidence |
+|----|------|--------|--------|----------|
+| U-01 | Align and distribute commands for multi-selection | M | ⬜ Planned | Multi-select and group move exist; align and distribute do not. |
+| U-02 | Autosave to IndexedDB/localStorage, crash recovery prompt, recent projects, `beforeunload` guard | M | 🟡 Partial | `beforeunload` guard is implemented; autosave, recovery and recent projects are not. |
+| U-03 | Real light/dark theme driven by `settings.theme`, including canvas colours | M | ⬜ Planned | `settings.theme` is stored but no component consumes it. |
+| U-04 | Results comparison: select two runs and diff bus voltages, loadings and losses | M | ⬜ Planned | Results dialog shows one run; no comparison view. |
+| U-05 | PDF report export and a print stylesheet; include time-series and specialty sections | M | ⬜ Planned | Reports export HTML/CSV/JSON only; no PDF or print stylesheet. |
+| U-06 | Accessibility: focus trap, initial focus, `aria-live` study status, canvas keyboard navigation, contrast audit | M | 🟡 Partial | Dialogs use `role="dialog"`; no focus trap, initial focus, `aria-live` or canvas keyboard navigation. |
+| U-07 | Command palette and a complete, discoverable shortcut map | S | 🟡 Partial | Shortcut dialog exists; no command palette and the shortcut map is incomplete. |
 
-### M4 — Scale and interoperability (8+ weeks)
+### M4 — Scale and interoperability (8+ weeks) · 0 done / 1 partial / 7 planned
 
 Goal: handle networks and workflows beyond a single demo session.
 
 Exit criteria: 500-bus load flow completes in a worker under the agreed budget; large diagrams
 stay interactive; projects can move between Power System Analysis Tool and other tools.
 
-| ID | Item | Effort |
-|----|------|--------|
-| P-01 | Sparse Y-bus and sparse linear solve; move studies to a Web Worker with progress and cancel | XL |
-| P-02 | Canvas viewport culling, level of detail and batched rendering | L |
-| P-03 | Virtualized result tables and charts for large series | M |
-| P-04 | Benchmark suite for 100/500/1000 buses with CI budgets | M |
-| P-05 | Import PSAT `.m`, MATPOWER and PTI RAW; export MATPOWER | XL |
-| P-06 | Batch/CLI or server-side study runner for automation | L |
-| P-07 | Optional error reporting, structured study logs and performance telemetry (opt-in) | M |
-| P-08 | CSP headers, dependency audit, SBOM and a documented security policy | M |
+| ID | Item | Effort | Status | Evidence |
+|----|------|--------|--------|----------|
+| P-01 | Sparse Y-bus and sparse linear solve; move studies to a Web Worker with progress and cancel | XL | ⬜ Planned | Dense `O(n³)` solves on the main thread. |
+| P-02 | Canvas viewport culling, level of detail and batched rendering | L | ⬜ Planned | Canvas redraws the full diagram. |
+| P-03 | Virtualized result tables and charts for large series | M | ⬜ Planned | Result tables render every row. |
+| P-04 | Benchmark suite for 100/500/1000 buses with CI budgets | M | ⬜ Planned | No benchmark suite or CI budgets. |
+| P-05 | Import PSAT `.m`, MATPOWER and PTI RAW; export MATPOWER | XL | ⬜ Planned | No MATPOWER, PSAT or PTI RAW import. |
+| P-06 | Batch/CLI or server-side study runner for automation | L | ⬜ Planned | No batch or server-side runner. |
+| P-07 | Optional error reporting, structured study logs and performance telemetry (opt-in) | M | ⬜ Planned | No structured study logs or opt-in telemetry. |
+| P-08 | CSP headers, dependency audit, SBOM and a documented security policy | M | 🟡 Partial | `SECURITY.md` exists; no CSP headers, SBOM or dependency audit gate. |
 
 ## 5. Prioritized backlog (next 20 items)
 
-| Rank | ID | Item | Why now | Effort |
-|------|----|------|---------|--------|
-| 2 | Q-02 | Node/engine alignment | Release and CI run on different Node versions today | S |
-| 3 | Q-05 | Remove dead solver and editor hooks | 1 000+ lines of untested, misleading code | S |
-| 4 | Q-10 | Test `useProject` | Core editing state is the least covered module | M |
-| 5 | Q-06 | Resolve Gauss-Seidel | A shipped method can return NaN | M |
-| 6 | Q-08 | Error boundary | An engine exception can blank the app | S |
-| 7 | M-01 | Schema v2 sequence/dynamic data | Prerequisite for trustworthy faults and dynamics | L |
-| 8 | M-03 | Real sequence-data faults | Removes the two biggest hidden assumptions | L |
-| 9 | M-04 | Load models | Makes an advertised property real | M |
-| 10 | M-07 | Shared island validation | Prevents singular systems and false results | M |
-| 11 | S-01 | N-1 contingency study | Highest-value missing ETAP study | L |
-| 12 | S-02 | Surface SC-OPF | Engine already exists | M |
-| 13 | S-03 | Surface unit commitment | Engine already exists | M |
-| 14 | S-04 | Voltage-collapse margin in CPF | Engine already exists | S |
-| 15 | S-05 | Critical clearing time | Engine already exists | S |
-| 16 | S-10 | Specialty results as `StudyRun` | Unifies history, export and reports | M |
-| 17 | U-02 | Autosave and recovery | Prevents data loss in long sessions | M |
-| 18 | U-01 | Align and distribute | Finishes the CAD-style selection workflow | M |
-| 19 | P-01 | Worker and sparse solve | Required for realistic network sizes | XL |
-| 20 | I-01 | MATPOWER/PSAT import | Removes manual re-entry as the main adoption barrier | XL |
+| Rank | ID | Item | Why now | Effort | Status |
+|------|----|------|---------|--------|--------|
+| 2 | Q-02 | Node/engine alignment | Release and CI run on different Node versions today | S | ⬜ Planned |
+| 3 | Q-05 | Remove dead solver and editor hooks | 1 000+ lines of untested, misleading code | S | ⬜ Planned |
+| 4 | Q-10 | Test `useProject` | Core editing state is the least covered module | M | 🟡 Partial |
+| 5 | Q-06 | Resolve Gauss-Seidel | A shipped method can return NaN | M | ⬜ Planned |
+| 6 | Q-08 | Error boundary | An engine exception can blank the app | S | ⬜ Planned |
+| 7 | M-01 | Schema v2 sequence/dynamic data | Prerequisite for trustworthy faults and dynamics | L | ⬜ Planned |
+| 8 | M-03 | Real sequence-data faults | Removes the two biggest hidden assumptions | L | ⬜ Planned |
+| 9 | M-04 | Load models | Makes an advertised property real | M | ⬜ Planned |
+| 10 | M-07 | Shared island validation | Prevents singular systems and false results | M | ⬜ Planned |
+| 11 | S-01 | N-1 contingency study | Highest-value missing ETAP study | L | ⬜ Planned |
+| 12 | S-02 | Surface SC-OPF | Engine already exists | M | ⬜ Planned |
+| 13 | S-03 | Surface unit commitment | Engine already exists | M | ⬜ Planned |
+| 14 | S-04 | Voltage-collapse margin in CPF | Engine already exists | S | ⬜ Planned |
+| 15 | S-05 | Critical clearing time | Engine already exists | S | ⬜ Planned |
+| 16 | S-10 | Specialty results as `StudyRun` | Unifies history, export and reports | M | ⬜ Planned |
+| 17 | U-02 | Autosave and recovery | Prevents data loss in long sessions | M | 🟡 Partial |
+| 18 | U-01 | Align and distribute | Finishes the CAD-style selection workflow | M | ⬜ Planned |
+| 19 | P-01 | Worker and sparse solve | Required for realistic network sizes | XL | ⬜ Planned |
+| 20 | I-01 | MATPOWER/PSAT import | Removes manual re-entry as the main adoption barrier | XL | ⬜ Planned |
 
 ## 6. Proposed release sequence
 
