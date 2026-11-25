@@ -800,7 +800,9 @@ export default function Home() {
         canUndo={project.canUndo}
         canRedo={project.canRedo}
         showMenubar={settings.showMenubar}
-        onToggleMenubar={() => toggleSetting('showMenubar')}
+        onToggleMenubar={() => {
+          toggleSetting('showMenubar');
+        }}
         onAction={handleAction}
         onRename={name => {
           project.setName(name);
