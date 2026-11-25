@@ -106,7 +106,7 @@ export default function Home() {
         if (item.type && item.id) map.set(selectionKey(item), item);
       });
       const next = [...map.values()];
-      return { items: next, primary: next[next.length - 1] ?? { type: null, id: null } };
+      return { items: next, primary: next.at(-1) ?? { type: null, id: null } };
     });
   }, []);
 
@@ -120,7 +120,7 @@ export default function Home() {
         : [...prev.items, hit];
       return {
         items,
-        primary: exists ? items[items.length - 1] ?? { type: null, id: null } : hit,
+        primary: exists ? items.at(-1) ?? { type: null, id: null } : hit,
       };
     });
   }, []);
@@ -538,7 +538,8 @@ export default function Home() {
   );
 
   const deleteSelection = useCallback(() => {
-    const targets = (selections.length > 0 ? selections : selection.type && selection.id ? [selection] : []).filter(
+    const candidates = selections.length > 0 ? selections : [selection];
+    const targets = candidates.filter(
       (item): item is { type: ElementKind; id: string } => Boolean(item.type && item.id)
     );
     if (targets.length === 0) return;

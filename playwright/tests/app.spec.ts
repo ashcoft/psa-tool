@@ -36,6 +36,23 @@ async function chooseFileAction(
   await page.getByRole('button', { name: action }).click();
 }
 
+async function waitForCanvasReady(page: Page): Promise<void> {
+  await page.waitForFunction(() => {
+    const canvas = document.querySelector('[data-testid="canvas"] canvas') as HTMLCanvasElement | null;
+    return Boolean(canvas && canvas.width > 500 && canvas.height > 200);
+  });
+}
+
+async function beginMarquee(page: Page): Promise<void> {
+  await waitForCanvasReady(page);
+  const canvas = page.getByTestId('canvas').locator('canvas');
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('Canvas is not visible');
+  await page.mouse.move(box.x + 40, box.y + 60);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width - 20, box.y + box.height - 20, { steps: 8 });
+}
+
 test.describe('Power System Analysis Tool workbench', () => {
   test('loads the ETAP-style workbench', async ({ page }) => {
     await openApp(page);
@@ -85,32 +102,16 @@ test.describe('Power System Analysis Tool workbench', () => {
 
   test('window-selects elements with a marquee', async ({ page }) => {
     await openApp(page);
-    await page.waitForTimeout(300);
-    const canvas = page.getByTestId('canvas').locator('canvas');
-    const box = await canvas.boundingBox();
-    if (!box) throw new Error('Canvas is not visible');
-
-    await page.mouse.move(box.x + 40, box.y + 60);
-    await page.mouse.down();
-    await page.mouse.move(box.x + box.width - 20, box.y + box.height - 20, { steps: 8 });
+    await beginMarquee(page);
     await page.mouse.up();
-
     await expect(page.getByTestId('statusbar')).toContainText('Selected: 11');
   });
 
   test('cancels a marquee with Escape', async ({ page }) => {
     await openApp(page);
-    await page.waitForTimeout(300);
-    const canvas = page.getByTestId('canvas').locator('canvas');
-    const box = await canvas.boundingBox();
-    if (!box) throw new Error('Canvas is not visible');
-
-    await page.mouse.move(box.x + 40, box.y + 60);
-    await page.mouse.down();
-    await page.mouse.move(box.x + box.width - 20, box.y + box.height - 20, { steps: 8 });
+    await beginMarquee(page);
     await page.keyboard.press('Escape');
     await page.mouse.up();
-
     await expect(page.getByTestId('statusbar')).toContainText('Selected: 0');
   });
 

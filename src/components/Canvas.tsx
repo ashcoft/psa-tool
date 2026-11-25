@@ -149,50 +149,48 @@ function pointInRect(x: number, y: number, rect: RectBounds): boolean {
   return x >= rect.minX && x <= rect.maxX && y >= rect.minY && y <= rect.maxY;
 }
 
-function orientation(ax: number, ay: number, bx: number, by: number, cx: number, cy: number): number {
-  const value = (by - ay) * (cx - bx) - (bx - ax) * (cy - by);
+interface Point {
+  x: number;
+  y: number;
+}
+
+function orientation(a: Point, b: Point, c: Point): number {
+  const value = (b.y - a.y) * (c.x - b.x) - (b.x - a.x) * (c.y - b.y);
   if (Math.abs(value) < 1e-9) return 0;
   return value > 0 ? 1 : 2;
 }
 
-function onSegment(ax: number, ay: number, bx: number, by: number, cx: number, cy: number): boolean {
+function onSegment(a: Point, b: Point, c: Point): boolean {
   return (
-    bx <= Math.max(ax, cx) &&
-    bx >= Math.min(ax, cx) &&
-    by <= Math.max(ay, cy) &&
-    by >= Math.min(ay, cy)
+    b.x <= Math.max(a.x, c.x) &&
+    b.x >= Math.min(a.x, c.x) &&
+    b.y <= Math.max(a.y, c.y) &&
+    b.y >= Math.min(a.y, c.y)
   );
 }
 
-function segmentsIntersect(
-  ax: number,
-  ay: number,
-  bx: number,
-  by: number,
-  cx: number,
-  cy: number,
-  dx: number,
-  dy: number
-): boolean {
-  const o1 = orientation(ax, ay, bx, by, cx, cy);
-  const o2 = orientation(ax, ay, bx, by, dx, dy);
-  const o3 = orientation(cx, cy, dx, dy, ax, ay);
-  const o4 = orientation(cx, cy, dx, dy, bx, by);
+function segmentsIntersect(a: Point, b: Point, c: Point, d: Point): boolean {
+  const o1 = orientation(a, b, c);
+  const o2 = orientation(a, b, d);
+  const o3 = orientation(c, d, a);
+  const o4 = orientation(c, d, b);
   if (o1 !== o2 && o3 !== o4) return true;
-  if (o1 === 0 && onSegment(ax, ay, cx, cy, bx, by)) return true;
-  if (o2 === 0 && onSegment(ax, ay, dx, dy, bx, by)) return true;
-  if (o3 === 0 && onSegment(cx, cy, ax, ay, dx, dy)) return true;
-  if (o4 === 0 && onSegment(cx, cy, bx, by, dx, dy)) return true;
+  if (o1 === 0 && onSegment(a, c, b)) return true;
+  if (o2 === 0 && onSegment(a, d, b)) return true;
+  if (o3 === 0 && onSegment(c, a, d)) return true;
+  if (o4 === 0 && onSegment(c, b, d)) return true;
   return false;
 }
 
 function segmentIntersectsRect(x1: number, y1: number, x2: number, y2: number, rect: RectBounds): boolean {
   if (pointInRect(x1, y1, rect) || pointInRect(x2, y2, rect)) return true;
+  const a = { x: x1, y: y1 };
+  const b = { x: x2, y: y2 };
   return (
-    segmentsIntersect(x1, y1, x2, y2, rect.minX, rect.minY, rect.maxX, rect.minY) ||
-    segmentsIntersect(x1, y1, x2, y2, rect.maxX, rect.minY, rect.maxX, rect.maxY) ||
-    segmentsIntersect(x1, y1, x2, y2, rect.maxX, rect.maxY, rect.minX, rect.maxY) ||
-    segmentsIntersect(x1, y1, x2, y2, rect.minX, rect.maxY, rect.minX, rect.minY)
+    segmentsIntersect(a, b, { x: rect.minX, y: rect.minY }, { x: rect.maxX, y: rect.minY }) ||
+    segmentsIntersect(a, b, { x: rect.maxX, y: rect.minY }, { x: rect.maxX, y: rect.maxY }) ||
+    segmentsIntersect(a, b, { x: rect.maxX, y: rect.maxY }, { x: rect.minX, y: rect.maxY }) ||
+    segmentsIntersect(a, b, { x: rect.minX, y: rect.maxY }, { x: rect.minX, y: rect.minY })
   );
 }
 
