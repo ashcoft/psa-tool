@@ -1,5 +1,5 @@
 services:
-  psat-web:
+  psa:
     build:
       context: .
       dockerfile: Dockerfile

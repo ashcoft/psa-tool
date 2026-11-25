@@ -25,7 +25,7 @@ jobs:
       issues: write
       pull-requests: write
     # Never release from forks.
-    if: github.repository == 'ashcoft/psat-web'
+    if: github.repository == 'ashcoft/psa'
 
     steps:
       - name: Checkout code

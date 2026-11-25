@@ -67,8 +67,8 @@ settings persistence.
 - Project files now save as `.psa` (JSON content); legacy `.json` files still open.
 - The app is branded as **Power System Analysis Tool** and the menu bar can be shown or hidden from
   the titlebar, the View ribbon group, Settings, or `Ctrl+Shift+M`.
-- GitHub Pages static export deployed at <https://ashcoft.github.io/psat-web/>.
-- GHCR publishing workflow and a published `ghcr.io/ashcoft/psat-web:1.3.0` image.
+- GitHub Pages static export deployed at <https://ashcoft.github.io/psa/>.
+- GHCR publishing workflow and a published `ghcr.io/ashcoft/psa:1.3.0` image.
 
 ## 3. Gap analysis
 

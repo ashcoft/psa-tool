@@ -27,8 +27,8 @@ npm run test:e2e
 The image uses the Next.js standalone output, runs as a non-root user and listens on port 3000.
 
 ```bash
-docker build -t psat-web .
-docker run --rm -p 3000:3000 psat-web
+docker build -t psa .
+docker run --rm -p 3000:3000 psa
 ```
 
 Or with Compose:
@@ -47,8 +47,8 @@ image after semantic-release, because tags created with `GITHUB_TOKEN` do not tr
 push workflow.
 
 ```bash
-docker pull ghcr.io/ashcoft/psat-web:latest
-docker run --rm -p 3000:3000 ghcr.io/ashcoft/psat-web:latest
+docker pull ghcr.io/ashcoft/psa:latest
+docker run --rm -p 3000:3000 ghcr.io/ashcoft/psa:latest
 ```
 
 Tags produced by the workflow:
@@ -67,12 +67,12 @@ are required. `docker/metadata-action` runs with `latest=false`, so an older ver
 
 ## GitHub Pages
 
-The workbench is live at **https://ashcoft.github.io/psat-web/**.
+The workbench is live at **https://ashcoft.github.io/psa/**.
 
 The repository includes `.github/workflows/pages.yml`, which builds the static export and deploys
 it with the official Pages artifact and deployment actions.
 
-- URL: `https://ashcoft.github.io/psat-web/`
+- URL: `https://ashcoft.github.io/psa/`
 - Source: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
 - The workflow writes `out/.nojekyll` so the `_next` asset directory is served.
 - The static export is configured in `next.config.js` when `NEXT_OUTPUT=export`.
@@ -100,7 +100,7 @@ Without `VERCEL_TOKEN` the workflow skips the deployment instead of failing.
 | Variable | Used by | Meaning |
 |----------|---------|---------|
 | `NEXT_OUTPUT` | build | `standalone` for Docker, `export` for GitHub Pages |
-| `NEXT_PUBLIC_BASE_PATH` | build | Sub-path for GitHub Pages, for example `/psat-web` |
+| `NEXT_PUBLIC_BASE_PATH` | build | Sub-path for GitHub Pages, for example `/psa` |
 | `NEXT_TELEMETRY_DISABLED` | runtime | Disable Next.js telemetry |
 | `PORT` | runtime | Container port, default `3000` |
 | `BASE_URL` | Playwright | Target URL for end-to-end tests |
