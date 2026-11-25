@@ -121,7 +121,7 @@ export default function TitleBar({
   onToggleMenubar,
   onAction,
   onRename,
-}: TitleBarProps) {
+}: Readonly<TitleBarProps>) {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');

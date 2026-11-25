@@ -50,7 +50,6 @@ export default function SymbolPreview({ symbol, fallbackLabel, size = 30 }: Read
       ref={canvasRef}
       width={size}
       height={size}
-      role="presentation"
       className="pointer-events-none"
       style={{ width: size, height: size }}
     />

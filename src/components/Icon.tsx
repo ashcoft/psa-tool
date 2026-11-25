@@ -87,7 +87,7 @@ const paths: Record<IconName, React.ReactNode> = {
   folder: <><path d="M3 6h6l2 2h10v11H3z" /></>,
   project: <><path d="M4 4h7l2 3h7v13H4z" /><path d="M8 12h8M8 16h5" /></>,
   eye: <><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z" /><circle cx="12" cy="12" r="2.5" /></>,
-  menu: <><path d="M4 7h16M4 12h16M4 17h16" /></>,
+  menu: <path d="M4 7h16M4 12h16M4 17h16" />,
 };
 
 export default function Icon({ name, size = 20, className = '', strokeWidth = 1.7 }: IconProps) {

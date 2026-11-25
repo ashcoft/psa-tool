@@ -106,10 +106,11 @@ export default function Home() {
     if (!project.dirty) return;
     const remind = (event: BeforeUnloadEvent) => {
       event.preventDefault();
-      event.returnValue = '';
     };
     window.addEventListener('beforeunload', remind);
-    return () => window.removeEventListener('beforeunload', remind);
+    return () => {
+      window.removeEventListener('beforeunload', remind);
+    };
   }, [project.dirty]);
 
   useEffect(() => {

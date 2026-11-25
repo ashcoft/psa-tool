@@ -62,6 +62,17 @@ interface DragState {
   dy: number;
 }
 
+interface TransformerMarkerOptions {
+  midX: number;
+  midY: number;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  symbol: IECSymbolType | undefined;
+  isSelected: boolean;
+}
+
 const GRID_UNIT = 100;
 const SNAP = 0.4;
 const BUS_HALF_WIDTH = 34;
@@ -364,16 +375,16 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
       ctx.restore();
     };
 
-    const drawTransformerMarker = (
-      midX: number,
-      midY: number,
-      x1: number,
-      y1: number,
-      x2: number,
-      y2: number,
-      symbol: IECSymbolType | undefined,
-      isSelected: boolean
-    ) => {
+    const drawTransformerMarker = ({
+      midX,
+      midY,
+      x1,
+      y1,
+      x2,
+      y2,
+      symbol,
+      isSelected,
+    }: TransformerMarkerOptions) => {
       const definition = symbol ? getSymbol(symbol) : undefined;
       if (definition?.render) {
         const symbolScale = 0.8;
@@ -446,7 +457,16 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
       ctx.stroke();
 
       if (kind === 'transformer') {
-        drawTransformerMarker((x1 + x2) / 2, (y1 + y2) / 2, x1, y1, x2, y2, symbol, isSelected);
+        drawTransformerMarker({
+          midX: (x1 + x2) / 2,
+          midY: (y1 + y2) / 2,
+          x1,
+          y1,
+          x2,
+          y2,
+          symbol,
+          isSelected,
+        });
       }
 
       if (result && showFlowOverlay) {
