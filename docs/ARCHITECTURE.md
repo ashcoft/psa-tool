@@ -62,10 +62,11 @@ radians; the property panel converts to and from degrees.
 
 ## Editing state and undo
 
-`useProject` keeps `{ system, name, past, future, dirty }`. Every editing action calls
-`beginCommit(description)` before `setState`, then a pure `applyCommit` updater records the
-previous system. Consecutive moves with the same description coalesce inside a 600 ms window, so a
-drag is one undo step.
+`useProject` keeps `{ system, name, past, future, dirty }`. Element creation and editing actions
+push the previous system onto `past`. Moves and the generic commit path call
+`beginCommit(description)` before `setState`, then a pure `applyCommit` updater records the previous
+system. Consecutive moves with the same description coalesce inside a 600 ms window, so a drag is
+one undo step.
 
 State updaters must stay pure: React StrictMode invokes them twice, and writing refs or mutating
 history inside an updater loses entries.
