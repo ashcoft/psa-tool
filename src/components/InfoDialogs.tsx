@@ -10,6 +10,7 @@ const shortcuts: { keys: string; action: string }[] = [
   { keys: 'Ctrl + Z', action: 'Undo' },
   { keys: 'Ctrl + Y', action: 'Redo' },
   { keys: 'Ctrl + C / Ctrl + V', action: 'Copy / paste element' },
+  { keys: 'Ctrl + A', action: 'Select all workspace elements' },
   { keys: 'Ctrl + D', action: 'Duplicate element' },
   { keys: 'Delete', action: 'Delete selected element' },
   { keys: 'F5', action: 'Run load flow' },
@@ -21,7 +22,7 @@ const shortcuts: { keys: string; action: string }[] = [
   { keys: 'Ctrl + 0', action: 'Fit diagram to window' },
   { keys: 'Ctrl + + / Ctrl + -', action: 'Zoom in / out' },
   { keys: 'Ctrl + Shift + M', action: 'Show or hide the menu bar' },
-  { keys: 'Esc', action: 'Cancel current tool or dialog' },
+  { keys: 'Esc', action: 'Cancel tool, clear selection or close dialog' },
 ];
 
 export function ShortcutsDialog({ onClose }: { onClose: () => void }) {

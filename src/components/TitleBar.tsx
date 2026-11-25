@@ -55,6 +55,7 @@ const menus: { id: string; label: string; items: MenuItem[] }[] = [
       { label: 'Duplicate', action: 'duplicate', shortcut: 'Ctrl+D' },
       { label: 'Delete', action: 'delete', shortcut: 'Del' },
       { separator: true, label: '' },
+      { label: 'Select All', action: 'select-all', shortcut: 'Ctrl+A' },
       { label: 'Auto Arrange', action: 'arrange' },
     ],
   },

@@ -61,6 +61,31 @@ test.describe('Power System Analysis Tool workbench', () => {
     await expect(page.getByTestId('statusbar')).toContainText('Converged in 4 iterations');
   });
 
+  test('selects all workspace elements and deletes them', async ({ page }) => {
+    await openApp(page);
+    await page.keyboard.press('Control+A');
+    await expect(page.getByTestId('statusbar')).toContainText('Selected: 11');
+
+    await page.keyboard.press('Delete');
+    await expect(page.getByTestId('statusbar')).toContainText('Buses: 0');
+    await expect(page.getByTestId('statusbar')).toContainText('Selected: 0');
+  });
+
+  test('window-selects elements with a marquee', async ({ page }) => {
+    await openApp(page);
+    await page.waitForTimeout(300);
+    const canvas = page.getByTestId('canvas').locator('canvas');
+    const box = await canvas.boundingBox();
+    if (!box) throw new Error('Canvas is not visible');
+
+    await page.mouse.move(box.x + 40, box.y + 60);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width - 20, box.y + box.height - 20, { steps: 8 });
+    await page.mouse.up();
+
+    await expect(page.getByTestId('statusbar')).toContainText('Selected: 11');
+  });
+
   test('adds a bus, undoes and redoes the change', async ({ page }) => {
     await openApp(page);
     await page.getByTestId('sidebar').getByRole('button', { name: 'Bus', exact: true }).click();
