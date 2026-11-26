@@ -46,9 +46,34 @@ describe('component catalog', () => {
       'dc-circuit-breaker',
       'push-button',
       'ground-grid-system',
+      'node',
+      'transmission-tower',
+      'wave-trap',
+      'disconnect-switch',
+      'power-factor-meter',
+      'voltage-relay',
+      'overcurrent-relay',
+      'reclosing-relay',
+      'lockout-relay',
     ].forEach(id => {
       expect(getComponentDefinition(id), id).toBeDefined();
     });
+  });
+
+  it('uses the symbol-sheet badges for meters and numbered relays', () => {
+    expect(getComponentDefinition('voltmeter')?.symbol).toBe('voltmeter');
+    expect(getComponentDefinition('ammeter')?.symbol).toBe('ammeter');
+    expect(getComponentDefinition('power-factor-meter')?.symbol).toBe('pf-meter');
+    expect(getComponentDefinition('voltage-relay')?.symbol).toBe('relay-27');
+    expect(getComponentDefinition('frequency-relay')?.symbol).toBe('relay-81');
+    expect(getComponentDefinition('differential-relay')?.symbol).toBe('relay-87');
+    expect(getComponentDefinition('distance-relay')?.symbol).toBe('relay-21');
+    expect(getComponentDefinition('reverse-power-relay')?.symbol).toBe('relay-32');
+    expect(getComponentDefinition('overcurrent-relay')?.symbol).toBe('relay-ocr');
+    expect(getComponentDefinition('reclosing-relay')?.symbol).toBe('relay-79');
+    expect(getComponentDefinition('lockout-relay')?.symbol).toBe('relay-lockout');
+    expect(getComponentDefinition('multi-functional-relay')?.symbol).toBe('relay-mr');
+    expect(getComponentDefinition('solid-state-trip-relay')?.symbol).toBe('relay-sst');
   });
 
   it('groups definitions for the palette', () => {

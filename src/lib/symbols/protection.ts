@@ -3,35 +3,7 @@
  */
 
 import { IECSymbol } from '@/types';
-
-function setStroke(ctx: CanvasRenderingContext2D, color = '#000', width = 1) {
-  ctx.strokeStyle = color;
-  ctx.lineWidth = width;
-}
-
-function drawCircle(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
-  ctx.beginPath();
-  ctx.arc(x, y, r, 0, Math.PI * 2);
-  ctx.stroke();
-}
-
-function drawLine(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number) {
-  ctx.beginPath();
-  ctx.moveTo(x1, y1);
-  ctx.lineTo(x2, y2);
-  ctx.stroke();
-}
-
-function drawRectangle(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
-  ctx.strokeRect(x - w / 2, y - h / 2, w, h);
-}
-
-function drawText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, fontSize = 10) {
-  ctx.font = `${fontSize}px Arial`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(text, x, y);
-}
+import { drawBadge, setStroke, drawCircle, drawLine, drawRectangle, drawText } from './primitives';
 
 export const breakerSymbol: IECSymbol = {
   type: 'breaker',
@@ -275,3 +247,40 @@ export const relaySymbol: IECSymbol = {
     drawCircle(ctx, x + 25, y + 17, 5);
   },
 };
+
+const relayBadge = (
+  type: IECSymbol['type'],
+  name: string,
+  label: string,
+  ieeeSymbol: string
+): IECSymbol => ({
+  type,
+  name,
+  ieeeSymbol,
+  category: 'protection',
+  width: 34,
+  height: 38,
+  connectionPoints: [
+    { id: 'top', x: 17, y: 0, type: 'top' },
+    { id: 'bottom', x: 17, y: 38, type: 'bottom' },
+  ],
+  properties: [
+    { key: 'name', label: 'Name', type: 'string' },
+    { key: 'pickup', label: 'Pickup', type: 'number', default: 1 },
+    { key: 'timeDelay', label: 'Time delay', type: 'number', unit: 's', default: 0.1 },
+  ],
+  render: (ctx, x, y) => {
+    drawBadge(ctx, x, y, 34, 38, label);
+  },
+});
+
+export const relay27Symbol = relayBadge('relay-27', 'Undervoltage Relay (27)', '27', 'IEEE C37.2 27');
+export const relay81Symbol = relayBadge('relay-81', 'Frequency Relay (81)', '81', 'IEEE C37.2 81');
+export const relay87Symbol = relayBadge('relay-87', 'Differential Relay (87)', '87', 'IEEE C37.2 87');
+export const relay21Symbol = relayBadge('relay-21', 'Distance Relay (21)', '21', 'IEEE C37.2 21');
+export const relay32Symbol = relayBadge('relay-32', 'Reverse Power Relay (32)', '32', 'IEEE C37.2 32');
+export const relayOcrSymbol = relayBadge('relay-ocr', 'Overcurrent Relay (50/51)', 'OCR', 'IEEE C37.2 50/51');
+export const relay79Symbol = relayBadge('relay-79', 'Reclosing Relay (79)', '79', 'IEEE C37.2 79');
+export const relayMrSymbol = relayBadge('relay-mr', 'Master Relay (MR)', 'MR', 'IEEE C37.2');
+export const relayLockoutSymbol = relayBadge('relay-lockout', 'Lockout Relay (86)', 'R', 'IEEE C37.2 86');
+export const relaySstSymbol = relayBadge('relay-sst', 'Solid-State Trip Relay', 'SST', 'IEEE C37.2');

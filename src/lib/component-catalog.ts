@@ -232,6 +232,7 @@ export const COMPONENT_CATALOG: ComponentDefinition[] = [
   bus('open-air', 'Open Air Bus', 'Open Air'),
   bus('bus-duct', 'Bus Duct', 'Bus Duct'),
   bus('busway', 'Busway', 'Busway'),
+  generic('node', 'Node', 'AC', 'Buses', 'bus', 'node', genericProperties, 'none', 'Junction node on the one-line diagram'),
 
   // AC branches
   acBranch('overhead-line', 'Overhead Line', 'line', 'line', 'line', { lineType: 'overhead', resistance: 0.02, reactance: 0.08 }),
@@ -249,6 +250,8 @@ export const COMPONENT_CATALOG: ComponentDefinition[] = [
   generic('remote-connector', 'Remote Connector', 'AC', 'Branches', 'connect', 'junction', genericProperties, 'branch'),
   generic('phase-adapter', 'Phase Adapter', 'AC', 'Branches', 'connect', 'junction', genericProperties, 'branch'),
   generic('grounding-adapter', 'Grounding Adapter', 'AC', 'Branches', 'connect', 'ground', genericProperties, 'branch'),
+  generic('transmission-tower', 'Transmission Tower', 'AC', 'Branches', 'line', 'tower', genericProperties, 'none'),
+  generic('wave-trap', 'Line Trap (Wave Trap)', 'AC', 'Branches', 'line', 'wave-trap', branchProperties, 'branch'),
 
   // AC loads and motors
   acLoad('static-load', 'Static Load', 'load', 'load', { pl: 10, ql: 5 }),
@@ -276,6 +279,7 @@ export const COMPONENT_CATALOG: ComponentDefinition[] = [
   generic('double-throw-switch', 'Double Throw Switch', 'AC', 'Protection & Switching', 'breaker', 'switch', protectionProperties, 'branch'),
   generic('ground-switch', 'Ground Switch', 'AC', 'Protection & Switching', 'breaker', 'switch', protectionProperties, 'branch'),
   generic('contactor', 'Contactor', 'AC', 'Protection & Switching', 'breaker', 'switch', protectionProperties, 'branch'),
+  generic('disconnect-switch', 'Disconnect Switch', 'AC', 'Protection & Switching', 'breaker', 'disconnect', protectionProperties, 'branch'),
   generic('lv-circuit-breaker', 'LV Circuit Breaker', 'AC', 'Protection & Switching', 'breaker', 'breaker', protectionProperties, 'branch'),
   generic('in-line-overload-relay', 'In-Line Overload Relay', 'AC', 'Protection & Switching', 'relay', 'relay', protectionProperties, 'branch'),
 
@@ -288,19 +292,22 @@ export const COMPONENT_CATALOG: ComponentDefinition[] = [
   // Instruments
   generic('current-transformer', 'Current Transformer (CT)', 'Instrument', 'Meters', 'meter', 'current-transformer', instrumentProperties, 'bus'),
   generic('potential-transformer', 'Potential Transformer (PT/VT)', 'Instrument', 'Meters', 'meter', 'potential-transformer', instrumentProperties, 'bus'),
-  generic('voltmeter', 'Voltmeter', 'Instrument', 'Meters', 'meter', 'meter', instrumentProperties, 'bus'),
-  generic('ammeter', 'Ammeter', 'Instrument', 'Meters', 'meter', 'meter', instrumentProperties, 'bus'),
+  generic('voltmeter', 'Voltmeter', 'Instrument', 'Meters', 'meter', 'voltmeter', instrumentProperties, 'bus'),
+  generic('ammeter', 'Ammeter', 'Instrument', 'Meters', 'meter', 'ammeter', instrumentProperties, 'bus'),
+  generic('power-factor-meter', 'Power Factor Meter', 'Instrument', 'Meters', 'meter', 'pf-meter', instrumentProperties, 'bus'),
   generic('multimeter', 'Multimeter', 'Instrument', 'Meters', 'meter', 'meter', instrumentProperties, 'bus'),
-  generic('voltage-relay', 'Voltage Relay', 'Instrument', 'Relays', 'relay', 'relay', instrumentProperties, 'bus'),
-  generic('frequency-relay', 'Frequency Relay', 'Instrument', 'Relays', 'relay', 'relay', instrumentProperties, 'bus'),
+  generic('voltage-relay', 'Voltage Relay (27)', 'Instrument', 'Relays', 'relay', 'relay-27', instrumentProperties, 'bus'),
+  generic('frequency-relay', 'Frequency Relay (81)', 'Instrument', 'Relays', 'relay', 'relay-81', instrumentProperties, 'bus'),
   generic('motor-relay', 'Motor Relay', 'Instrument', 'Relays', 'relay', 'relay', instrumentProperties, 'bus'),
-  generic('differential-relay', 'Differential Relay', 'Instrument', 'Relays', 'relay', 'relay', instrumentProperties, 'bus'),
-  generic('reverse-power-relay', 'Reverse Power Relay', 'Instrument', 'Relays', 'relay', 'relay', instrumentProperties, 'bus'),
-  generic('solid-state-trip-relay', 'Solid-State Trip Relay', 'Instrument', 'Relays', 'relay', 'relay', instrumentProperties, 'bus'),
-  generic('overcurrent-relay', 'Overcurrent Relay', 'Instrument', 'Relays', 'relay', 'relay', instrumentProperties, 'bus'),
-  generic('distance-relay', 'Distance Relay', 'Instrument', 'Relays', 'relay', 'relay', instrumentProperties, 'bus'),
+  generic('differential-relay', 'Differential Relay (87)', 'Instrument', 'Relays', 'relay', 'relay-87', instrumentProperties, 'bus'),
+  generic('reverse-power-relay', 'Reverse Power Relay (32)', 'Instrument', 'Relays', 'relay', 'relay-32', instrumentProperties, 'bus'),
+  generic('solid-state-trip-relay', 'Solid-State Trip Relay (SST)', 'Instrument', 'Relays', 'relay', 'relay-sst', instrumentProperties, 'bus'),
+  generic('overcurrent-relay', 'Overcurrent Relay (50/51)', 'Instrument', 'Relays', 'relay', 'relay-ocr', instrumentProperties, 'bus'),
+  generic('distance-relay', 'Distance Relay (21)', 'Instrument', 'Relays', 'relay', 'relay-21', instrumentProperties, 'bus'),
   generic('overload-relay', 'Overload Relay', 'Instrument', 'Relays', 'relay', 'relay', instrumentProperties, 'bus'),
-  generic('multi-functional-relay', 'Multi-Functional Relay', 'Instrument', 'Relays', 'relay', 'relay', instrumentProperties, 'bus'),
+  generic('multi-functional-relay', 'Multi-Functional Relay (MR)', 'Instrument', 'Relays', 'relay', 'relay-mr', instrumentProperties, 'bus'),
+  generic('reclosing-relay', 'Reclosing Relay (79)', 'Instrument', 'Relays', 'relay', 'relay-79', instrumentProperties, 'bus'),
+  generic('lockout-relay', 'Lockout Relay (86)', 'Instrument', 'Relays', 'relay', 'relay-lockout', instrumentProperties, 'bus'),
 
   // Control systems
   generic('exciter', 'Exciter', 'Control', 'Generator Controls', 'settings', undefined, controlProperties, 'bus'),
