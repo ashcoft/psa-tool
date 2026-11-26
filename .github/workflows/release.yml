@@ -69,6 +69,21 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  deploy-pages:
+    name: Deploy release to GitHub Pages
+    needs: release
+    if: needs.release.outputs.released == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Dispatch the Pages deployment for the release commit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_SHA: ${{ needs.release.outputs.sha }}
+        run: gh workflow run pages.yml --ref main -f ref="$RELEASE_SHA"
+
   publish-image:
     name: Publish release image
     needs: release

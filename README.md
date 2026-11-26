@@ -109,7 +109,9 @@ is private by default: authenticate with `docker login ghcr.io` using a token th
 The static workbench is live at **https://ashcoft.github.io/psa-tool/**.
 
 The repository includes `.github/workflows/pages.yml`, which builds the static export and deploys
-it with the official Pages artifact and deployment actions. GitHub Pages must use the Actions
+it with the official Pages artifact and deployment actions. The release workflow dispatches it with
+the release commit, so the site always matches the latest release; pushes to `main` do not deploy on
+their own. GitHub Pages must use the Actions
 source: **Settings → Pages → Build and deployment → Source: GitHub Actions**. The workflow builds
 with `NEXT_OUTPUT=export` and `NEXT_PUBLIC_BASE_PATH=/psa-tool` and writes `out/.nojekyll`. The
 same build is available locally with `npm run build:pages`.
