@@ -15,7 +15,7 @@ import ReportDialog from '@/components/ReportDialog';
 import { AboutDialog, ShortcutsDialog, ValidationDialog } from '@/components/InfoDialogs';
 import Canvas, { CanvasHandle, CanvasTool } from '@/components/Canvas';
 import Icon from '@/components/Icon';
-import { Bus } from '@/types';
+import { Bus, PowerSystem } from '@/types';
 import { useProject, Selection, ElementKind, selectionKey } from '@/lib/useProject';
 import { AppSettings, defaultSettings, loadSettings, saveSettings } from '@/lib/settings';
 import { buildDemoSystem, buildSample } from '@/lib/samples';
@@ -84,6 +84,7 @@ export default function Home() {
   const [revision, setRevision] = useState(0);
   const [activeTab, setActiveTab] = useState('home');
   const [runs, setRuns] = useState<StudyRun[]>([]);
+  const [runSystems, setRunSystems] = useState<Record<string, PowerSystem>>({});
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<DialogKind>(null);
   const [specialtyTab, setSpecialtyTab] = useState<SpecialtyTab | null>(null);
@@ -199,6 +200,12 @@ export default function Home() {
 
   const stats = useMemo(() => systemStats(project.system), [project.system]);
   const activeRun = runs.find(run => run.id === activeRunId) ?? runs[runs.length - 1] ?? null;
+  // Overlays are only valid for the model the study ran on. useProject clones the
+  // system on every edit, so reference equality marks a stale result.
+  const activeRunIsCurrent = activeRun !== null && runSystems[activeRun.id] === project.system;
+  const powerFlowOverlay =
+    activeRunIsCurrent && activeRun.kind === 'powerflow' ? activeRun.data : null;
+  const faultOverlay = activeRunIsCurrent && activeRun.kind === 'fault' ? activeRun.data : null;
   const reportRun = runs.find(run => run.id === reportRunId) ?? null;
   const latestFaultRun = [...runs].reverse().find(run => run.kind === 'fault');
   const latestFaultStudy = latestFaultRun?.kind === 'fault' ? latestFaultRun.data : null;
@@ -264,10 +271,15 @@ export default function Home() {
         try {
           const run = executeStudy(kind, project.system, settings);
           setRuns(prev => [...prev, run]);
+          setRunSystems(prev => ({ ...prev, [run.id]: project.system }));
           setActiveRunId(run.id);
           run.messages.forEach(message => log(message));
           log(`${run.title}: ${run.summary}`);
-          log('Results are drawn on the diagram. Open Results for tables, or Report for a full report.');
+          log(
+            kind === 'powerflow' || kind === 'fault'
+              ? 'Results are drawn on the diagram. Open Results for tables, or Report for a full report.'
+              : 'Open Results for tables and charts, or Report for a full report.'
+          );
           setToast({
             type: run.status === 'success' ? 'success' : 'error',
             text: `${run.title}: ${run.summary}`,
@@ -312,6 +324,7 @@ export default function Home() {
     project.replaceSystem(emptySystem('Untitled Project'));
     setRevision(value => value + 1);
     setRuns([]);
+    setRunSystems({});
     setActiveRunId(null);
     setSelection({ type: null, id: null });
     setTool('select');
@@ -333,6 +346,7 @@ export default function Home() {
         project.replaceSystem(system, name);
         setRevision(value => value + 1);
         setRuns([]);
+        setRunSystems({});
         setActiveRunId(null);
         setSelection({ type: null, id: null });
         setTool('select');
@@ -355,6 +369,7 @@ export default function Home() {
       project.replaceSystem(system, system.name);
       setRevision(value => value + 1);
       setRuns([]);
+      setRunSystems({});
       setActiveRunId(null);
       setSelection({ type: null, id: null });
       setTool('select');
@@ -370,6 +385,7 @@ export default function Home() {
     project.replaceSystem(emptySystem('Untitled Project'));
     setRevision(value => value + 1);
     setRuns([]);
+    setRunSystems({});
     setActiveRunId(null);
     setSelection({ type: null, id: null });
     setTool('select');
@@ -825,6 +841,7 @@ export default function Home() {
         break;
       case 'clear-results':
         setRuns([]);
+        setRunSystems({});
         setActiveRunId(null);
         log('Cleared all study results.');
         break;
@@ -1079,19 +1096,18 @@ export default function Home() {
               system={project.system}
               selections={selections}
               tool={tool}
-              results={activeRun?.kind === 'powerflow' ? activeRun.data : null}
-              faultResults={activeRun?.kind === 'fault' ? activeRun.data : null}
+              results={powerFlowOverlay}
+              faultResults={faultOverlay}
               showGrid={settings.showGrid}
               snapToGrid={settings.snapToGrid}
               showBusNames={settings.showBusNames}
               showVoltageOverlay={settings.showVoltageOverlay}
               showFlowOverlay={settings.showFlowOverlay}
               onSelect={(hit, additive) => {
-                if (additive) {
-                  toggleSelection(hit);
-                  return;
-                }
-                setSelection(hit);
+                if (additive) toggleSelection(hit);
+                else setSelection(hit);
+              }}
+              onElementClick={hit => {
                 if (hit.type && hit.id) showPropertiesPane();
               }}
               onSelectMany={selectMany}
@@ -1344,6 +1360,7 @@ export default function Home() {
           }}
           onClearResults={() => {
             setRuns([]);
+            setRunSystems({});
             setActiveRunId(null);
             setDialog(null);
             log('Cleared all study results.');

@@ -11,6 +11,32 @@ async function runLoadFlow(page: Page): Promise<void> {
   await expect(page.getByTestId('statusbar')).toContainText('Converged', { timeout: 15000 });
 }
 
+async function recordCanvasText(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const proto = CanvasRenderingContext2D.prototype;
+    const original = proto.fillText;
+    const texts = new Set<string>();
+    (window as Window & { __canvasText?: Set<string> }).__canvasText = texts;
+    proto.fillText = function (
+      this: CanvasRenderingContext2D,
+      text: string,
+      x: number,
+      y: number,
+      maxWidth?: number
+    ) {
+      texts.add(String(text));
+      if (maxWidth === undefined) original.call(this, text, x, y);
+      else original.call(this, text, x, y, maxWidth);
+    };
+  });
+}
+
+async function canvasText(page: Page): Promise<string[]> {
+  return page.evaluate(() =>
+    Array.from((window as Window & { __canvasText?: Set<string> }).__canvasText ?? [])
+  );
+}
+
 async function openResults(page: Page): Promise<void> {
   await page.getByTestId('toolbar').getByRole('button', { name: 'Results' }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
@@ -67,10 +93,14 @@ test.describe('Power System Analysis Tool workbench', () => {
   });
 
   test('draws load flow results on the diagram and opens the results dialog on demand', async ({ page }) => {
+    await recordCanvasText(page);
     await openApp(page);
     await runLoadFlow(page);
     await expect(page.getByRole('dialog')).toHaveCount(0);
     await expect(page.getByTestId('statusbar')).toContainText('Converged in 4 iterations');
+    await expect.poll(() => canvasText(page)).toEqual(
+      expect.arrayContaining(['1.000 pu', '1.050 pu', '69.8 MW', '124.0 MW'])
+    );
 
     await openResults(page);
     await page.getByRole('button', { name: 'Bus Results' }).click();
@@ -192,10 +222,14 @@ test.describe('Power System Analysis Tool workbench', () => {
   });
 
   test('shows short-circuit kA values on the diagram and opens results on demand', async ({ page }) => {
+    await recordCanvasText(page);
     await openApp(page);
     await page.getByTestId('toolbar').getByRole('button', { name: 'Short Circuit' }).click();
     await expect(page.getByTestId('statusbar')).toContainText('Max fault current', { timeout: 15000 });
     await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect.poll(() => canvasText(page)).toEqual(
+      expect.arrayContaining(['7.70 kA', '8.09 kA'])
+    );
 
     await openResults(page);
     await expect(page.getByRole('dialog').getByText('Short Circuit Study', { exact: true }).last()).toBeVisible();

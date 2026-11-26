@@ -104,7 +104,11 @@ When a study finishes, its key values are drawn on the one-line diagram:
 - **Load flow** – bus voltage in pu at each busbar and the branch flow in MW with an arrow that
   points in the direction of the power flow. Branch colour shows the loading level.
 - **Short circuit** – three-phase fault current in kA at each busbar.
-- Other studies leave the diagram unchanged and report through the status bar and output window.
+- Other studies have no diagram overlay. Completing one clears the annotations from the previous
+  study and reports through the status bar and output window.
+
+Annotations belong to the model that produced them: editing the system, or undoing an edit, hides
+them until you run the study again.
 
 The results dialog does not open on its own. Use **Results** (`F10`) for the tables and charts, or
 **Report** for a report of the active study.

@@ -39,6 +39,7 @@ interface CanvasProps {
   showVoltageOverlay: boolean;
   showFlowOverlay: boolean;
   onSelect: (selection: Selection, additive?: boolean) => void;
+  onElementClick?: (selection: Selection) => void;
   onSelectMany: (selections: Selection[], additive?: boolean) => void;
   onMoveStart: () => void;
   onMoveEnd: () => void;
@@ -222,6 +223,7 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     showVoltageOverlay,
     showFlowOverlay,
     onSelect,
+    onElementClick,
     onSelectMany,
     onMoveStart,
     onMoveEnd,
@@ -454,10 +456,10 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
 
     const branchResults = new Map<string, { pFrom: number; loading: number }>([
       ...(results?.lineResults ?? []).map(
-        item => [item.line, { pFrom: item.pFrom, loading: item.loading }] as const
+        item => [`line:${item.line}`, { pFrom: item.pFrom, loading: item.loading }] as const
       ),
       ...(results?.transformerResults ?? []).map(
-        item => [item.transformer, { pFrom: item.pFrom, loading: item.loading }] as const
+        item => [`transformer:${item.transformer}`, { pFrom: item.pFrom, loading: item.loading }] as const
       ),
     ]);
     const busResults = new Map((results?.busResults ?? []).map(item => [item.bus, item]));
@@ -587,7 +589,7 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
       const y2 = to.y * GRID_UNIT;
       const isSelected = selected(kind, id);
       const isHovered = hover.type === kind && hover.id === id;
-      const result = branchResults.get(id);
+      const result = branchResults.get(`${kind}:${id}`);
       const loading = result?.loading ?? 0;
 
       let stroke = colors.line;
@@ -1337,6 +1339,7 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     const activeDrag = dragRef.current;
     if (activeDrag && !activeDrag.moved && activeDrag.hit.type && activeDrag.hit.id) {
       onSelect(activeDrag.hit);
+      onElementClick?.(activeDrag.hit);
     }
     const activeMarquee = marqueeRef.current;
     if (activeMarquee) {

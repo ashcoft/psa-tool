@@ -30,7 +30,7 @@
   non-branch generic components are draggable; branch-like components stay anchored to their bus
   midpoint. Study results are drawn on the diagram (bus pu voltage, directional branch MW flows and
   bus fault currents in kA); `ResultsDialog` opens only from Results/F10, and Report from the Report
-  action.
+  action. Overlays are tied to the system object the study ran on, so any edit or undo hides them.
 - The app shell is `src/app/page.tsx`; the ribbon definition is `src/components/Ribbon.tsx` and
   actions are dispatched by `handleAction` in the page.
 - Workspace panes are toggled by `settings.showSidebar`, `showProperties` and `showToolbar`
