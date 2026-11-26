@@ -464,7 +464,9 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     ]);
     const busResults = new Map((results?.busResults ?? []).map(item => [item.bus, item]));
     const faultCurrents = new Map(
-      (faultResults?.threePhaseFaults ?? []).map(item => [item.bus, item.currents[0]?.magnitude ?? 0])
+      (faultResults?.threePhaseFaults ?? []).flatMap(item =>
+        item.currents[0] ? [[item.bus, item.currents[0].magnitude] as const] : []
+      )
     );
 
     const drawCatalogSymbol = (
@@ -928,29 +930,52 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
       const isHovered = hover.type === 'component' && hover.id === component.id;
       const color = isSelected ? colors.selected : isHovered ? '#0f172a' : '#475569';
       const definition = getComponentDefinition(component.type);
+      const symbolDefinition = definition?.symbol ? getSymbol(definition.symbol) : undefined;
+      const halfExtent = (ux: number, uy: number) =>
+        symbolDefinition
+          ? (Math.abs(ux) * symbolDefinition.width + Math.abs(uy) * symbolDefinition.height) / 2
+          : 0;
 
       if (component.fromBus && component.toBus) {
         const from = busById.get(component.fromBus);
         const to = busById.get(component.toBus);
         if (from && to) {
+          const ax = from.x * GRID_UNIT;
+          const ay = from.y * GRID_UNIT;
+          const bx = to.x * GRID_UNIT;
+          const by = to.y * GRID_UNIT;
+          const length = Math.hypot(bx - ax, by - ay) || 1;
+          const ux = (bx - ax) / length;
+          const uy = (by - ay) / length;
+          const half = Math.min(length / 2, halfExtent(ux, uy));
+          const midX = (ax + bx) / 2;
+          const midY = (ay + by) / 2;
           ctx.save();
           ctx.strokeStyle = color;
           ctx.lineWidth = (isSelected ? 2.8 : 1.4) / Math.max(0.6, scale);
           ctx.beginPath();
-          ctx.moveTo(from.x * GRID_UNIT, from.y * GRID_UNIT);
-          ctx.lineTo(to.x * GRID_UNIT, to.y * GRID_UNIT);
+          ctx.moveTo(ax, ay);
+          ctx.lineTo(midX - ux * half, midY - uy * half);
+          ctx.moveTo(midX + ux * half, midY + uy * half);
+          ctx.lineTo(bx, by);
           ctx.stroke();
           ctx.restore();
         }
       } else if (component.bus) {
         const bus = busById.get(component.bus);
         if (bus) {
+          const busX = bus.x * GRID_UNIT;
+          const busY = bus.y * GRID_UNIT;
+          const length = Math.hypot(anchor.x - busX, anchor.y - busY) || 1;
+          const ux = (anchor.x - busX) / length;
+          const uy = (anchor.y - busY) / length;
+          const half = Math.min(length, halfExtent(ux, uy));
           ctx.save();
           ctx.strokeStyle = color;
           ctx.lineWidth = 1.2 / Math.max(0.6, scale);
           ctx.beginPath();
-          ctx.moveTo(bus.x * GRID_UNIT, bus.y * GRID_UNIT);
-          ctx.lineTo(anchor.x, anchor.y);
+          ctx.moveTo(busX, busY);
+          ctx.lineTo(anchor.x - ux * half, anchor.y - uy * half);
           ctx.stroke();
           ctx.restore();
         }
@@ -958,10 +983,10 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
 
       ctx.save();
       ctx.globalAlpha = component.active === false ? 0.45 : 1;
-      if (definition?.symbol) {
+      if (symbolDefinition) {
         ctx.save();
-        ctx.translate(anchor.x, anchor.y);
-        renderSymbol(ctx, definition.symbol, 0, 0);
+        ctx.translate(anchor.x - symbolDefinition.width / 2, anchor.y - symbolDefinition.height / 2);
+        renderSymbol(ctx, symbolDefinition.type, 0, 0);
         ctx.restore();
       } else {
         ctx.fillStyle = '#ffffff';
@@ -982,10 +1007,17 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
       }
 
       if (isSelected) {
+        const outlineWidth = (symbolDefinition?.width ?? 40) + 6;
+        const outlineHeight = (symbolDefinition?.height ?? 32) + 6;
         ctx.setLineDash([4 / Math.max(0.7, scale), 3 / Math.max(0.7, scale)]);
         ctx.strokeStyle = colors.selected;
         ctx.lineWidth = 1.2 / Math.max(0.6, scale);
-        ctx.strokeRect(anchor.x - 20, anchor.y - 16, 40, 32);
+        ctx.strokeRect(
+          anchor.x - outlineWidth / 2,
+          anchor.y - outlineHeight / 2,
+          outlineWidth,
+          outlineHeight
+        );
         ctx.setLineDash([]);
       }
 
@@ -1077,7 +1109,12 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
       }
       for (const component of system.components ?? []) {
         const anchor = componentAnchor(system, component);
-        if (Math.hypot(worldX - anchor.x, worldY - anchor.y) < 22) {
+        const definition = getComponentDefinition(component.type);
+        const symbolDefinition = definition?.symbol ? getSymbol(definition.symbol) : undefined;
+        const hitRadius = symbolDefinition
+          ? Math.max(22, Math.hypot(symbolDefinition.width, symbolDefinition.height) / 2 + 4)
+          : 22;
+        if (Math.hypot(worldX - anchor.x, worldY - anchor.y) < hitRadius) {
           return { type: 'component', id: component.id };
         }
         if (component.fromBus && component.toBus) {
@@ -1149,6 +1186,7 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     if (!connectFrom) {
       setConnectFrom(hit.id);
       onSelect(hit);
+      onElementClick?.(hit);
     } else if (connectFrom !== hit.id) {
       onBranchConnect(connectFrom, hit.id);
       setConnectFrom(null);

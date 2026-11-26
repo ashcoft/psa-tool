@@ -79,7 +79,8 @@ their own, which is why the release workflow dispatches the deployment explicitl
 
 - Pushes to `main` do not deploy on their own; merge and let the release workflow publish.
 - To redeploy manually, run **Actions → Deploy to GitHub Pages → Run workflow** and set `ref` to a
-  tag such as `v1.6.0` (or a commit SHA).
+  recent tag such as `v1.6.0` (or a commit SHA). The build uses the scripts from that ref, so tags
+  from before `build:pages` existed cannot be rebuilt this way.
 
 - URL: `https://ashcoft.github.io/psa-tool/`
 - Source: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
