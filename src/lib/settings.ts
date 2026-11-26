@@ -11,7 +11,6 @@ export interface AppSettings {
   method: PowerFlowMethod;
   tolerance: number;
   maxIterations: number;
-  showMenubar: boolean;
   showSidebar: boolean;
   showProperties: boolean;
   showToolbar: boolean;
@@ -43,7 +42,6 @@ export const defaultSettings: AppSettings = {
   method: 'Newton-Raphson',
   tolerance: 1e-6,
   maxIterations: 50,
-  showMenubar: true,
   showSidebar: true,
   showProperties: true,
   showToolbar: true,
