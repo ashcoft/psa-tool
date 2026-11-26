@@ -63,14 +63,18 @@ describe('Power System Analysis Tool application shell', () => {
     expect(screen.getByText('Components: 1')).toBeInTheDocument();
   });
 
-  it('runs a load flow and opens the results dialog', async () => {
+  it('runs a load flow and opens the results dialog on demand', async () => {
     const user = userEvent.setup();
     render(<HomePage />);
     const runButtons = screen.getAllByRole('button', { name: /Run Load Flow/i });
     await user.click(runButtons[0]);
     await waitFor(() => {
-      expect(screen.getByText('Study Results')).toBeInTheDocument();
+      expect(screen.queryByText('Study Results')).not.toBeInTheDocument();
+      expect(within(screen.getByTestId('statusbar')).getByText(/Converged in 4 iterations/i)).toBeInTheDocument();
     }, { timeout: 5000 });
+
+    await user.click(within(screen.getByTestId('toolbar')).getByRole('button', { name: 'Results' }));
+    expect(screen.getByText('Study Results')).toBeInTheDocument();
     expect(screen.getByText('COMPLETED')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Bus Results' })).toBeInTheDocument();
   });

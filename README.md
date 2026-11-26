@@ -120,7 +120,8 @@ same build is available locally with `npm run build:pages`.
 
 - Ribbon with Home, Components, Analysis, Results and Tools tabs.
 - Toggleable menu bar from the titlebar, Home → View → Menu Bar, or `Ctrl+Shift+M`; the choice is
-  persisted.
+  persisted. The menu bar mirrors the ribbon tabs: choosing a name opens that tab and the two stay
+  in sync.
 - Complete PSAT component library with AC, DC, Instruments, Controls and Other palettes (sources,
   buses, branches, loads/motors, protection, conversion, meters, relays, AVR/governor/PSS, DC
   elements, DC control and composite items).
@@ -144,7 +145,8 @@ same build is available locally with `npm run build:pages`.
 - Context menu, duplicate, copy/paste, delete and undo/redo, including moves.
 - Full property editing with validation feedback.
 - IEEE-style bus, generator, load, shunt and transformer symbols.
-- Result overlays for voltage limits and branch loading.
+- Result overlays for voltage limits and branch loading; load-flow MW flows show a direction arrow
+  and short-circuit studies label every busbar with its fault current in kA.
 
 ### Project management
 
@@ -156,6 +158,9 @@ same build is available locally with `npm run build:pages`.
 
 ### Results and reporting
 
+- Diagram overlays drawn as soon as a study completes: bus voltages and directional branch flows for
+  load flow, bus fault currents in kA for short circuit. The results dialog opens on demand from
+  **Results** or `F10`; **Report** produces the report.
 - Study-case history for the current session.
 - Result tables with engineering units.
 - SVG charts (voltage profile, PV curve, dispatch, fault currents, eigenvalue scatter,

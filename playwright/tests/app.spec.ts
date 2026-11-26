@@ -8,8 +8,12 @@ async function openApp(page: Page): Promise<void> {
 
 async function runLoadFlow(page: Page): Promise<void> {
   await page.getByTestId('toolbar').getByRole('button', { name: 'Run Load Flow' }).click();
-  await expect(page.getByRole('dialog')).toBeVisible({ timeout: 10000 });
-  await expect(page.getByText('COMPLETED')).toBeVisible();
+  await expect(page.getByTestId('statusbar')).toContainText('Converged', { timeout: 15000 });
+}
+
+async function openResults(page: Page): Promise<void> {
+  await page.getByTestId('toolbar').getByRole('button', { name: 'Results' }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
 }
 
 async function dragVoltmeterToCanvas(page: Page, target = { x: 420, y: 280 }) {
@@ -26,14 +30,13 @@ async function addBusFromPalette(page: Page): Promise<void> {
   await expect(page.getByTestId('statusbar')).toContainText('Buses: 5');
 }
 
-async function chooseFileAction(
+async function chooseProjectAction(
   page: Page,
-  action: 'Close Project' | 'New Project',
+  action: 'Close' | 'New',
   response: 'accept' | 'dismiss'
 ): Promise<void> {
   page.once('dialog', dialog => (response === 'accept' ? dialog.accept() : dialog.dismiss()));
-  await page.getByRole('button', { name: 'File' }).click();
-  await page.getByRole('button', { name: action }).click();
+  await page.getByTestId('ribbon').getByRole('button', { name: action, exact: true }).click();
 }
 
 async function waitForCanvasReady(page: Page): Promise<void> {
@@ -63,17 +66,20 @@ test.describe('Power System Analysis Tool workbench', () => {
     await expect(page.getByTestId('statusbar')).toContainText('Base: 100 MVA');
   });
 
-  test('runs a load flow and shows results and charts', async ({ page }) => {
+  test('draws load flow results on the diagram and opens the results dialog on demand', async ({ page }) => {
     await openApp(page);
     await runLoadFlow(page);
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.getByTestId('statusbar')).toContainText('Converged in 4 iterations');
 
+    await openResults(page);
     await page.getByRole('button', { name: 'Bus Results' }).click();
     await expect(page.getByText('V (pu)')).toBeVisible();
 
     await page.getByRole('button', { name: 'Voltage Profile' }).click();
     await expect(page.locator('svg[role="img"]').first()).toBeVisible();
 
-    await page.getByRole('button', { name: 'Close', exact: true }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
     await expect(page.getByTestId('statusbar')).toContainText('Converged in 4 iterations');
   });
@@ -132,10 +138,10 @@ test.describe('Power System Analysis Tool workbench', () => {
     const status = page.getByTestId('statusbar');
     await addBusFromPalette(page);
 
-    await chooseFileAction(page, 'Close Project', 'dismiss');
+    await chooseProjectAction(page, 'Close', 'dismiss');
     await expect(status).toContainText('Buses: 5');
 
-    await chooseFileAction(page, 'Close Project', 'accept');
+    await chooseProjectAction(page, 'Close', 'accept');
     await expect(status).toContainText('Buses: 0');
     await expect(page.getByRole('status')).toContainText('Project closed');
   });
@@ -145,10 +151,10 @@ test.describe('Power System Analysis Tool workbench', () => {
     const status = page.getByTestId('statusbar');
     await addBusFromPalette(page);
 
-    await chooseFileAction(page, 'New Project', 'dismiss');
+    await chooseProjectAction(page, 'New', 'dismiss');
     await expect(status).toContainText('Buses: 5');
 
-    await chooseFileAction(page, 'New Project', 'accept');
+    await chooseProjectAction(page, 'New', 'accept');
     await expect(status).toContainText('Buses: 0');
   });
 
@@ -185,10 +191,13 @@ test.describe('Power System Analysis Tool workbench', () => {
     await expect(page.getByTestId('titlebar')).toContainText('Demo 4-Bus System');
   });
 
-  test('runs a short circuit study and shows kA results', async ({ page }) => {
+  test('shows short-circuit kA values on the diagram and opens results on demand', async ({ page }) => {
     await openApp(page);
     await page.getByTestId('toolbar').getByRole('button', { name: 'Short Circuit' }).click();
-    await expect(page.getByRole('dialog')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId('statusbar')).toContainText('Max fault current', { timeout: 15000 });
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+
+    await openResults(page);
     await expect(page.getByRole('dialog').getByText('Short Circuit Study', { exact: true }).last()).toBeVisible();
     await page.getByRole('button', { name: 'Fault Currents' }).click();
     await expect(page.getByText('I (kA)')).toBeVisible();
@@ -198,10 +207,11 @@ test.describe('Power System Analysis Tool workbench', () => {
   test('generates a report from the last study', async ({ page }) => {
     await openApp(page);
     await runLoadFlow(page);
-    await page.getByRole('button', { name: 'Report' }).click();
+    await page.getByRole('tab', { name: 'Results' }).click();
+    await page.getByTestId('ribbon').getByRole('button', { name: 'Report' }).click();
     await expect(page.getByText('Study Report')).toBeVisible();
     await expect(page.getByRole('button', { name: 'HTML' })).toBeVisible();
-    await page.getByRole('button', { name: 'Close', exact: true }).last().click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
   });
 
   test('shows and hides the menu bar', async ({ page }) => {
@@ -223,11 +233,33 @@ test.describe('Power System Analysis Tool workbench', () => {
     await expect(page.getByTestId('menubar')).toBeVisible();
   });
 
+  test('menu bar opens the matching ribbon tab and stays in sync', async ({ page }) => {
+    await openApp(page);
+    const menubar = page.getByTestId('menubar');
+
+    await menubar.getByRole('button', { name: 'Analysis' }).click();
+    await expect(page.getByRole('tab', { name: 'Analysis' })).toHaveAttribute('aria-selected', 'true');
+    await expect(menubar.getByRole('button', { name: 'Analysis' })).toHaveAttribute('aria-current', 'page');
+
+    await page.getByRole('tab', { name: 'Results' }).click();
+    await expect(menubar.getByRole('button', { name: 'Results' })).toHaveAttribute('aria-current', 'page');
+    await expect(menubar.getByRole('button', { name: 'Analysis' })).not.toHaveAttribute('aria-current', 'page');
+  });
+
   test('shows the keyboard shortcuts dialog', async ({ page }) => {
     await openApp(page);
-    await page.getByRole('button', { name: 'Help' }).first().click();
-    await page.getByRole('button', { name: 'Keyboard Shortcuts' }).click();
+    await page.getByRole('tab', { name: 'Tools' }).click();
+    await page.getByTestId('ribbon').getByRole('button', { name: 'Shortcuts' }).click();
     await expect(page.getByText('Ctrl + N')).toBeVisible();
+  });
+
+  test('links to the GitHub repository from the About dialog', async ({ page }) => {
+    await openApp(page);
+    await page.getByRole('tab', { name: 'Tools' }).click();
+    await page.getByTestId('ribbon').getByRole('button', { name: 'About' }).click();
+    const link = page.getByRole('link', { name: 'github.com/ashcoft/psa-tool' });
+    await expect(link).toBeVisible();
+    await expect(link).toHaveAttribute('href', 'https://github.com/ashcoft/psa-tool');
   });
 
   test('adds DC, instrument and control components from the catalog', async ({ page }) => {
@@ -256,6 +288,22 @@ test.describe('Power System Analysis Tool workbench', () => {
     await openApp(page);
     await dragVoltmeterToCanvas(page);
     await expect(page.getByRole('status')).toContainText('Added Voltmeter');
+  });
+
+  test('opens the properties pane when a component is selected on the diagram', async ({ page }) => {
+    await openApp(page);
+    const panel = page.getByTestId('properties-panel');
+
+    await page.keyboard.press('Control+Shift+B');
+    await expect(panel).toBeHidden();
+
+    const canvas = await dragVoltmeterToCanvas(page);
+    await expect(panel).toBeHidden();
+
+    const box = await canvas.boundingBox();
+    if (!box) throw new Error('Canvas is not visible');
+    await page.mouse.click(box.x + 420, box.y + 280);
+    await expect(panel).toBeVisible();
   });
 
   test('repositions a placed component and undoes the move', async ({ page }) => {
@@ -299,7 +347,9 @@ test.describe('Power System Analysis Tool workbench', () => {
 
     for (const study of studies) {
       await page.getByTestId('ribbon').getByRole('button', { name: study.button }).click();
-      await expect(dialog).toBeVisible({ timeout: 15000 });
+      await expect(page.getByTestId('output-window')).toContainText(`${study.title}: `, { timeout: 20000 });
+      await expect(dialog).toHaveCount(0);
+      await openResults(page);
       await expect(dialog.getByText(study.title, { exact: true }).last()).toBeVisible();
       await expect(dialog.getByText('COMPLETED')).toBeVisible();
       await dialog.getByRole('button', { name: 'Close', exact: true }).click();
@@ -337,6 +387,7 @@ test.describe('Power System Analysis Tool workbench', () => {
   test('exports study results as CSV', async ({ page }) => {
     await openApp(page);
     await runLoadFlow(page);
+    await openResults(page);
     const downloadPromise = page.waitForEvent('download');
     await page.getByRole('button', { name: /Export CSV/ }).click();
     const download = await downloadPromise;
@@ -385,7 +436,7 @@ test.describe('Responsive layout', () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await openApp(page);
     await expect(page.getByTestId('sidebar')).toBeHidden();
-    await page.getByRole('button', { name: 'Components', exact: true }).click();
+    await page.getByTestId('mobile-components-toggle').click();
     await expect(page.getByTestId('sidebar')).toBeVisible();
     await expect(page.getByTestId('sidebar').getByRole('button', { name: 'Bus', exact: true })).toBeVisible();
   });

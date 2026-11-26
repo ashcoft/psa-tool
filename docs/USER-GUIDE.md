@@ -9,16 +9,15 @@ browser: no account, no server-side database, no upload.
 - Use **Tools → Samples** to load the IEEE 9-bus, IEEE 14-bus or distribution feeder cases.
 - **Home → New** starts an empty project.
 - **Home → Open** loads a `.psa` project saved by Power System Analysis Tool. Legacy `.json` projects still open.
-- **File → Close Project** clears the workspace. New, open and close ask before discarding unsaved changes.
+- **Home → Close** clears the workspace. New, open and close ask before discarding unsaved changes.
 
 The status bar shows the element counts, base MVA, frequency and the last study result.
 
 ### Show or hide workspace panes
 
 The left component pane, the right property pane and the toolbar can each be hidden to give the
-diagram more room. Use the collapse button in a pane header, **View → Toggle Left Pane / Toggle
-Right Pane / Toggle Toolbar**, the same toggles in **View** ribbon group, or `Ctrl + B`,
-`Ctrl + Shift + B` and `Ctrl + Shift + T`. The toolbar collapses to a thin strip, like the output
+diagram more room. Use the collapse button in a pane header, the **View** group of the **Home**
+ribbon tab, or `Ctrl + B`, `Ctrl + Shift + B` and `Ctrl + Shift + T`. The toolbar collapses to a thin strip, like the output
 bar, and the choice is remembered in settings.
 
 The palette shows compact, colour-coded symbols without text labels. Hover a symbol to see its
@@ -67,6 +66,7 @@ starts the two-click connection tool.
 ### Select, edit and delete
 
 - Click an element on the diagram or in the **Project** tree.
+- Selecting an element on the diagram opens the right-hand **Properties** panel when it is hidden.
 - **Ctrl + click** or **Shift + click** adds or removes an element from the selection.
 - **Ctrl + A** selects every bus, branch, device and specialty component in the workspace.
 - Drag on empty canvas to draw a selection marquee: left-to-right selects fully enclosed elements,
@@ -98,6 +98,16 @@ If the model check finds an error, the study is blocked and the validation dialo
 do not block a study.
 
 ## 4. Read the results
+
+When a study finishes, its key values are drawn on the one-line diagram:
+
+- **Load flow** – bus voltage in pu at each busbar and the branch flow in MW with an arrow that
+  points in the direction of the power flow. Branch colour shows the loading level.
+- **Short circuit** – three-phase fault current in kA at each busbar.
+- Other studies leave the diagram unchanged and report through the status bar and output window.
+
+The results dialog does not open on its own. Use **Results** (`F10`) for the tables and charts, or
+**Report** for a report of the active study.
 
 The results dialog keeps a study-case history for the session. Each case has:
 

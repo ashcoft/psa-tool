@@ -267,7 +267,7 @@ export default function Home() {
           setActiveRunId(run.id);
           run.messages.forEach(message => log(message));
           log(`${run.title}: ${run.summary}`);
-          setDialog('results');
+          log('Results are drawn on the diagram. Open Results for tables, or Report for a full report.');
           setToast({
             type: run.status === 'success' ? 'success' : 'error',
             text: `${run.title}: ${run.summary}`,
@@ -1015,9 +1015,11 @@ export default function Home() {
         canUndo={project.canUndo}
         canRedo={project.canRedo}
         showMenubar={settings.showMenubar}
+        activeTab={activeTab}
         onToggleMenubar={() => {
           toggleSetting('showMenubar');
         }}
+        onTabChange={setActiveTab}
         onAction={handleAction}
         onRename={name => {
           project.setName(name);
@@ -1078,14 +1080,19 @@ export default function Home() {
               selections={selections}
               tool={tool}
               results={activeRun?.kind === 'powerflow' ? activeRun.data : null}
+              faultResults={activeRun?.kind === 'fault' ? activeRun.data : null}
               showGrid={settings.showGrid}
               snapToGrid={settings.snapToGrid}
               showBusNames={settings.showBusNames}
               showVoltageOverlay={settings.showVoltageOverlay}
               showFlowOverlay={settings.showFlowOverlay}
               onSelect={(hit, additive) => {
-                if (additive) toggleSelection(hit);
-                else setSelection(hit);
+                if (additive) {
+                  toggleSelection(hit);
+                  return;
+                }
+                setSelection(hit);
+                if (hit.type && hit.id) showPropertiesPane();
               }}
               onSelectMany={selectMany}
               onMoveStart={project.beginMove}

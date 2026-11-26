@@ -1,15 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import Icon from './Icon';
-
-interface MenuItem {
-  label: string;
-  action?: string;
-  shortcut?: string;
-  separator?: boolean;
-  disabled?: boolean;
-}
+import { ribbonTabs } from './Ribbon';
 
 interface TitleBarProps {
   projectName: string;
@@ -17,105 +10,12 @@ interface TitleBarProps {
   canUndo: boolean;
   canRedo: boolean;
   showMenubar: boolean;
+  activeTab: string;
   onToggleMenubar: () => void;
+  onTabChange: (tabId: string) => void;
   onAction: (action: string) => void;
   onRename: (name: string) => void;
 }
-
-const menus: { id: string; label: string; items: MenuItem[] }[] = [
-  {
-    id: 'file',
-    label: 'File',
-    items: [
-      { label: 'New Project', action: 'new', shortcut: 'Ctrl+N' },
-      { label: 'Open Project...', action: 'open', shortcut: 'Ctrl+O' },
-      { label: 'Save Project', action: 'save', shortcut: 'Ctrl+S' },
-      { label: 'Save As...', action: 'save-as' },
-      { label: 'Close Project', action: 'close-project' },
-      { separator: true, label: '' },
-      { label: 'Sample Systems...', action: 'samples' },
-      { separator: true, label: '' },
-      { label: 'Export Project (.psa)', action: 'export' },
-      { label: 'Export Results (CSV)', action: 'export-csv' },
-      { label: 'Generate Report', action: 'report' },
-      { separator: true, label: '' },
-      { label: 'Print', action: 'print' },
-    ],
-  },
-  {
-    id: 'edit',
-    label: 'Edit',
-    items: [
-      { label: 'Undo', action: 'undo', shortcut: 'Ctrl+Z' },
-      { label: 'Redo', action: 'redo', shortcut: 'Ctrl+Y' },
-      { separator: true, label: '' },
-      { label: 'Cut', action: 'cut', shortcut: 'Ctrl+X' },
-      { label: 'Copy', action: 'copy', shortcut: 'Ctrl+C' },
-      { label: 'Paste', action: 'paste', shortcut: 'Ctrl+V' },
-      { label: 'Duplicate', action: 'duplicate', shortcut: 'Ctrl+D' },
-      { label: 'Delete', action: 'delete', shortcut: 'Del' },
-      { separator: true, label: '' },
-      { label: 'Select All', action: 'select-all', shortcut: 'Ctrl+A' },
-      { label: 'Auto Arrange', action: 'arrange' },
-    ],
-  },
-  {
-    id: 'view',
-    label: 'View',
-    items: [
-      { label: 'Select Tool', action: 'tool-select' },
-      { label: 'Pan Tool', action: 'tool-pan' },
-      { separator: true, label: '' },
-      { label: 'Zoom In', action: 'zoom-in', shortcut: 'Ctrl++' },
-      { label: 'Zoom Out', action: 'zoom-out', shortcut: 'Ctrl+-' },
-      { label: 'Fit to Window', action: 'fit', shortcut: 'Ctrl+0' },
-      { separator: true, label: '' },
-      { label: 'Toggle Grid', action: 'toggle-grid' },
-      { label: 'Toggle Voltage Overlay', action: 'toggle-voltage' },
-      { label: 'Toggle Flow Overlay', action: 'toggle-flow' },
-      { label: 'Toggle Labels', action: 'toggle-names' },
-      { separator: true, label: '' },
-      { label: 'Toggle Left Pane', action: 'toggle-sidebar', shortcut: 'Ctrl+B' },
-      { label: 'Toggle Right Pane', action: 'toggle-properties', shortcut: 'Ctrl+Shift+B' },
-      { label: 'Toggle Toolbar', action: 'toggle-toolbar', shortcut: 'Ctrl+Shift+T' },
-      { label: 'Toggle Menu Bar', action: 'toggle-menubar', shortcut: 'Ctrl+Shift+M' },
-    ],
-  },
-  {
-    id: 'analysis',
-    label: 'Analysis',
-    items: [
-      { label: 'Load Flow', action: 'run-powerflow', shortcut: 'F5' },
-      { label: 'Continuation Power Flow', action: 'run-cpf', shortcut: 'F6' },
-      { label: 'Optimal Power Flow', action: 'run-opf', shortcut: 'F8' },
-      { label: 'Short Circuit', action: 'run-fault', shortcut: 'F7' },
-      { label: 'Small-Signal Stability', action: 'run-stability' },
-      { label: 'Time-Domain Simulation', action: 'run-timeseries', shortcut: 'F9' },
-      { separator: true, label: '' },
-      { separator: true, label: '' },
-      { label: 'Arc Flash Screening...', action: 'specialty-arcflash' },
-      { label: 'Motor Starting...', action: 'specialty-motor' },
-      { label: 'Harmonic Analysis...', action: 'specialty-harmonics' },
-      { label: 'Protection Coordination...', action: 'specialty-protection' },
-      { label: 'Ground Grid Design...', action: 'specialty-groundgrid' },
-      { separator: true, label: '' },
-      { label: 'Study Options...', action: 'settings' },
-      { label: 'Check Model', action: 'validate' },
-      { label: 'Open Results', action: 'open-results', shortcut: 'F10' },
-      { label: 'Clear Results', action: 'clear-results' },
-    ],
-  },
-  {
-    id: 'help',
-    label: 'Help',
-    items: [
-      { label: 'Keyboard Shortcuts', action: 'shortcuts' },
-      { label: 'Sample Systems', action: 'samples' },
-      { separator: true, label: '' },
-      { label: 'About PSA', action: 'about' },
-    ],
-  },
-];
 
 export default function TitleBar({
   projectName,
@@ -123,22 +23,14 @@ export default function TitleBar({
   canUndo,
   canRedo,
   showMenubar,
+  activeTab,
   onToggleMenubar,
+  onTabChange,
   onAction,
   onRename,
 }: Readonly<TitleBarProps>) {
-  const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClick = (event: MouseEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) setOpenMenu(null);
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
 
   const commitRename = () => {
     setEditing(false);
@@ -148,7 +40,7 @@ export default function TitleBar({
   };
 
   return (
-    <div ref={containerRef} className="flex items-center gap-2 bg-gradient-to-b from-[#1f4d85] to-[#183c68] px-2 py-1 text-white shadow-sm" data-testid="titlebar">
+    <div className="flex items-center gap-2 bg-gradient-to-b from-[#1f4d85] to-[#183c68] px-2 py-1 text-white shadow-sm" data-testid="titlebar">
       <div className="flex items-center gap-2 pr-3">
         <span className="flex h-6 w-6 items-center justify-center rounded bg-white/15">
           <Icon name="lightning" size={15} className="text-amber-300" />
@@ -197,10 +89,7 @@ export default function TitleBar({
         title={showMenubar ? 'Hide menu bar (Ctrl+Shift+M)' : 'Show menu bar (Ctrl+Shift+M)'}
         aria-label={showMenubar ? 'Hide menu bar' : 'Show menu bar'}
         aria-pressed={showMenubar}
-        onClick={() => {
-          setOpenMenu(null);
-          onToggleMenubar();
-        }}
+        onClick={onToggleMenubar}
       >
         <Icon name="menu" size={15} />
       </button>
@@ -210,36 +99,17 @@ export default function TitleBar({
           <div className="mx-2 h-5 w-px bg-white/25" />
 
           <div className="flex items-center" data-testid="menubar">
-            {menus.map(menu => (
-              <div key={menu.id} className="relative">
-                <button
-                  className={`rounded px-2 py-0.5 text-[12px] hover:bg-white/15 ${openMenu === menu.id ? 'bg-white/20' : ''}`}
-                  onClick={() => setOpenMenu(openMenu === menu.id ? null : menu.id)}
-                >
-                  {menu.label}
-                </button>
-                {openMenu === menu.id && (
-                  <div className="psat-fade-in absolute left-0 top-full z-[70] mt-1 min-w-[230px] rounded border border-[#c9d2dd] bg-white py-1 text-slate-800 shadow-xl">
-                    {menu.items.map((item, index) =>
-                      item.separator ? (
-                        <div key={`sep-${index}`} className="my-1 h-px bg-slate-200" />
-                      ) : (
-                        <button
-                          key={item.label}
-                          className="flex w-full items-center justify-between gap-6 px-3 py-1.5 text-left text-[12px] hover:bg-[#e2ebf7]"
-                          onClick={() => {
-                            setOpenMenu(null);
-                            if (item.action) onAction(item.action);
-                          }}
-                        >
-                          <span>{item.label}</span>
-                          {item.shortcut && <span className="text-[10px] text-slate-400">{item.shortcut}</span>}
-                        </button>
-                      )
-                    )}
-                  </div>
-                )}
-              </div>
+            {ribbonTabs.map(tab => (
+              <button
+                key={tab.id}
+                className={`rounded px-2 py-0.5 text-[12px] hover:bg-white/15 ${
+                  activeTab === tab.id ? 'bg-white/20 font-semibold' : ''
+                }`}
+                aria-current={activeTab === tab.id ? 'page' : undefined}
+                onClick={() => onTabChange(tab.id)}
+              >
+                {tab.label}
+              </button>
             ))}
           </div>
         </>
