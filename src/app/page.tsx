@@ -704,12 +704,14 @@ export default function Home() {
         break;
       case 'undo':
         project.undo();
+        setRunSystems({});
         setSelection({ type: null, id: null });
         setRevision(value => value + 1);
         log('Undo.');
         break;
       case 'redo':
         project.redo();
+        setRunSystems({});
         setSelection({ type: null, id: null });
         setRevision(value => value + 1);
         log('Redo.');

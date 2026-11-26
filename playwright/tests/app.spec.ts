@@ -308,6 +308,21 @@ test.describe('Power System Analysis Tool workbench', () => {
     await expect(panel).toBeVisible();
   });
 
+  test('selects a meter by clicking the centre of its badge', async ({ page }) => {
+    await openApp(page);
+    const canvas = await dragVoltmeterToCanvas(page);
+    const box = await canvas.boundingBox();
+    if (!box) throw new Error('Canvas is not visible');
+
+    await page.mouse.click(box.x + 620, box.y + 60);
+    await expect(page.getByTestId('statusbar')).toContainText('Selected: 0');
+
+    await page.mouse.click(box.x + 420, box.y + 280);
+    const panel = page.getByTestId('properties-panel');
+    await expect(panel).toBeVisible();
+    await expect(panel.locator('input').first()).toHaveValue('Voltmeter');
+  });
+
   test('repositions a placed component and undoes the move', async ({ page }) => {
     await openApp(page);
     const canvas = await dragVoltmeterToCanvas(page);

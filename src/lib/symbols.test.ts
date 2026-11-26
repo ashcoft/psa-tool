@@ -150,6 +150,14 @@ describe('IEC Symbol Library', () => {
       expect(pvKeys).toContain('pmax');
     });
 
+    it('should keep defaults on the meter properties', () => {
+      const voltmeter = getSymbol('voltmeter');
+      const ratio = voltmeter.properties.find((prop) => prop.key === 'ratio');
+      const accuracy = voltmeter.properties.find((prop) => prop.key === 'accuracyClass');
+      expect(ratio?.default).toBe('100/5');
+      expect(accuracy?.default).toBe('1.0');
+    });
+
     it('should have battery storage properties', () => {
       const batt = getSymbol('battery');
       const battKeys = batt.properties.map((p) => p.key);

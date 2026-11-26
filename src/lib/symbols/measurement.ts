@@ -19,8 +19,8 @@ const meterBase = {
   ],
   properties: [
     { key: 'name', label: 'Name', type: 'string' as const },
-    { key: 'ratio', label: 'Ratio', type: 'string' as const },
-    { key: 'accuracyClass', label: 'Accuracy class', type: 'string' as const },
+    { key: 'ratio', label: 'Ratio', type: 'string' as const, default: '100/5' },
+    { key: 'accuracyClass', label: 'Accuracy class', type: 'string' as const, default: '1.0' },
   ],
 };
 
