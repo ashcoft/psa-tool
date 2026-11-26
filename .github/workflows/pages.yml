@@ -1,9 +1,16 @@
 name: Deploy to GitHub Pages
 
+# Releases created with GITHUB_TOKEN do not trigger other workflows, so the
+# release workflow dispatches this one with the release commit SHA. Pushes to
+# main no longer deploy on their own: the public site always matches the
+# latest release.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+    inputs:
+      ref:
+        description: Commit, tag or branch to deploy (defaults to the dispatched ref)
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -20,6 +27,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          ref: ${{ inputs.ref || github.ref }}
           persist-credentials: false
 
       - name: Setup Node.js

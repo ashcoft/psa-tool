@@ -56,7 +56,9 @@
   with behaviour or assumption changes.
 - `README.md` is the project landing page; `ROADMAP.md` is the plan of record.
 - `.github/workflows/pages.yml` builds the static export and deploys it with the Pages artifact and
-  deployment actions. The site is served at <https://ashcoft.github.io/psa-tool/>.
+  deployment actions. The release workflow dispatches it with the release commit SHA, so the site
+  matches the latest release; pushes to `main` do not deploy on their own. The site is served at
+  <https://ashcoft.github.io/psa-tool/>.
 - `.github/workflows/docker-publish.yml` publishes the container to GHCR on `main`, version tags and
   manual dispatch.
 

@@ -72,6 +72,15 @@ The workbench is live at **https://ashcoft.github.io/psa-tool/**.
 The repository includes `.github/workflows/pages.yml`, which builds the static export and deploys
 it with the official Pages artifact and deployment actions.
 
+The site always matches the latest release. After semantic-release publishes a release, the release
+workflow dispatches the Pages workflow with the release commit SHA, so the deployed `package.json`
+version and the app match the tag. Releases created with `GITHUB_TOKEN` do not trigger workflows on
+their own, which is why the release workflow dispatches the deployment explicitly.
+
+- Pushes to `main` do not deploy on their own; merge and let the release workflow publish.
+- To redeploy manually, run **Actions → Deploy to GitHub Pages → Run workflow** and set `ref` to a
+  tag such as `v1.6.0` (or a commit SHA).
+
 - URL: `https://ashcoft.github.io/psa-tool/`
 - Source: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
 - The workflow writes `out/.nojekyll` so the `_next` asset directory is served.
