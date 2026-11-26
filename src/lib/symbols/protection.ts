@@ -275,3 +275,47 @@ export const relaySymbol: IECSymbol = {
     drawCircle(ctx, x + 25, y + 17, 5);
   },
 };
+
+const relayBadge = (
+  type: IECSymbol['type'],
+  name: string,
+  label: string,
+  ieeeSymbol: string
+): IECSymbol => ({
+  type,
+  name,
+  ieeeSymbol,
+  category: 'protection',
+  width: 34,
+  height: 38,
+  connectionPoints: [
+    { id: 'top', x: 17, y: 0, type: 'top' },
+    { id: 'bottom', x: 17, y: 38, type: 'bottom' },
+  ],
+  properties: [
+    { key: 'name', label: 'Name', type: 'string' },
+    { key: 'pickup', label: 'Pickup', type: 'number', default: 1 },
+    { key: 'timeDelay', label: 'Time delay', type: 'number', unit: 's', default: 0.1 },
+  ],
+  render: (ctx, x, y) => {
+    const cx = x + 17;
+    const cy = y + 19;
+    setStroke(ctx, '#000', 1.3);
+    drawLine(ctx, cx, y, cx, cy - 13);
+    drawLine(ctx, cx, cy + 13, cx, y + 38);
+    drawCircle(ctx, cx, cy, 13);
+    ctx.fillStyle = '#000';
+    drawText(ctx, label, cx, cy + 0.5, label.length > 2 ? 9 : 13);
+  },
+});
+
+export const relay27Symbol = relayBadge('relay-27', 'Undervoltage Relay (27)', '27', 'IEEE C37.2 27');
+export const relay81Symbol = relayBadge('relay-81', 'Frequency Relay (81)', '81', 'IEEE C37.2 81');
+export const relay87Symbol = relayBadge('relay-87', 'Differential Relay (87)', '87', 'IEEE C37.2 87');
+export const relay21Symbol = relayBadge('relay-21', 'Distance Relay (21)', '21', 'IEEE C37.2 21');
+export const relay32Symbol = relayBadge('relay-32', 'Reverse Power Relay (32)', '32', 'IEEE C37.2 32');
+export const relayOcrSymbol = relayBadge('relay-ocr', 'Overcurrent Relay (50/51)', 'OCR', 'IEEE C37.2 50/51');
+export const relay79Symbol = relayBadge('relay-79', 'Reclosing Relay (79)', '79', 'IEEE C37.2 79');
+export const relayMrSymbol = relayBadge('relay-mr', 'Master Relay (MR)', 'MR', 'IEEE C37.2');
+export const relayLockoutSymbol = relayBadge('relay-lockout', 'Lockout Relay (86)', 'R', 'IEEE C37.2 86');
+export const relaySstSymbol = relayBadge('relay-sst', 'Solid-State Trip Relay', 'SST', 'IEEE C37.2');

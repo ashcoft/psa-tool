@@ -126,7 +126,9 @@ same build is available locally with `npm run build:pages`.
   elements, DC control and composite items).
 - Component palette with category tabs, search and drag-and-drop placement.
 - The palette and diagram share the same IEC symbol renderer, including catalog-specific generator,
-  load, shunt and transformer symbols.
+  load, shunt and transformer symbols. Numbered protection relays (27, 81, 87, 21, 32, OCR, 79, MR,
+  86, SST) and panel meters (V, A, PF) have their own badges, and the AC palette includes node,
+  transmission tower, line trap and disconnect symbols.
 - Every placed bus or non-branch specialty component can be dragged anywhere on the diagram.
   **Hold Alt** to bypass grid snap; the property panel X/Y fields accept exact coordinates.
 - CAD-style selection: **Ctrl+A** selects the whole workspace, **Ctrl/Shift+click** adds or removes

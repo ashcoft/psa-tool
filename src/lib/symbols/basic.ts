@@ -171,3 +171,95 @@ export const lineSymbol: IECSymbol = {
     drawLine(ctx, x, y + 10, x + 60, y + 10);
   },
 };
+
+export const nodeSymbol: IECSymbol = {
+  type: 'node',
+  name: 'Node',
+  ieeeSymbol: 'IEC 60617 03-02-01',
+  category: 'network',
+  width: 30,
+  height: 30,
+  connectionPoints: [
+    { id: 'top', x: 15, y: 0, type: 'top' },
+    { id: 'bottom', x: 15, y: 30, type: 'bottom' },
+    { id: 'left', x: 0, y: 15, type: 'left' },
+    { id: 'right', x: 30, y: 15, type: 'right' },
+  ],
+  properties: [
+    { key: 'name', label: 'Name', type: 'string' },
+    { key: 'voltage', label: 'Voltage (kV)', type: 'number', unit: 'kV', default: 138 },
+  ],
+  render: (ctx, x, y) => {
+    const cx = x + 15;
+    const cy = y + 15;
+    setStroke(ctx, '#000', 1.3);
+    drawLine(ctx, cx, y, cx, cy - 8);
+    drawLine(ctx, cx, cy + 8, cx, y + 30);
+    drawCircle(ctx, cx, cy, 6);
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 2.6, 0, Math.PI * 2);
+    ctx.fill();
+  },
+};
+
+export const towerSymbol: IECSymbol = {
+  type: 'tower',
+  name: 'Transmission Tower',
+  ieeeSymbol: 'IEC 60617 11-06-01',
+  category: 'transmission',
+  width: 44,
+  height: 60,
+  connectionPoints: [
+    { id: 'top', x: 22, y: 0, type: 'top' },
+    { id: 'bottom', x: 22, y: 60, type: 'bottom' },
+  ],
+  properties: [
+    { key: 'name', label: 'Name', type: 'string' },
+    { key: 'height', label: 'Height', type: 'number', unit: 'm', default: 30 },
+  ],
+  render: (ctx, x, y) => {
+    setStroke(ctx, '#000', 1.2);
+    drawLine(ctx, x + 22, y, x + 22, y + 60);
+    drawLine(ctx, x + 8, y + 60, x + 18, y + 18);
+    drawLine(ctx, x + 36, y + 60, x + 26, y + 18);
+    drawLine(ctx, x + 2, y + 16, x + 42, y + 16);
+    drawLine(ctx, x + 7, y + 32, x + 37, y + 32);
+    drawLine(ctx, x + 12, y + 46, x + 32, y + 46);
+    drawLine(ctx, x + 18, y + 18, x + 22, y + 8);
+    drawLine(ctx, x + 26, y + 18, x + 22, y + 8);
+    drawLine(ctx, x + 18, y + 18, x + 26, y + 32);
+    drawLine(ctx, x + 26, y + 18, x + 18, y + 32);
+  },
+};
+
+export const waveTrapSymbol: IECSymbol = {
+  type: 'wave-trap',
+  name: 'Line Trap',
+  ieeeSymbol: 'IEC 60617 11-07-01',
+  category: 'transmission',
+  width: 60,
+  height: 30,
+  connectionPoints: [
+    { id: 'left', x: 0, y: 15, type: 'left' },
+    { id: 'right', x: 60, y: 15, type: 'right' },
+  ],
+  properties: [
+    { key: 'name', label: 'Name', type: 'string' },
+    { key: 'inductance', label: 'Inductance', type: 'number', unit: 'mH', default: 0.5 },
+    { key: 'tuning', label: 'Tuning frequency', type: 'number', unit: 'kHz', default: 100 },
+  ],
+  render: (ctx, x, y) => {
+    setStroke(ctx, '#000', 1.3);
+    drawLine(ctx, x, y + 15, x + 8, y + 15);
+    for (let index = 0; index < 3; index += 1) {
+      ctx.beginPath();
+      ctx.arc(x + 13 + index * 9, y + 15, 4.5, Math.PI, 0);
+      ctx.stroke();
+    }
+    drawLine(ctx, x + 35, y + 15, x + 44, y + 15);
+    drawLine(ctx, x + 44, y + 5, x + 44, y + 25);
+    drawLine(ctx, x + 50, y + 5, x + 50, y + 25);
+    drawLine(ctx, x + 50, y + 15, x + 60, y + 15);
+  },
+};
