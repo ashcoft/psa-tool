@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file. This file is generated automatically by [semantic-release](https://github.com/semantic-release/semantic-release) from the commit history.
 
+# [1.8.0](https://github.com/ashcoft/psa-tool/compare/v1.7.0...v1.8.0) (2026-11-26)
+
+### Features
+
+* **ui:** add symbol-sheet badges for meters, relays and network elements ([41ef968](https://github.com/ashcoft/psa-tool/commit/41ef968b6f4024c37c9ee92e92dcc0dd752fda8f))
+
 # [1.7.0](https://github.com/ashcoft/psa-tool/compare/v1.6.0...v1.7.0) (2026-11-26)
 
 ### Bug Fixes
