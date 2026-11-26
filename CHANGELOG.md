@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented in this file. This file is generated automatically by [semantic-release](https://github.com/semantic-release/semantic-release) from the commit history.
 
+# [1.7.0](https://github.com/ashcoft/psa-tool/compare/v1.6.0...v1.7.0) (2026-11-26)
+
+### Bug Fixes
+
+* **ci:** target the repository when dispatching Pages ([90608af](https://github.com/ashcoft/psa-tool/commit/90608af70d56872089c81fee5ac4d87444a960e7))
+* **ui:** address review feedback on diagram results ([5334d0a](https://github.com/ashcoft/psa-tool/commit/5334d0ab28c947388b8b498df0dda87c007e3265))
+
+### Features
+
+* show study results on the one-line diagram ([c06488e](https://github.com/ashcoft/psa-tool/commit/c06488e5ca80906ee7061257d7da64c1a167ba6e))
+
 # [1.6.0](https://github.com/ashcoft/psa-tool/compare/v1.5.0...v1.6.0) (2026-11-26)
 
 ### Bug Fixes
