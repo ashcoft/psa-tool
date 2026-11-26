@@ -11,7 +11,8 @@ export type IconName =
   | 'powerflow' | 'cpf' | 'opf' | 'fault' | 'stability' | 'time' | 'results'
   | 'report' | 'settings' | 'help' | 'about' | 'search' | 'chevronDown' | 'chevronRight'
   | 'play' | 'check' | 'warning' | 'close' | 'plus' | 'refresh' | 'chart' | 'table' | 'csv'
-  | 'lightning' | 'area' | 'folder' | 'project' | 'eye' | 'menu';
+  | 'lightning' | 'area' | 'folder' | 'project' | 'eye' | 'menu'
+  | 'panelLeft' | 'panelRight' | 'panelBottom';
 
 interface IconProps {
   name: IconName;
@@ -88,6 +89,9 @@ const paths: Record<IconName, React.ReactNode> = {
   project: <><path d="M4 4h7l2 3h7v13H4z" /><path d="M8 12h8M8 16h5" /></>,
   eye: <><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z" /><circle cx="12" cy="12" r="2.5" /></>,
   menu: <path d="M4 7h16M4 12h16M4 17h16" />,
+  panelLeft: <><rect x="3" y="4" width="18" height="16" rx="1" /><path d="M9 4v16" /></>,
+  panelRight: <><rect x="3" y="4" width="18" height="16" rx="1" /><path d="M15 4v16" /></>,
+  panelBottom: <><rect x="3" y="4" width="18" height="16" rx="1" /><path d="M3 15h18" /></>,
 };
 
 export default function Icon({ name, size = 20, className = '', strokeWidth = 1.7 }: IconProps) {

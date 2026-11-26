@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import TitleBar from '@/components/TitleBar';
 import Ribbon from '@/components/Ribbon';
 import Toolbar from '@/components/Toolbar';
@@ -33,6 +33,17 @@ import {
 import { runStudy as executeStudy, StudyKind, StudyRun } from '@/lib/studies';
 import { studyToCSV } from '@/lib/results-export';
 import '@/app/globals.css';
+
+function useViewportWidth(): number {
+  return useSyncExternalStore(
+    onChange => {
+      window.addEventListener('resize', onChange);
+      return () => window.removeEventListener('resize', onChange);
+    },
+    () => window.innerWidth,
+    () => 1280
+  );
+}
 
 type DialogKind = 'settings' | 'samples' | 'results' | 'about' | 'shortcuts' | 'validation' | null;
 
@@ -77,6 +88,10 @@ export default function Home() {
   const [dialog, setDialog] = useState<DialogKind>(null);
   const [specialtyTab, setSpecialtyTab] = useState<SpecialtyTab | null>(null);
   const [mobileSidebar, setMobileSidebar] = useState(false);
+  const [mobileProperties, setMobileProperties] = useState(false);
+  const viewportWidth = useViewportWidth();
+  const narrowSidebar = viewportWidth < 768;
+  const narrowProperties = viewportWidth < 1024;
   const [reportRunId, setReportRunId] = useState<string | null>(null);
   const [messages, setMessages] = useState<string[]>([
     'Power System Analysis Tool (PSA) ready. Demo 4-bus system loaded.',
@@ -590,13 +605,49 @@ export default function Home() {
   }, [activeRun, log, project.name, project.system]);
 
   const toggleSetting = useCallback(
-    (key: 'showMenubar' | 'showGrid' | 'showBusNames' | 'showVoltageOverlay' | 'showFlowOverlay') => {
+    (
+      key:
+        | 'showMenubar'
+        | 'showSidebar'
+        | 'showProperties'
+        | 'showToolbar'
+        | 'showGrid'
+        | 'showBusNames'
+        | 'showVoltageOverlay'
+        | 'showFlowOverlay'
+    ) => {
       const next = { ...settings, [key]: !settings[key] };
       setSettings(next);
       saveSettings(next);
     },
     [settings]
   );
+
+  const toggleSidebar = useCallback(() => {
+    if (narrowSidebar) {
+      setMobileSidebar(value => !value);
+      return;
+    }
+    setMobileSidebar(false);
+    toggleSetting('showSidebar');
+  }, [narrowSidebar, toggleSetting]);
+
+  const toggleProperties = useCallback(() => {
+    if (narrowProperties) {
+      setMobileProperties(value => !value);
+      return;
+    }
+    setMobileProperties(false);
+    toggleSetting('showProperties');
+  }, [narrowProperties, toggleSetting]);
+
+  const showPropertiesPane = useCallback(() => {
+    if (narrowProperties) {
+      setMobileProperties(true);
+      return;
+    }
+    if (!settings.showProperties) toggleSetting('showProperties');
+  }, [narrowProperties, settings.showProperties, toggleSetting]);
 
   const handleAction = (action: string) => {
     setContextMenu(null);
@@ -700,6 +751,15 @@ export default function Home() {
         break;
       case 'toggle-menubar':
         toggleSetting('showMenubar');
+        break;
+      case 'toggle-sidebar':
+        toggleSidebar();
+        break;
+      case 'toggle-properties':
+        toggleProperties();
+        break;
+      case 'toggle-toolbar':
+        toggleSetting('showToolbar');
         break;
       case 'toggle-grid':
         toggleSetting('showGrid');
@@ -814,6 +874,7 @@ export default function Home() {
         setDialog('about');
         break;
       case 'focus-properties':
+        showPropertiesPane();
         log('Edit the selected element in the Properties panel.');
         break;
       case 'escape':
@@ -847,13 +908,24 @@ export default function Home() {
       if (document.querySelector('[role="dialog"]') && event.key !== 'Escape') return;
       const ctrl = event.ctrlKey || event.metaKey;
       if (ctrl) {
-        if (event.shiftKey && event.key.toLowerCase() === 'm') {
+        const keyLower = event.key.toLowerCase();
+        if (event.shiftKey && keyLower === 'm') {
           if (document.querySelector('[role="dialog"]')) return;
           event.preventDefault();
           actionRef.current('toggle-menubar');
           return;
         }
-        const key = event.key.toLowerCase();
+        if (event.shiftKey && keyLower === 'b') {
+          event.preventDefault();
+          actionRef.current('toggle-properties');
+          return;
+        }
+        if (event.shiftKey && keyLower === 't') {
+          event.preventDefault();
+          actionRef.current('toggle-toolbar');
+          return;
+        }
+        const key = keyLower;
         const map: Record<string, string> = {
           n: 'new',
           o: 'open',
@@ -865,6 +937,7 @@ export default function Home() {
           x: 'cut',
           d: 'duplicate',
           a: 'select-all',
+          b: 'toggle-sidebar',
           '0': 'fit',
           '=': 'zoom-in',
           '+': 'zoom-in',
@@ -925,6 +998,9 @@ export default function Home() {
     'tool-line': tool === 'line',
     'tool-transformer': tool === 'transformer',
     menubar: settings.showMenubar,
+    sidebar: narrowSidebar ? mobileSidebar : settings.showSidebar,
+    properties: narrowProperties ? mobileProperties : settings.showProperties,
+    toolbar: settings.showToolbar,
     grid: settings.showGrid,
     names: settings.showBusNames,
     voltage: settings.showVoltageOverlay,
@@ -977,15 +1053,21 @@ export default function Home() {
         hasResults={runs.length > 0}
         resultSummary={activeRun ? `${activeRun.title}: ${activeRun.summary}` : undefined}
         issueCount={project.issues.length}
+        visible={settings.showToolbar}
+        onToggleVisible={() => {
+          toggleSetting('showToolbar');
+        }}
       />
 
-      <div className="flex min-h-0 flex-1">
+      <div className="relative flex min-h-0 flex-1">
         <Sidebar
           system={project.system}
           selection={selection}
           onSelect={setSelection}
           onAction={handleAction}
-          forceVisible={mobileSidebar}
+          visible={settings.showSidebar}
+          mobileVisible={mobileSidebar}
+          onToggle={toggleSidebar}
         />
 
         <main className="flex min-w-0 flex-1 flex-col">
@@ -1024,6 +1106,7 @@ export default function Home() {
 
             <button
               className="absolute bottom-2 left-2 z-30 rounded border border-[#c9d2dd] bg-white px-2 py-1 text-[10.5px] font-medium text-[#1f4d85] shadow md:hidden"
+              data-testid="mobile-components-toggle"
               onClick={() => setMobileSidebar(value => !value)}
             >
               {mobileSidebar ? 'Hide components' : 'Components'}
@@ -1169,6 +1252,9 @@ export default function Home() {
           onDuplicate={duplicateSelection}
           onMetaChange={changes => project.updateSystemMeta(changes)}
           onSelect={setSelection}
+          visible={settings.showProperties}
+          mobileVisible={mobileProperties}
+          onToggle={toggleProperties}
         />
       </div>
 

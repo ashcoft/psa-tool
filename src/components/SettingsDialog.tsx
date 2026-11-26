@@ -240,6 +240,9 @@ export default function SettingsDialog({ settings, system, onSave, onMetaChange,
           {(
             [
               ['showMenubar', 'Show menu bar'],
+              ['showSidebar', 'Show left pane'],
+              ['showProperties', 'Show right pane'],
+              ['showToolbar', 'Show toolbar'],
               ['showGrid', 'Show grid'],
               ['snapToGrid', 'Snap to grid'],
               ['showBusNames', 'Show labels'],

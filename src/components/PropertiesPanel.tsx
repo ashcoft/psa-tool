@@ -29,6 +29,19 @@ interface PropertiesPanelProps {
   onDuplicate: () => void;
   onMetaChange: (changes: Partial<Pick<PowerSystem, 'baseMVA' | 'baseFreq' | 'name'>>) => void;
   onSelect: (selection: Selection) => void;
+  visible?: boolean;
+  mobileVisible?: boolean;
+  onToggle?: () => void;
+}
+
+function panelClass(visible: boolean, mobileVisible: boolean): string {
+  return [
+    'w-[286px] shrink-0 flex-col border-l border-[#c9d2dd] bg-[#f7f9fc]',
+    mobileVisible
+      ? 'max-lg:flex max-lg:absolute max-lg:inset-y-0 max-lg:right-0 max-lg:z-40 max-lg:shadow-xl'
+      : 'max-lg:hidden',
+    visible ? 'lg:flex' : 'lg:hidden',
+  ].join(' ');
 }
 
 function findElement(system: PowerSystem, selection: Selection): AnyElement | null {
@@ -160,6 +173,9 @@ export default function PropertiesPanel({
   onDuplicate,
   onMetaChange,
   onSelect,
+  visible = true,
+  mobileVisible = false,
+  onToggle,
 }: PropertiesPanelProps) {
   const element = findElement(system, selection);
   const [draft, setDraft] = useState<AnyElement | null>(element);
@@ -206,10 +222,25 @@ export default function PropertiesPanel({
 
   if (!draft) {
     return (
-      <aside className="hidden w-[286px] shrink-0 flex-col border-l border-[#c9d2dd] bg-[#f7f9fc] lg:flex" data-testid="properties-panel">
+      <aside
+        className={panelClass(visible, mobileVisible)}
+        data-testid="properties-panel"
+      >
         <div className="panel-header">
           <span>Properties</span>
-          <span className="text-[10px] font-normal text-slate-400">No selection</span>
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] font-normal text-slate-400">No selection</span>
+            {onToggle && (
+              <button
+                className="rounded p-0.5 text-slate-500 hover:bg-slate-200 hover:text-slate-700"
+                title="Hide right pane (Ctrl+Shift+B)"
+                aria-label="Hide right pane"
+                onClick={onToggle}
+              >
+                <Icon name="panelRight" size={13} />
+              </button>
+            )}
+          </div>
         </div>
         <div className="flex-1 space-y-2 overflow-y-auto p-2">
           <Section title="Project">
@@ -285,7 +316,7 @@ export default function PropertiesPanel({
 
   return (
     <aside
-      className="hidden w-[286px] shrink-0 flex-col border-l border-[#c9d2dd] bg-[#f7f9fc] lg:flex"
+      className={panelClass(visible, mobileVisible)}
       data-testid="properties-panel"
       onBlur={flush}
     >
@@ -294,7 +325,19 @@ export default function PropertiesPanel({
           <Icon name={selection.type === 'bus' ? 'bus' : selection.type === 'line' ? 'line' : selection.type === 'transformer' ? 'transformer' : selection.type === 'generator' ? 'generator' : selection.type === 'load' ? 'load' : 'shunt'} size={12} />
           {kindTitle[selection.type ?? ''] ?? 'Element'} Properties
         </span>
-        <span className="rounded bg-slate-200 px-1 text-[9.5px] font-normal text-slate-600">{draft.id}</span>
+        <div className="flex items-center gap-1">
+          <span className="rounded bg-slate-200 px-1 text-[9.5px] font-normal text-slate-600">{draft.id}</span>
+          {onToggle && (
+            <button
+              className="rounded p-0.5 text-slate-500 hover:bg-slate-200 hover:text-slate-700"
+              title="Hide right pane (Ctrl+Shift+B)"
+              aria-label="Hide right pane"
+              onClick={onToggle}
+            >
+              <Icon name="panelRight" size={13} />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="flex-1 space-y-2 overflow-y-auto p-2">

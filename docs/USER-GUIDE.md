@@ -13,6 +13,21 @@ browser: no account, no server-side database, no upload.
 
 The status bar shows the element counts, base MVA, frequency and the last study result.
 
+### Show or hide workspace panes
+
+The left component pane, the right property pane and the toolbar can each be hidden to give the
+diagram more room. Use the collapse button in a pane header, **View → Toggle Left Pane / Toggle
+Right Pane / Toggle Toolbar**, the same toggles in **View** ribbon group, or `Ctrl + B`,
+`Ctrl + Shift + B` and `Ctrl + Shift + T`. The toolbar collapses to a thin strip, like the output
+bar, and the choice is remembered in settings.
+
+The palette shows compact, colour-coded symbols without text labels. Hover a symbol to see its
+name and description. On touch screens, where hover is unavailable, the names are shown under the
+symbols.
+
+On narrow screens the left pane opens as a drawer from the **Components** button, and the right
+pane opens as an overlay when toggled. Both start closed so the diagram keeps the full width.
+
 ## 2. Build a one-line diagram
 
 ### Add a bus
@@ -128,6 +143,9 @@ design.
 | `F5` / `F6` / `F7` / `F8` / `F9` / `F10` | Load flow / CPF / short circuit / OPF / time domain / results |
 | `Ctrl + 0` | Fit diagram |
 | `Ctrl + +` / `Ctrl + -` | Zoom in / out |
+| `Ctrl + B` | Show or hide the left pane |
+| `Ctrl + Shift + B` | Show or hide the right pane |
+| `Ctrl + Shift + T` | Show or hide the toolbar |
 | `Ctrl + Shift + M` | Show or hide the menu bar |
 | `Esc` | Cancel tool or connection, clear selection or close a dialog |
 

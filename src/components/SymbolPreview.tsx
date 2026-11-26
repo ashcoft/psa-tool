@@ -8,9 +8,10 @@ interface SymbolPreviewProps {
   symbol?: IECSymbolType;
   fallbackLabel: string;
   size?: number;
+  color?: string;
 }
 
-export default function SymbolPreview({ symbol, fallbackLabel, size = 30 }: Readonly<SymbolPreviewProps>) {
+export default function SymbolPreview({ symbol, fallbackLabel, size = 30, color }: Readonly<SymbolPreviewProps>) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -34,17 +35,28 @@ export default function SymbolPreview({ symbol, fallbackLabel, size = 30 }: Read
       ctx.translate(-definition.width / 2, -definition.height / 2);
       renderSymbol(ctx, symbol as IECSymbolType, 0, 0);
     } else {
-      ctx.strokeStyle = '#475569';
+      const inset = Math.max(2, size * 0.15);
+      const width = size - inset * 2;
+      const height = Math.max(6, width * 0.7);
+      ctx.strokeStyle = color ?? '#475569';
       ctx.lineWidth = 1;
-      ctx.strokeRect(-13, -9, 26, 18);
-      ctx.fillStyle = '#475569';
-      ctx.font = 'bold 8px "Segoe UI", sans-serif';
+      ctx.strokeRect(-width / 2, -height / 2, width, height);
+      ctx.fillStyle = color ?? '#475569';
+      ctx.font = `bold ${Math.max(5, Math.round(size * 0.32))}px "Segoe UI", sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(fallbackLabel, 0, 1);
     }
     ctx.restore();
-  }, [fallbackLabel, size, symbol]);
+
+    if (color && definition?.render) {
+      // Recolor the rendered strokes without touching every symbol renderer.
+      ctx.globalCompositeOperation = 'source-in';
+      ctx.fillStyle = color;
+      ctx.fillRect(0, 0, size, size);
+      ctx.globalCompositeOperation = 'source-over';
+    }
+  }, [color, fallbackLabel, size, symbol]);
 
   return (
     <canvas

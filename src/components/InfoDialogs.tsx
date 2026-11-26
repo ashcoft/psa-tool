@@ -21,6 +21,9 @@ const shortcuts: { keys: string; action: string }[] = [
   { keys: 'F10', action: 'Open results' },
   { keys: 'Ctrl + 0', action: 'Fit diagram to window' },
   { keys: 'Ctrl + + / Ctrl + -', action: 'Zoom in / out' },
+  { keys: 'Ctrl + B', action: 'Show or hide the left pane' },
+  { keys: 'Ctrl + Shift + B', action: 'Show or hide the right pane' },
+  { keys: 'Ctrl + Shift + T', action: 'Show or hide the toolbar' },
   { keys: 'Ctrl + Shift + M', action: 'Show or hide the menu bar' },
   { keys: 'Esc', action: 'Cancel tool, clear selection or close dialog' },
 ];
