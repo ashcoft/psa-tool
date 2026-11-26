@@ -623,7 +623,6 @@ export default function Home() {
   const toggleSetting = useCallback(
     (
       key:
-        | 'showMenubar'
         | 'showSidebar'
         | 'showProperties'
         | 'showToolbar'
@@ -764,9 +763,6 @@ export default function Home() {
       case 'arrange':
         project.autoArrange();
         log('Auto-arranged the one-line diagram.');
-        break;
-      case 'toggle-menubar':
-        toggleSetting('showMenubar');
         break;
       case 'toggle-sidebar':
         toggleSidebar();
@@ -926,12 +922,6 @@ export default function Home() {
       const ctrl = event.ctrlKey || event.metaKey;
       if (ctrl) {
         const keyLower = event.key.toLowerCase();
-        if (event.shiftKey && keyLower === 'm') {
-          if (document.querySelector('[role="dialog"]')) return;
-          event.preventDefault();
-          actionRef.current('toggle-menubar');
-          return;
-        }
         if (event.shiftKey && keyLower === 'b') {
           event.preventDefault();
           actionRef.current('toggle-properties');
@@ -1014,7 +1004,6 @@ export default function Home() {
     'tool-pan': tool === 'pan',
     'tool-line': tool === 'line',
     'tool-transformer': tool === 'transformer',
-    menubar: settings.showMenubar,
     sidebar: narrowSidebar ? mobileSidebar : settings.showSidebar,
     properties: narrowProperties ? mobileProperties : settings.showProperties,
     toolbar: settings.showToolbar,
@@ -1031,12 +1020,6 @@ export default function Home() {
         dirty={project.dirty}
         canUndo={project.canUndo}
         canRedo={project.canRedo}
-        showMenubar={settings.showMenubar}
-        activeTab={activeTab}
-        onToggleMenubar={() => {
-          toggleSetting('showMenubar');
-        }}
-        onTabChange={setActiveTab}
         onAction={handleAction}
         onRename={name => {
           project.setName(name);

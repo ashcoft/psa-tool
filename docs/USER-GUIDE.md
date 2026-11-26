@@ -164,7 +164,6 @@ design.
 | `Ctrl + B` | Show or hide the left pane |
 | `Ctrl + Shift + B` | Show or hide the right pane |
 | `Ctrl + Shift + T` | Show or hide the toolbar |
-| `Ctrl + Shift + M` | Show or hide the menu bar |
 | `Esc` | Cancel tool or connection, clear selection or close a dialog |
 
 ## 8. Troubleshooting

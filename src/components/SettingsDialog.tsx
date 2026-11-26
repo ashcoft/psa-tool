@@ -239,7 +239,6 @@ export default function SettingsDialog({ settings, system, onSave, onMetaChange,
         <Section title="Diagram Display" description="Overlays and editing aids">
           {(
             [
-              ['showMenubar', 'Show menu bar'],
               ['showSidebar', 'Show left pane'],
               ['showProperties', 'Show right pane'],
               ['showToolbar', 'Show toolbar'],
