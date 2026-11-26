@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented in this file. This file is generated automatically by [semantic-release](https://github.com/semantic-release/semantic-release) from the commit history.
 
+# [1.6.0](https://github.com/ashcoft/psa-tool/compare/v1.5.0...v1.6.0) (2026-11-26)
+
+### Bug Fixes
+
+* **ui:** address Codacy review warnings ([805adc4](https://github.com/ashcoft/psa-tool/commit/805adc4813f9494aa6058bb496646bee67205624))
+* **ui:** address review feedback on responsive panes ([19cb5f5](https://github.com/ashcoft/psa-tool/commit/19cb5f59dfafb8536a2d507b3acfa2e3c92a8736))
+
+### Features
+
+* **ui:** add collapsible panes and compact palette ([c2d43d4](https://github.com/ashcoft/psa-tool/commit/c2d43d470103da213aed276394fc600bd24e33c0))
+
 # [1.5.0](https://github.com/ashcoft/psa-tool/compare/v1.4.0...v1.5.0) (2026-11-25)
 
 ### Bug Fixes
