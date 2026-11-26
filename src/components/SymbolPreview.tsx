@@ -35,11 +35,14 @@ export default function SymbolPreview({ symbol, fallbackLabel, size = 30, color 
       ctx.translate(-definition.width / 2, -definition.height / 2);
       renderSymbol(ctx, symbol as IECSymbolType, 0, 0);
     } else {
+      const inset = Math.max(2, size * 0.15);
+      const width = size - inset * 2;
+      const height = Math.max(6, width * 0.7);
       ctx.strokeStyle = color ?? '#475569';
       ctx.lineWidth = 1;
-      ctx.strokeRect(-13, -9, 26, 18);
+      ctx.strokeRect(-width / 2, -height / 2, width, height);
       ctx.fillStyle = color ?? '#475569';
-      ctx.font = 'bold 8px "Segoe UI", sans-serif';
+      ctx.font = `bold ${Math.max(5, Math.round(size * 0.32))}px "Segoe UI", sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(fallbackLabel, 0, 1);

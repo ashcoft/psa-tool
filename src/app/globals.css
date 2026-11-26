@@ -40,6 +40,29 @@ body {
   box-sizing: border-box;
 }
 
+/* Palette names are hidden on hover-capable devices and shown on touch screens,
+   where a title tooltip is not available before the tile is activated. */
+.palette-label {
+  display: none;
+}
+
+@media (hover: none) {
+  .palette-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .palette-tile {
+    height: auto;
+    flex-direction: column;
+    gap: 2px;
+    padding: 4px 2px;
+  }
+
+  .palette-label {
+    display: block;
+  }
+}
+
 /* Scrollbars */
 ::-webkit-scrollbar {
   width: 10px;

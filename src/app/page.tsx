@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import TitleBar from '@/components/TitleBar';
 import Ribbon from '@/components/Ribbon';
 import Toolbar from '@/components/Toolbar';
@@ -33,6 +33,17 @@ import {
 import { runStudy as executeStudy, StudyKind, StudyRun } from '@/lib/studies';
 import { studyToCSV } from '@/lib/results-export';
 import '@/app/globals.css';
+
+function useViewportWidth(): number {
+  return useSyncExternalStore(
+    onChange => {
+      window.addEventListener('resize', onChange);
+      return () => window.removeEventListener('resize', onChange);
+    },
+    () => window.innerWidth,
+    () => 1280
+  );
+}
 
 type DialogKind = 'settings' | 'samples' | 'results' | 'about' | 'shortcuts' | 'validation' | null;
 
@@ -77,6 +88,10 @@ export default function Home() {
   const [dialog, setDialog] = useState<DialogKind>(null);
   const [specialtyTab, setSpecialtyTab] = useState<SpecialtyTab | null>(null);
   const [mobileSidebar, setMobileSidebar] = useState(false);
+  const [mobileProperties, setMobileProperties] = useState(false);
+  const viewportWidth = useViewportWidth();
+  const narrowSidebar = viewportWidth < 768;
+  const narrowProperties = viewportWidth < 1024;
   const [reportRunId, setReportRunId] = useState<string | null>(null);
   const [messages, setMessages] = useState<string[]>([
     'Power System Analysis Tool (PSA) ready. Demo 4-bus system loaded.',
@@ -608,6 +623,32 @@ export default function Home() {
     [settings]
   );
 
+  const toggleSidebar = useCallback(() => {
+    if (narrowSidebar) {
+      setMobileSidebar(value => !value);
+      return;
+    }
+    setMobileSidebar(false);
+    toggleSetting('showSidebar');
+  }, [narrowSidebar, toggleSetting]);
+
+  const toggleProperties = useCallback(() => {
+    if (narrowProperties) {
+      setMobileProperties(value => !value);
+      return;
+    }
+    setMobileProperties(false);
+    toggleSetting('showProperties');
+  }, [narrowProperties, toggleSetting]);
+
+  const showPropertiesPane = useCallback(() => {
+    if (narrowProperties) {
+      setMobileProperties(true);
+      return;
+    }
+    if (!settings.showProperties) toggleSetting('showProperties');
+  }, [narrowProperties, settings.showProperties, toggleSetting]);
+
   const handleAction = (action: string) => {
     setContextMenu(null);
     if (action.startsWith('component:')) {
@@ -712,10 +753,10 @@ export default function Home() {
         toggleSetting('showMenubar');
         break;
       case 'toggle-sidebar':
-        toggleSetting('showSidebar');
+        toggleSidebar();
         break;
       case 'toggle-properties':
-        toggleSetting('showProperties');
+        toggleProperties();
         break;
       case 'toggle-toolbar':
         toggleSetting('showToolbar');
@@ -833,6 +874,7 @@ export default function Home() {
         setDialog('about');
         break;
       case 'focus-properties':
+        showPropertiesPane();
         log('Edit the selected element in the Properties panel.');
         break;
       case 'escape':
@@ -956,8 +998,8 @@ export default function Home() {
     'tool-line': tool === 'line',
     'tool-transformer': tool === 'transformer',
     menubar: settings.showMenubar,
-    sidebar: settings.showSidebar,
-    properties: settings.showProperties,
+    sidebar: narrowSidebar ? mobileSidebar : settings.showSidebar,
+    properties: narrowProperties ? mobileProperties : settings.showProperties,
     toolbar: settings.showToolbar,
     grid: settings.showGrid,
     names: settings.showBusNames,
@@ -1017,17 +1059,15 @@ export default function Home() {
         }}
       />
 
-      <div className="flex min-h-0 flex-1">
+      <div className="relative flex min-h-0 flex-1">
         <Sidebar
           system={project.system}
           selection={selection}
           onSelect={setSelection}
           onAction={handleAction}
-          forceVisible={mobileSidebar}
           visible={settings.showSidebar}
-          onToggle={() => {
-            toggleSetting('showSidebar');
-          }}
+          mobileVisible={mobileSidebar}
+          onToggle={toggleSidebar}
         />
 
         <main className="flex min-w-0 flex-1 flex-col">
@@ -1066,6 +1106,7 @@ export default function Home() {
 
             <button
               className="absolute bottom-2 left-2 z-30 rounded border border-[#c9d2dd] bg-white px-2 py-1 text-[10.5px] font-medium text-[#1f4d85] shadow md:hidden"
+              data-testid="mobile-components-toggle"
               onClick={() => setMobileSidebar(value => !value)}
             >
               {mobileSidebar ? 'Hide components' : 'Components'}
@@ -1212,9 +1253,8 @@ export default function Home() {
           onMetaChange={changes => project.updateSystemMeta(changes)}
           onSelect={setSelection}
           visible={settings.showProperties}
-          onToggle={() => {
-            toggleSetting('showProperties');
-          }}
+          mobileVisible={mobileProperties}
+          onToggle={toggleProperties}
         />
       </div>
 

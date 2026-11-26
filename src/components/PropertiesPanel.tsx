@@ -30,7 +30,18 @@ interface PropertiesPanelProps {
   onMetaChange: (changes: Partial<Pick<PowerSystem, 'baseMVA' | 'baseFreq' | 'name'>>) => void;
   onSelect: (selection: Selection) => void;
   visible?: boolean;
+  mobileVisible?: boolean;
   onToggle?: () => void;
+}
+
+function panelClass(visible: boolean, mobileVisible: boolean): string {
+  return [
+    'w-[286px] shrink-0 flex-col border-l border-[#c9d2dd] bg-[#f7f9fc]',
+    mobileVisible
+      ? 'max-lg:flex max-lg:absolute max-lg:inset-y-0 max-lg:right-0 max-lg:z-40 max-lg:shadow-xl'
+      : 'max-lg:hidden',
+    visible ? 'lg:flex' : 'lg:hidden',
+  ].join(' ');
 }
 
 function findElement(system: PowerSystem, selection: Selection): AnyElement | null {
@@ -163,6 +174,7 @@ export default function PropertiesPanel({
   onMetaChange,
   onSelect,
   visible = true,
+  mobileVisible = false,
   onToggle,
 }: PropertiesPanelProps) {
   const element = findElement(system, selection);
@@ -211,7 +223,7 @@ export default function PropertiesPanel({
   if (!draft) {
     return (
       <aside
-        className={`${visible ? 'hidden lg:flex' : 'hidden'} w-[286px] shrink-0 flex-col border-l border-[#c9d2dd] bg-[#f7f9fc]`}
+        className={panelClass(visible, mobileVisible)}
         data-testid="properties-panel"
       >
         <div className="panel-header">
@@ -304,7 +316,7 @@ export default function PropertiesPanel({
 
   return (
     <aside
-      className={`${visible ? 'hidden lg:flex' : 'hidden'} w-[286px] shrink-0 flex-col border-l border-[#c9d2dd] bg-[#f7f9fc]`}
+      className={panelClass(visible, mobileVisible)}
       data-testid="properties-panel"
       onBlur={flush}
     >

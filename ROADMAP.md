@@ -137,7 +137,8 @@ integration work: a `StudyRun` variant, tables, chart, report section, export an
 ### 3.3 Workbench UX
 
 - Multi-select, marquee and group move/delete are implemented; alignment and distribution are not.
-- No autosave, crash recovery, recent projects or `beforeunload` guard. Only settings persist.
+- No autosave, crash recovery or recent projects. A `beforeunload` guard exists, but only
+  settings persist.
 - `theme` is a dead setting: `light`/`dark` is stored but no component consumes it.
 - Specialty calculators keep results in local dialog state, so they never reach study history,
   reports or CSV export.

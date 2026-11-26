@@ -22,7 +22,11 @@ Right Pane / Toggle Toolbar**, the same toggles in **View** ribbon group, or `Ct
 bar, and the choice is remembered in settings.
 
 The palette shows compact, colour-coded symbols without text labels. Hover a symbol to see its
-name and description.
+name and description. On touch screens, where hover is unavailable, the names are shown under the
+symbols.
+
+On narrow screens the left pane opens as a drawer from the **Components** button, and the right
+pane opens as an overlay when toggled. Both start closed so the diagram keeps the full width.
 
 ## 2. Build a one-line diagram
 

@@ -33,7 +33,9 @@
   actions are dispatched by `handleAction` in the page.
 - Workspace panes are toggled by `settings.showSidebar`, `showProperties` and `showToolbar`
   (`Ctrl+B`, `Ctrl+Shift+B`, `Ctrl+Shift+T`). The toolbar collapses to a thin strip like the output
-  bar. Palette tiles are icon-only, category-coloured and use `title`/`aria-label` for names.
+  bar. Palette tiles are icon-only, category-coloured and use `title`/`aria-label` for names;
+  touch screens show the names under the icons because they have no hover. On narrow screens the
+  panes render as overlay drawers and start closed.
 
 ## Conventions
 

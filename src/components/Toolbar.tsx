@@ -36,6 +36,18 @@ export default function Toolbar({
   visible = true,
   onToggleVisible,
 }: ToolbarProps) {
+  const issueChip = (
+    <span
+      className={`flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10.5px] ${
+        issueCount > 0 ? 'bg-amber-50 text-amber-800' : 'bg-emerald-50 text-emerald-800'
+      }`}
+      title={issueCount > 0 ? 'Model check found issues' : 'Model check passed'}
+    >
+      <Icon name={issueCount > 0 ? 'warning' : 'check'} size={12} />
+      {issueCount > 0 ? `${issueCount} model issue${issueCount === 1 ? '' : 's'}` : 'Model OK'}
+    </span>
+  );
+
   const status = (
     <>
       {resultSummary && (
@@ -43,15 +55,7 @@ export default function Toolbar({
           {resultSummary}
         </span>
       )}
-      <span
-        className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-[10.5px] ${
-          issueCount > 0 ? 'bg-amber-50 text-amber-800' : 'bg-emerald-50 text-emerald-800'
-        }`}
-        title={issueCount > 0 ? 'Model check found issues' : 'Model check passed'}
-      >
-        <Icon name={issueCount > 0 ? 'warning' : 'check'} size={12} />
-        {issueCount > 0 ? `${issueCount} model issue${issueCount === 1 ? '' : 's'}` : 'Model OK'}
-      </span>
+      {issueChip}
     </>
   );
 
@@ -68,7 +72,7 @@ export default function Toolbar({
           Toolbar
         </button>
         <div className="flex-1" />
-        {status}
+        {issueChip}
       </div>
     );
   }

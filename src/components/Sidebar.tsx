@@ -18,9 +18,19 @@ interface SidebarProps {
   selection: Selection;
   onSelect: (selection: Selection) => void;
   onAction: (action: string) => void;
-  forceVisible?: boolean;
   visible?: boolean;
+  mobileVisible?: boolean;
   onToggle?: () => void;
+}
+
+function sidebarClass(visible: boolean, mobileVisible: boolean): string {
+  return [
+    'w-[236px] shrink-0 flex-col border-r border-[#c9d2dd] bg-[#f7f9fc]',
+    mobileVisible
+      ? 'max-md:flex max-md:absolute max-md:inset-y-0 max-md:left-0 max-md:z-40 max-md:shadow-xl'
+      : 'max-md:hidden',
+    visible ? 'md:flex' : 'md:hidden',
+  ].join(' ');
 }
 
 const groupColors = new Map<string, string>([
@@ -80,8 +90,8 @@ export default function Sidebar({
   selection,
   onSelect,
   onAction,
-  forceVisible = false,
   visible = true,
+  mobileVisible = false,
   onToggle,
 }: SidebarProps) {
   const [tab, setTab] = useState<'palette' | 'project'>('palette');
@@ -112,10 +122,7 @@ export default function Sidebar({
   };
 
   return (
-    <aside
-      className={`${forceVisible ? 'flex' : visible ? 'hidden md:flex' : 'hidden'} w-[236px] shrink-0 flex-col border-r border-[#c9d2dd] bg-[#f7f9fc]`}
-      data-testid="sidebar"
-    >
+    <aside className={sidebarClass(visible, mobileVisible)} data-testid="sidebar">
       <div className="flex items-center gap-1 border-b border-[#d5dde7] bg-[#eef2f7] px-1 py-1">
         <button
           className={`flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium ${
@@ -182,7 +189,7 @@ export default function Sidebar({
               return (
                 <div key={group} className="mb-2">
                   <div className="mb-1 px-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">{group}</div>
-                  <div className="grid grid-cols-4 gap-1">
+                  <div className="palette-grid grid grid-cols-4 gap-1">
                     {items.map(definition => (
                       <button
                         key={definition.id}
@@ -192,7 +199,7 @@ export default function Sidebar({
                           event.dataTransfer.effectAllowed = 'copy';
                         }}
                         onClick={() => onAction(`component:${definition.id}`)}
-                        className="flex h-9 items-center justify-center rounded border border-transparent bg-white shadow-sm hover:border-[#7fa9d8] hover:bg-[#eaf2fb]"
+                        className="palette-tile flex h-9 items-center justify-center rounded border border-transparent bg-white shadow-sm hover:border-[#7fa9d8] hover:bg-[#eaf2fb]"
                         title={`${definition.label} — ${definition.description ?? 'drag onto the diagram'}`}
                         aria-label={definition.label}
                         data-component-id={definition.id}
@@ -203,6 +210,7 @@ export default function Sidebar({
                           color={paletteColor(definition.category, definition.group)}
                           size={22}
                         />
+                        <span className="palette-label text-center text-[9px] leading-tight">{definition.label}</span>
                       </button>
                     ))}
                   </div>
