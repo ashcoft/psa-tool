@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file. This file is generated automatically by [semantic-release](https://github.com/semantic-release/semantic-release) from the commit history.
 
+## [1.8.1](https://github.com/ashcoft/psa-tool/compare/v1.8.0...v1.8.1) (2026-11-26)
+
+### Bug Fixes
+
+* **ui:** address review follow-ups on symbols and study overlays ([18d4d47](https://github.com/ashcoft/psa-tool/commit/18d4d479fa21b99255c84abbe87e44c861e29488))
+
 # [1.8.0](https://github.com/ashcoft/psa-tool/compare/v1.7.0...v1.8.0) (2026-11-26)
 
 ### Features
