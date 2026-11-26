@@ -23,24 +23,25 @@ interface SidebarProps {
   onToggle?: () => void;
 }
 
-const groupColors: Record<string, string> = {
-  Buses: '#b91c1c',
-  Sources: '#15803d',
-  Branches: '#1d4ed8',
-  'Loads & Motors': '#0369a1',
-  'Protection & Switching': '#be123c',
-  Conversion: '#7c3aed',
-  Meters: '#0f766e',
-  Relays: '#c2410c',
-  'Generator Controls': '#6d28d9',
-  'System Controls': '#6d28d9',
-  Grounding: '#4d7c0f',
-  Composite: '#475569',
-  Connectors: '#475569',
-};
+const groupColors = new Map<string, string>([
+  ['Buses', '#b91c1c'],
+  ['Sources', '#15803d'],
+  ['Branches', '#1d4ed8'],
+  ['Loads & Motors', '#0369a1'],
+  ['Protection & Switching', '#be123c'],
+  ['Conversion', '#7c3aed'],
+  ['Meters', '#0f766e'],
+  ['Relays', '#c2410c'],
+  ['Generator Controls', '#6d28d9'],
+  ['System Controls', '#6d28d9'],
+  ['Grounding', '#4d7c0f'],
+  ['Composite', '#475569'],
+  ['Connectors', '#475569'],
+]);
 
 function paletteColor(category: ComponentCategory, group: string): string {
-  if (groupColors[group]) return groupColors[group];
+  const groupColor = groupColors.get(group);
+  if (groupColor) return groupColor;
   switch (category) {
     case 'DC':
       return '#b45309';

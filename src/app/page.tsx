@@ -1012,7 +1012,9 @@ export default function Home() {
         resultSummary={activeRun ? `${activeRun.title}: ${activeRun.summary}` : undefined}
         issueCount={project.issues.length}
         visible={settings.showToolbar}
-        onToggleVisible={() => toggleSetting('showToolbar')}
+        onToggleVisible={() => {
+          toggleSetting('showToolbar');
+        }}
       />
 
       <div className="flex min-h-0 flex-1">
@@ -1023,7 +1025,9 @@ export default function Home() {
           onAction={handleAction}
           forceVisible={mobileSidebar}
           visible={settings.showSidebar}
-          onToggle={() => toggleSetting('showSidebar')}
+          onToggle={() => {
+            toggleSetting('showSidebar');
+          }}
         />
 
         <main className="flex min-w-0 flex-1 flex-col">
@@ -1208,7 +1212,9 @@ export default function Home() {
           onMetaChange={changes => project.updateSystemMeta(changes)}
           onSelect={setSelection}
           visible={settings.showProperties}
-          onToggle={() => toggleSetting('showProperties')}
+          onToggle={() => {
+            toggleSetting('showProperties');
+          }}
         />
       </div>
 
