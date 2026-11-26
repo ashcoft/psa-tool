@@ -2,17 +2,12 @@
 
 import { useState } from 'react';
 import Icon from './Icon';
-import { ribbonTabs } from './Ribbon';
 
 interface TitleBarProps {
   projectName: string;
   dirty: boolean;
   canUndo: boolean;
   canRedo: boolean;
-  showMenubar: boolean;
-  activeTab: string;
-  onToggleMenubar: () => void;
-  onTabChange: (tabId: string) => void;
   onAction: (action: string) => void;
   onRename: (name: string) => void;
 }
@@ -22,10 +17,6 @@ export default function TitleBar({
   dirty,
   canUndo,
   canRedo,
-  showMenubar,
-  activeTab,
-  onToggleMenubar,
-  onTabChange,
   onAction,
   onRename,
 }: Readonly<TitleBarProps>) {
@@ -83,39 +74,6 @@ export default function TitleBar({
           <Icon name="play" size={15} className="text-emerald-300" />
         </button>
       </div>
-
-      <button
-        className={`rounded p-1 hover:bg-white/15 ${showMenubar ? 'bg-white/15' : ''}`}
-        title={showMenubar ? 'Hide menu bar (Ctrl+Shift+M)' : 'Show menu bar (Ctrl+Shift+M)'}
-        aria-label={showMenubar ? 'Hide menu bar' : 'Show menu bar'}
-        aria-pressed={showMenubar}
-        onClick={onToggleMenubar}
-      >
-        <Icon name="menu" size={15} />
-      </button>
-
-      {showMenubar && (
-        <>
-          <div className="mx-2 h-5 w-px bg-white/25" />
-
-          <div className="flex items-center" data-testid="menubar">
-            {ribbonTabs.map(tab => (
-              <button
-                key={tab.id}
-                className={`rounded px-2 py-0.5 text-[12px] hover:bg-white/15 ${
-                  activeTab === tab.id ? 'bg-white/20 font-semibold' : ''
-                }`}
-                aria-current={activeTab === tab.id ? 'page' : undefined}
-                onClick={() => {
-                  onTabChange(tab.id);
-                }}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
 
       <div className="mx-2 h-5 w-px bg-white/25" />
 

@@ -24,7 +24,6 @@ const shortcuts: { keys: string; action: string }[] = [
   { keys: 'Ctrl + B', action: 'Show or hide the left pane' },
   { keys: 'Ctrl + Shift + B', action: 'Show or hide the right pane' },
   { keys: 'Ctrl + Shift + T', action: 'Show or hide the toolbar' },
-  { keys: 'Ctrl + Shift + M', action: 'Show or hide the menu bar' },
   { keys: 'Esc', action: 'Cancel tool, clear selection or close dialog' },
 ];
 

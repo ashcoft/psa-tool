@@ -119,9 +119,6 @@ same build is available locally with `npm run build:pages`.
 ### One-line diagram editor
 
 - Ribbon with Home, Components, Analysis, Results and Tools tabs.
-- Toggleable menu bar from the titlebar, Home → View → Menu Bar, or `Ctrl+Shift+M`; the choice is
-  persisted. The menu bar mirrors the ribbon tabs: choosing a name opens that tab and the two stay
-  in sync.
 - Complete PSAT component library with AC, DC, Instruments, Controls and Other palettes (sources,
   buses, branches, loads/motors, protection, conversion, meters, relays, AVR/governor/PSS, DC
   elements, DC control and composite items).
@@ -203,7 +200,6 @@ Specialty studies are screening calculations. Check the notes in each result and
 | `F10` | Open results |
 | `Ctrl+0` | Fit diagram to window |
 | `Ctrl++` / `Ctrl+-` | Zoom in / out |
-| `Ctrl+Shift+M` | Show or hide the menu bar |
 | `Esc` | Cancel the current tool, clear selection or close a dialog |
 | `Alt` + drag | Free positioning without grid snap |
 

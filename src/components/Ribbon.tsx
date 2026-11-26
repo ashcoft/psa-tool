@@ -69,7 +69,6 @@ export const ribbonTabs: RibbonTab[] = [
           { id: 'sidebar', label: 'Left Pane', icon: 'panelLeft', action: 'toggle-sidebar', size: 'small', toggleKey: 'sidebar' },
           { id: 'properties', label: 'Right Pane', icon: 'panelRight', action: 'toggle-properties', size: 'small', toggleKey: 'properties' },
           { id: 'toolbar', label: 'Toolbar', icon: 'panelBottom', action: 'toggle-toolbar', size: 'small', toggleKey: 'toolbar' },
-          { id: 'menubar', label: 'Menu Bar', icon: 'menu', action: 'toggle-menubar', size: 'small', toggleKey: 'menubar' },
           { id: 'arrange', label: 'Arrange', icon: 'area', action: 'arrange', size: 'small' },
         ],
       },

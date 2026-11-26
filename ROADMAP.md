@@ -93,12 +93,12 @@ settings persistence.
   unsaved changes.
 - CAD-style workspace selection: Ctrl+A, Ctrl/Shift click, window/crossing marquee, group move and
   group delete.
-- The app is branded as **Power System Analysis Tool** and the menu bar can be shown or hidden from
-  the titlebar, the View ribbon group, Settings, or `Ctrl+Shift+M`.
+- The app is branded as **Power System Analysis Tool** and the ribbon tabs are the only workspace
+  navigation; the titlebar keeps the quick actions and the project name.
 - GitHub Pages static export deployed at <https://ashcoft.github.io/psa-tool/>.
 - GHCR publishing workflow and a published `ghcr.io/ashcoft/psa-tool:1.3.0` image.
 - The left component pane, right property pane and toolbar are independently collapsible from the
-  pane headers, the View menu, the View ribbon group or `Ctrl+B` / `Ctrl+Shift+B` / `Ctrl+Shift+T`.
+  pane headers, the View ribbon group or `Ctrl+B` / `Ctrl+Shift+B` / `Ctrl+Shift+T`.
   The toolbar collapses to a thin strip like the output bar.
 - The component palette uses compact, ETAP-style category colours, shows no text labels and exposes
   each component name and description as a tooltip.

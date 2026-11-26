@@ -248,38 +248,6 @@ test.describe('Power System Analysis Tool workbench', () => {
     await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
   });
 
-  test('shows and hides the menu bar', async ({ page }) => {
-    await openApp(page);
-    await expect(page.getByTestId('menubar')).toBeVisible();
-
-    await page.getByRole('button', { name: 'Hide menu bar' }).click();
-    await expect(page.getByTestId('menubar')).toHaveCount(0);
-
-    await page.reload();
-    await expect(page.getByTestId('menubar')).toHaveCount(0);
-
-    await page.getByRole('button', { name: 'Show menu bar' }).click();
-    await expect(page.getByTestId('menubar')).toBeVisible();
-
-    await page.getByTestId('ribbon').getByRole('button', { name: 'Options' }).click();
-    await page.keyboard.press('Control+Shift+M');
-    await page.getByRole('button', { name: 'Save Settings' }).click();
-    await expect(page.getByTestId('menubar')).toBeVisible();
-  });
-
-  test('menu bar opens the matching ribbon tab and stays in sync', async ({ page }) => {
-    await openApp(page);
-    const menubar = page.getByTestId('menubar');
-
-    await menubar.getByRole('button', { name: 'Analysis' }).click();
-    await expect(page.getByRole('tab', { name: 'Analysis' })).toHaveAttribute('aria-selected', 'true');
-    await expect(menubar.getByRole('button', { name: 'Analysis' })).toHaveAttribute('aria-current', 'page');
-
-    await page.getByRole('tab', { name: 'Results' }).click();
-    await expect(menubar.getByRole('button', { name: 'Results' })).toHaveAttribute('aria-current', 'page');
-    await expect(menubar.getByRole('button', { name: 'Analysis' })).not.toHaveAttribute('aria-current', 'page');
-  });
-
   test('shows the keyboard shortcuts dialog', async ({ page }) => {
     await openApp(page);
     await page.getByRole('tab', { name: 'Tools' }).click();
