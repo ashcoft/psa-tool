@@ -34,7 +34,7 @@ Three principles drive the sequencing:
 
 | Gate | Command | Current result |
 |------|---------|----------------|
-| Unit and component tests | `npm run test:run` | 276 passed, 2 skipped, 21 files |
+| Unit and component tests | `npm run test:run` | 279 passed, 2 skipped, 21 files |
 | Coverage | `npm run test:coverage` | 68.6 % statements, 51.3 % branches, 65.6 % functions, 69.7 % lines |
 | Lint | `npm run lint` | Pass |
 | Type check | `tsc --noEmit` (CI) / `next build` | Pass |
