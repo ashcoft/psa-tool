@@ -73,7 +73,7 @@ export function drawBadge(
 ): void {
   const cx = x + width / 2;
   const cy = y + height / 2;
-  const radius = Math.min(width, height) / 2 - 6;
+  const radius = Math.min(width, height) / 2 - 4;
   setStroke(ctx, '#000', 1.3);
   drawLine(ctx, cx, y, cx, cy - radius);
   drawLine(ctx, cx, cy + radius, cx, y + height);
