@@ -16,7 +16,8 @@
 - Specialty calculators live in `src/lib/arcflash.ts`, `motor-starting.ts`, `harmonics.ts`,
   `protection.ts` and `groundgrid.ts`, and are presented by `SpecialtyDialog`.
 - `src/lib/component-catalog.ts` is the source of truth for the AC/DC/Instrument/Control/Other
-  palettes. Definitions either map to a real model element (`bus`, `line`, `transformer`,
+  palettes. Instrument meters and numbered protection relays use badge symbols from
+  `src/lib/symbols/measurement.ts` and `src/lib/symbols/protection.ts`. Definitions either map to a real model element (`bus`, `line`, `transformer`,
   `generator`, `load`, `shunt`) or become a `GenericComponent` stored in `system.components`.
   Generic components are persisted, drawn on the canvas, dragged to any position (Alt bypasses grid
   snap) and edited in the property panel. Dropping a device away from a bus creates a bus at the

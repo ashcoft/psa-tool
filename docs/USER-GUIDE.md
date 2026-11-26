@@ -52,6 +52,10 @@ starts the two-click connection tool.
   point and attaches the device there.
 - Specialty components (meters, relays, AVR, DC elements and so on) are stored as generic
   components. If a component needs a bus, drop it near one; otherwise it stays free-standing.
+- Instruments use their own symbols: **Meters** holds voltmeter, ammeter, power-factor meter and
+  multimeter badges, and **Relays** holds the numbered devices (27, 81, 87, 21, 32, 50/51, 79, MR,
+  86, SST). The AC palette also has a node, a transmission tower, a line trap and a disconnect
+  switch.
 
 ### Reposition anything
 

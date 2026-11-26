@@ -12,6 +12,7 @@
 export * from './basic';
 export * from './transformers';
 export * from './protection';
+export * from './measurement';
 export * from './facts';
 
 import { IECSymbol, IECSymbolType, IECSymbolCategory } from '@/types';
@@ -22,6 +23,7 @@ export type { IECSymbol, IECSymbolType, IECSymbolCategory } from '@/types';
 // Symbols record
 import {
   busSymbol, generatorSymbol, loadSymbol, motorSymbol, lineSymbol,
+  nodeSymbol, towerSymbol, waveTrapSymbol,
 } from './basic';
 import {
   transformerSymbol, transformer3WSymbol, transformerRegSymbol,
@@ -29,7 +31,10 @@ import {
 import {
   breakerSymbol, switchSymbol, disconnectSymbol, fuseSymbol, recloserSymbol,
   sectionalizerSymbol, ctSymbol, ptSymbol, relaySymbol,
+  relay27Symbol, relay81Symbol, relay87Symbol, relay21Symbol, relay32Symbol,
+  relayOcrSymbol, relay79Symbol, relayMrSymbol, relayLockoutSymbol, relaySstSymbol,
 } from './protection';
+import { voltmeterSymbol, ammeterSymbol, pfMeterSymbol } from './measurement';
 import {
   svcSymbol, statcomSymbol, tcscSymbol, upfcSymbol, windTurbineSymbol,
   pvArraySymbol, batterySymbol, substationSymbol, arresterSymbol,
@@ -77,19 +82,36 @@ export const symbols: Record<IECSymbolType, IECSymbol> = {
   arrestor: arresterSymbol,
   junction: junctionSymbol,
   reactor: shuntSymbol,
+  node: nodeSymbol,
+  tower: towerSymbol,
+  'wave-trap': waveTrapSymbol,
+  voltmeter: voltmeterSymbol,
+  ammeter: ammeterSymbol,
+  'pf-meter': pfMeterSymbol,
+  'relay-27': relay27Symbol,
+  'relay-81': relay81Symbol,
+  'relay-87': relay87Symbol,
+  'relay-21': relay21Symbol,
+  'relay-32': relay32Symbol,
+  'relay-ocr': relayOcrSymbol,
+  'relay-79': relay79Symbol,
+  'relay-mr': relayMrSymbol,
+  'relay-lockout': relayLockoutSymbol,
+  'relay-sst': relaySstSymbol,
 };
 
 export const symbolCategories = {
   generation: [generatorSymbol, externalGridSymbol, windTurbineSymbol],
   load: [loadSymbol, motorSymbol],
-  transmission: [lineSymbol, transformerSymbol, transformer3WSymbol, transformerRegSymbol],
+  transmission: [lineSymbol, transformerSymbol, transformer3WSymbol, transformerRegSymbol, towerSymbol, waveTrapSymbol],
   distribution: [lineSymbol, breakerSymbol, switchSymbol, disconnectSymbol],
-  protection: [breakerSymbol, switchSymbol, disconnectSymbol, fuseSymbol, recloserSymbol, sectionalizerSymbol, relaySymbol, arresterSymbol],
-  measurement: [ctSymbol, ptSymbol, meterSymbol],
+  protection: [breakerSymbol, switchSymbol, disconnectSymbol, fuseSymbol, recloserSymbol, sectionalizerSymbol, relaySymbol, arresterSymbol,
+    relay27Symbol, relay81Symbol, relay87Symbol, relay21Symbol, relay32Symbol, relayOcrSymbol, relay79Symbol, relayMrSymbol, relayLockoutSymbol, relaySstSymbol],
+  measurement: [ctSymbol, ptSymbol, meterSymbol, voltmeterSymbol, ammeterSymbol, pfMeterSymbol],
   compensation: [shuntSymbol, capacitorBankSymbol, svcSymbol, statcomSymbol, tcscSymbol, upfcSymbol],
   storage: [batterySymbol],
   renewable: [windTurbineSymbol, pvArraySymbol],
-  network: [busSymbol, busbarSymbol, substationSymbol, groundSymbol, equivalentSymbol, consortiumSymbol, junctionSymbol],
+  network: [busSymbol, busbarSymbol, substationSymbol, groundSymbol, equivalentSymbol, consortiumSymbol, junctionSymbol, nodeSymbol],
   substation: [substationSymbol],
 } as const;
 

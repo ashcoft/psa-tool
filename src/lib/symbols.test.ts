@@ -51,6 +51,22 @@ describe('IEC Symbol Library', () => {
       'consortium',
       'arrestor',
       'junction',
+      'node',
+      'tower',
+      'wave-trap',
+      'voltmeter',
+      'ammeter',
+      'pf-meter',
+      'relay-27',
+      'relay-81',
+      'relay-87',
+      'relay-21',
+      'relay-32',
+      'relay-ocr',
+      'relay-79',
+      'relay-mr',
+      'relay-lockout',
+      'relay-sst',
     ];
 
     requiredSymbols.forEach((type) => {

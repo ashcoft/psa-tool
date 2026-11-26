@@ -402,6 +402,19 @@ test.describe('Power System Analysis Tool workbench', () => {
     await expect(nameInput).toHaveValue('Main Load');
   });
 
+  test('shows metering, relay and network badges in the palette', async ({ page }) => {
+    await openApp(page);
+    const sidebar = page.getByTestId('sidebar');
+    await sidebar.getByRole('button', { name: 'Ins', exact: true }).click();
+    await expect(sidebar.getByRole('button', { name: 'Voltmeter' })).toBeVisible();
+    await expect(sidebar.getByRole('button', { name: 'Power Factor Meter' })).toBeVisible();
+    await expect(sidebar.getByRole('button', { name: 'Overcurrent Relay (50/51)' })).toBeVisible();
+    await expect(sidebar.getByRole('button', { name: 'Lockout Relay (86)' })).toBeVisible();
+
+    await sidebar.getByRole('button', { name: 'AC', exact: true }).click();
+    await expect(sidebar.getByRole('button', { name: 'Node' })).toBeVisible();
+  });
+
   test('adds a generator from the Components ribbon', async ({ page }) => {
     await openApp(page);
     await page.getByRole('tab', { name: 'Components' }).click();
