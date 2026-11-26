@@ -106,7 +106,9 @@ export default function TitleBar({
                   activeTab === tab.id ? 'bg-white/20 font-semibold' : ''
                 }`}
                 aria-current={activeTab === tab.id ? 'page' : undefined}
-                onClick={() => onTabChange(tab.id)}
+                onClick={() => {
+                  onTabChange(tab.id);
+                }}
               >
                 {tab.label}
               </button>
