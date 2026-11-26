@@ -8,24 +8,28 @@
 import { IECSymbol } from '@/types';
 import { drawBadge, drawLine, setStroke } from './primitives';
 
-const meterBadge = (type: IECSymbol['type'], name: string, label: string): IECSymbol => ({
-  type,
-  name,
+const meterBase = {
   ieeeSymbol: 'IEEE 315 11-1-1',
-  category: 'measurement',
+  category: 'measurement' as const,
   width: 34,
   height: 38,
   connectionPoints: [
-    { id: 'top', x: 17, y: 0, type: 'top' },
-    { id: 'bottom', x: 17, y: 38, type: 'bottom' },
+    { id: 'top', x: 17, y: 0, type: 'top' as const },
+    { id: 'bottom', x: 17, y: 38, type: 'bottom' as const },
   ],
   properties: [
-    { key: 'name', label: 'Name', type: 'string' },
-    { key: 'ratio', label: 'Ratio', type: 'string', default: '100/5' },
-    { key: 'accuracyClass', label: 'Accuracy class', type: 'string', default: '1.0' },
+    { key: 'name', label: 'Name', type: 'string' as const },
+    { key: 'ratio', label: 'Ratio', type: 'string' as const },
+    { key: 'accuracyClass', label: 'Accuracy class', type: 'string' as const },
   ],
+};
+
+const meterBadge = (type: IECSymbol['type'], name: string, label: string): IECSymbol => ({
+  ...meterBase,
+  type,
+  name,
   render: (ctx, x, y) => {
-    drawBadge(ctx, x, y, 34, 38, label);
+    drawBadge(ctx, x, y, meterBase.width, meterBase.height, label);
   },
 });
 
@@ -33,23 +37,12 @@ export const voltmeterSymbol = meterBadge('voltmeter', 'Voltmeter', 'V');
 export const ammeterSymbol = meterBadge('ammeter', 'Ammeter', 'A');
 
 export const pfMeterSymbol: IECSymbol = {
+  ...meterBase,
   type: 'pf-meter',
   name: 'Power Factor Meter',
   ieeeSymbol: 'IEEE 315 11-1-4',
-  category: 'measurement',
-  width: 34,
-  height: 38,
-  connectionPoints: [
-    { id: 'top', x: 17, y: 0, type: 'top' },
-    { id: 'bottom', x: 17, y: 38, type: 'bottom' },
-  ],
-  properties: [
-    { key: 'name', label: 'Name', type: 'string' },
-    { key: 'ratio', label: 'Ratio', type: 'string', default: '100/5' },
-    { key: 'accuracyClass', label: 'Accuracy class', type: 'string', default: '1.0' },
-  ],
   render: (ctx, x, y) => {
-    drawBadge(ctx, x, y, 34, 38);
+    drawBadge(ctx, x, y, meterBase.width, meterBase.height);
     const cx = x + 17;
     const pivotY = y + 23;
     setStroke(ctx, '#000', 1.3);
