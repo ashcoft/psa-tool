@@ -3,35 +3,7 @@
  */
 
 import { IECSymbol } from '@/types';
-
-function setStroke(ctx: CanvasRenderingContext2D, color = '#000', width = 1) {
-  ctx.strokeStyle = color;
-  ctx.lineWidth = width;
-}
-
-function drawCircle(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
-  ctx.beginPath();
-  ctx.arc(x, y, r, 0, Math.PI * 2);
-  ctx.stroke();
-}
-
-function drawLine(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number) {
-  ctx.beginPath();
-  ctx.moveTo(x1, y1);
-  ctx.lineTo(x2, y2);
-  ctx.stroke();
-}
-
-function drawRectangle(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
-  ctx.strokeRect(x - w / 2, y - h / 2, w, h);
-}
-
-function drawText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, fontSize = 10) {
-  ctx.font = `${fontSize}px Arial`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(text, x, y);
-}
+import { drawBadge, setStroke, drawCircle, drawLine, drawRectangle, drawText } from './primitives';
 
 export const breakerSymbol: IECSymbol = {
   type: 'breaker',
@@ -298,14 +270,7 @@ const relayBadge = (
     { key: 'timeDelay', label: 'Time delay', type: 'number', unit: 's', default: 0.1 },
   ],
   render: (ctx, x, y) => {
-    const cx = x + 17;
-    const cy = y + 19;
-    setStroke(ctx, '#000', 1.3);
-    drawLine(ctx, cx, y, cx, cy - 13);
-    drawLine(ctx, cx, cy + 13, cx, y + 38);
-    drawCircle(ctx, cx, cy, 13);
-    ctx.fillStyle = '#000';
-    drawText(ctx, label, cx, cy + 0.5, label.length > 2 ? 9 : 13);
+    drawBadge(ctx, x, y, 34, 38, label);
   },
 });
 

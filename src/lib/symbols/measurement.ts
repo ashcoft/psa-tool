@@ -1,36 +1,12 @@
 /**
  * Panel meter symbols (voltmeter, ammeter, power-factor meter)
  *
- * The badges are drawn as a circle with a short lead above and below, a style
- * shared with the numbered protection relays so a metering row reads as one set.
+ * The badges share the circle-and-lead style of the numbered protection relays
+ * so a metering row reads as one set.
  */
 
 import { IECSymbol } from '@/types';
-
-function setStroke(ctx: CanvasRenderingContext2D, color = '#000', width = 1) {
-  ctx.strokeStyle = color;
-  ctx.lineWidth = width;
-}
-
-function drawCircle(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
-  ctx.beginPath();
-  ctx.arc(x, y, r, 0, Math.PI * 2);
-  ctx.stroke();
-}
-
-function drawLine(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number) {
-  ctx.beginPath();
-  ctx.moveTo(x1, y1);
-  ctx.lineTo(x2, y2);
-  ctx.stroke();
-}
-
-function drawText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, fontSize = 10) {
-  ctx.font = `bold ${fontSize}px Arial`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(text, x, y);
-}
+import { drawBadge, drawLine, setStroke } from './primitives';
 
 const meterBadge = (type: IECSymbol['type'], name: string, label: string): IECSymbol => ({
   type,
@@ -49,14 +25,7 @@ const meterBadge = (type: IECSymbol['type'], name: string, label: string): IECSy
     { key: 'accuracyClass', label: 'Accuracy class', type: 'string', default: '1.0' },
   ],
   render: (ctx, x, y) => {
-    const cx = x + 17;
-    const cy = y + 19;
-    setStroke(ctx, '#000', 1.3);
-    drawLine(ctx, cx, y, cx, cy - 13);
-    drawLine(ctx, cx, cy + 13, cx, y + 38);
-    drawCircle(ctx, cx, cy, 13);
-    ctx.fillStyle = '#000';
-    drawText(ctx, label, cx, cy + 0.5, 14);
+    drawBadge(ctx, x, y, 34, 38, label);
   },
 });
 
@@ -80,13 +49,10 @@ export const pfMeterSymbol: IECSymbol = {
     { key: 'accuracyClass', label: 'Accuracy class', type: 'string', default: '1.0' },
   ],
   render: (ctx, x, y) => {
+    drawBadge(ctx, x, y, 34, 38);
     const cx = x + 17;
-    const cy = y + 19;
-    const pivotY = cy + 4;
+    const pivotY = y + 23;
     setStroke(ctx, '#000', 1.3);
-    drawLine(ctx, cx, y, cx, cy - 13);
-    drawLine(ctx, cx, cy + 13, cx, y + 38);
-    drawCircle(ctx, cx, cy, 13);
     ctx.beginPath();
     ctx.arc(cx, pivotY, 8.5, Math.PI * 1.15, Math.PI * 1.85);
     ctx.stroke();

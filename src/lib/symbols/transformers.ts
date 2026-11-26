@@ -3,30 +3,7 @@
  */
 
 import { IECSymbol } from '@/types';
-
-function setStroke(ctx: CanvasRenderingContext2D, color = '#000', width = 1) {
-  ctx.strokeStyle = color;
-  ctx.lineWidth = width;
-}
-
-function drawCircle(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
-  ctx.beginPath();
-  ctx.arc(x, y, r, 0, Math.PI * 2);
-  ctx.stroke();
-}
-
-function drawLine(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number) {
-  ctx.beginPath();
-  ctx.moveTo(x1, y1);
-  ctx.lineTo(x2, y2);
-  ctx.stroke();
-}
-
-function drawFilledCircle(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
-  ctx.beginPath();
-  ctx.arc(x, y, r, 0, Math.PI * 2);
-  ctx.fill();
-}
+import { setStroke, drawCircle, drawFilledCircle, drawLine } from './primitives';
 
 export const transformerSymbol: IECSymbol = {
   type: 'transformer',
