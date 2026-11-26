@@ -10,6 +10,7 @@ import {
   useState,
 } from 'react';
 import { IECSymbolType, PowerFlowResult, PowerSystem } from '@/types';
+import type { FaultStudyResult } from '@/lib/fault';
 import { Selection, selectionKey } from '@/lib/useProject';
 import { getComponentDefinition } from '@/lib/component-catalog';
 import { componentAnchor, componentCategoryShort } from '@/lib/component-utils';
@@ -31,12 +32,14 @@ interface CanvasProps {
   selections: Selection[];
   tool: CanvasTool;
   results?: PowerFlowResult | null;
+  faultResults?: FaultStudyResult | null;
   showGrid: boolean;
   snapToGrid: boolean;
   showBusNames: boolean;
   showVoltageOverlay: boolean;
   showFlowOverlay: boolean;
   onSelect: (selection: Selection, additive?: boolean) => void;
+  onElementClick?: (selection: Selection) => void;
   onSelectMany: (selections: Selection[], additive?: boolean) => void;
   onMoveStart: () => void;
   onMoveEnd: () => void;
@@ -213,12 +216,14 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     selections,
     tool,
     results,
+    faultResults,
     showGrid,
     snapToGrid,
     showBusNames,
     showVoltageOverlay,
     showFlowOverlay,
     onSelect,
+    onElementClick,
     onSelectMany,
     onMoveStart,
     onMoveEnd,
@@ -449,8 +454,18 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     const selectedKeys = new Set(selections.map(selectionKey));
     const selected = (type: Selection['type'], id: string) => selectedKeys.has(`${type}:${id}`);
 
-    const lineResults = new Map((results?.lineResults ?? []).map(item => [item.line, item]));
+    const branchResults = new Map<string, { pFrom: number; loading: number }>([
+      ...(results?.lineResults ?? []).map(
+        item => [`line:${item.line}`, { pFrom: item.pFrom, loading: item.loading }] as const
+      ),
+      ...(results?.transformerResults ?? []).map(
+        item => [`transformer:${item.transformer}`, { pFrom: item.pFrom, loading: item.loading }] as const
+      ),
+    ]);
     const busResults = new Map((results?.busResults ?? []).map(item => [item.bus, item]));
+    const faultCurrents = new Map(
+      (faultResults?.threePhaseFaults ?? []).map(item => [item.bus, item.currents[0]?.magnitude ?? 0])
+    );
 
     const drawCatalogSymbol = (
       symbol: IECSymbolType | undefined,
@@ -514,8 +529,8 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
       ctx.restore();
     };
 
-    const drawFlowLabel = (midX: number, midY: number, loading: number) => {
-      const label = `${loading.toFixed(0)}%`;
+    const drawFlowLabel = (midX: number, midY: number, mw: number, loading: number) => {
+      const label = `${mw.toFixed(1)} MW`;
       ctx.font = `${11 / Math.max(0.7, scale)}px "Segoe UI", sans-serif`;
       ctx.textAlign = 'center';
       const metrics = ctx.measureText(label);
@@ -525,6 +540,37 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
       ctx.fillRect(midX - boxWidth / 2, midY - boxHeight - 4, boxWidth, boxHeight);
       ctx.fillStyle = loadingColor(loading);
       ctx.fillText(label, midX, midY - 6);
+    };
+
+    const drawFlowArrow = (
+      x1: number,
+      y1: number,
+      x2: number,
+      y2: number,
+      pFrom: number,
+      loading: number
+    ) => {
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const length = Math.hypot(dx, dy);
+      if (length < 1 || Math.abs(pFrom) < 0.05) return;
+      const sign = pFrom >= 0 ? 1 : -1;
+      const ux = (sign * dx) / length;
+      const uy = (sign * dy) / length;
+      const ax = x1 + dx * 0.32;
+      const ay = y1 + dy * 0.32;
+      const size = 7;
+      const px = -uy * size * 0.75;
+      const py = ux * size * 0.75;
+      ctx.save();
+      ctx.fillStyle = loadingColor(loading);
+      ctx.beginPath();
+      ctx.moveTo(ax + ux * size, ay + uy * size);
+      ctx.lineTo(ax - ux * size * 0.4 + px, ay - uy * size * 0.4 + py);
+      ctx.lineTo(ax - ux * size * 0.4 - px, ay - uy * size * 0.4 - py);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
     };
 
     const drawBranch = (
@@ -543,7 +589,7 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
       const y2 = to.y * GRID_UNIT;
       const isSelected = selected(kind, id);
       const isHovered = hover.type === kind && hover.id === id;
-      const result = lineResults.get(id);
+      const result = branchResults.get(`${kind}:${id}`);
       const loading = result?.loading ?? 0;
 
       let stroke = colors.line;
@@ -572,7 +618,8 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
       }
 
       if (result && showFlowOverlay) {
-        drawFlowLabel((x1 + x2) / 2, (y1 + y2) / 2, loading);
+        drawFlowLabel((x1 + x2) / 2, (y1 + y2) / 2, result.pFrom, loading);
+        drawFlowArrow(x1, y1, x2, y2, result.pFrom, loading);
       }
     };
 
@@ -859,6 +906,14 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
         ctx.fillText(`${result.v.toFixed(3)} pu`, labelX, y + 12);
       }
 
+      const faultCurrent = faultCurrents.get(bus.id);
+      if (faultCurrent !== undefined) {
+        ctx.fillStyle = '#b91c1c';
+        ctx.font = 'bold 10px "Segoe UI", sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(`${faultCurrent.toFixed(2)} kA`, labelX, y + 12);
+      }
+
       ctx.fillStyle = '#94a3b8';
       ctx.font = '8.5px "Segoe UI", sans-serif';
       ctx.textAlign = 'right';
@@ -994,6 +1049,7 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     busById,
     connectFrom,
     cursorWorld,
+    faultResults,
     hover,
     marquee,
     offset,
@@ -1283,6 +1339,7 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     const activeDrag = dragRef.current;
     if (activeDrag && !activeDrag.moved && activeDrag.hit.type && activeDrag.hit.id) {
       onSelect(activeDrag.hit);
+      onElementClick?.(activeDrag.hit);
     }
     const activeMarquee = marqueeRef.current;
     if (activeMarquee) {

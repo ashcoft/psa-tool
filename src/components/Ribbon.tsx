@@ -38,6 +38,7 @@ export const ribbonTabs: RibbonTab[] = [
           { id: 'open', label: 'Open', icon: 'open', action: 'open', size: 'large', shortcut: 'Ctrl+O' },
           { id: 'save', label: 'Save', icon: 'save', action: 'save', size: 'large', shortcut: 'Ctrl+S' },
           { id: 'save-as', label: 'Save As', icon: 'saveAs', action: 'save-as', size: 'small' },
+          { id: 'close-project', label: 'Close', icon: 'close', action: 'close-project', size: 'small' },
           { id: 'export', label: 'Export', icon: 'export', action: 'export', size: 'small' },
         ],
       },

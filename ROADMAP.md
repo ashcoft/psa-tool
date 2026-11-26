@@ -89,7 +89,7 @@ settings persistence.
 - MIT `LICENSE` with third-party GPL notices, `typecheck`/`verify` scripts and a package-derived
   version string.
 - Project files now save as `.psa` (JSON content); legacy `.json` files still open.
-- File → Close Project returns to an empty workspace, and new/open/close prompt before discarding
+- Home → Close returns to an empty workspace, and new/open/close prompt before discarding
   unsaved changes.
 - CAD-style workspace selection: Ctrl+A, Ctrl/Shift click, window/crossing marquee, group move and
   group delete.

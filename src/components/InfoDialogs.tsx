@@ -95,8 +95,16 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
           ))}
         </div>
 
-        <div className="mt-3 border-t border-slate-200 pt-2 text-[10px] text-slate-400">
-          Licensed under MIT. PSAT-derived routines remain under their upstream GPL terms.
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-2 text-[10px] text-slate-400">
+          <span>Licensed under MIT. PSAT-derived routines remain under their upstream GPL terms.</span>
+          <a
+            className="text-[#1f4d85] hover:underline"
+            href="https://github.com/ashcoft/psa-tool"
+            target="_blank"
+            rel="noreferrer"
+          >
+            github.com/ashcoft/psa-tool
+          </a>
         </div>
       </div>
     </Dialog>
