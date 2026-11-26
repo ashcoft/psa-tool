@@ -82,7 +82,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_SHA: ${{ needs.release.outputs.sha }}
-        run: gh workflow run pages.yml --ref main -f ref="$RELEASE_SHA"
+        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref main -f ref="$RELEASE_SHA"
 
   publish-image:
     name: Publish release image
