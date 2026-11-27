@@ -80,8 +80,34 @@ deviation and angle bounds; `calculateCriticalClearingTime` bisects the fault du
 | Arc flash | Lee spherical radiation model | Screening only; not IEEE 1584-2018 |
 | Motor starting | Locked-rotor current and terminal-voltage dip from the network | Static starting model |
 | Harmonics | Frequency-dependent network with X ∝ h, R ∝ √h, B ∝ h | User-supplied spectrum, no harmonic load flow iteration |
-| Protection | IEC/IEEE inverse-time curves | Coordination is advisory |
+| Protection | IEC/IEEE inverse-time curves, `t = TD * (A / (M^p - 1) + B)` | Coordination is advisory |
 | Ground grid | IEEE 80 simplified equations | Uniform soil, simple grid geometry |
+
+## Server tier (pandapower)
+
+`services/api` runs the same per-unit model through pandapower. Conversions happen once, in
+`psa_api/adapter.py`, and every fallback is written to the study log:
+
+| Item | Rule |
+|------|------|
+| Bus voltage base | `bus.vbase`, else transformer `vhigh`/`vlow`, else 1 kV with a logged warning |
+| Line impedance | `r_ohm_per_km = r_pu * (vbase^2 / baseMVA) / length_km`; `length_km` defaults to 1 |
+| Line charging | `c_nf_per_km` from `b_pu` at `system.baseFreq` |
+| Line rating | `max_i_ka = rating / (sqrt(3) * vbase)` |
+| Transformer | `vk_percent` and `vkr_percent` re-referenced from the system base to the transformer rating, tap on the HV side |
+| Shunt | `q_mvar = -b * baseMVA` (pandapower treats positive `q_mvar` as inductive) |
+| Generators | External grid on every slack bus (with or without a generator), `gen` on PV buses with `enforce_q_lims`, fixed injection on PQ buses |
+| Transformer tap | pandapower `Ratio` changer on the HV side, `tap_pos = tap - 1`, `tap_step_percent = 100` (`tap_ratio` is ignored by the solver) |
+| Shunt power | Solved `res_shunt` value, scaled by the square of the bus voltage |
+| Out-of-service buses | Zero voltage, angle and injection, with a study-log message |
+| DC studies | Zero reactive quantities; pandapower leaves them unset |
+| Failed studies | `maxMismatch` is `null`; NaN would break JSON serialization |
+| Relay curves | IEC 60255-151 / IEEE C37.112 `A`, `B`, `p` constants; IEEE very inverse uses `p = 2` and `B = 0.491` |
+
+Result differences from the client are intentional and documented in `services/api/README.md`:
+line `loading` uses the worse end, the slack generator reports solved `pg`, and bus result angles are
+degrees. Everything else is pinned by `services/api/tests/fixtures/ieee9-client-nr.json`, which the
+client solver generated from the IEEE 9-bus sample.
 
 ## Reproducibility
 

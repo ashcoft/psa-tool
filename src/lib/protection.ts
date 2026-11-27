@@ -1,16 +1,19 @@
 /**
- * Inverse-time overcurrent relay curves (IEC 60255 and IEEE C37.112).
+ * Inverse-time overcurrent relay curves.
+ *
+ * t = TD * (k / (M^alpha - 1) + b), the IEC 60255-151 and IEEE C37.112 curve form:
+ * k is A, alpha is p and b is the additive B term.
  */
 
 export type RelayCurve = 'IEC-SI' | 'IEC-VI' | 'IEC-EI' | 'IEEE-MI' | 'IEEE-VI' | 'IEEE-EI';
 
-export const relayCurves: Record<RelayCurve, { label: string; k: number; alpha: number }> = {
-  'IEC-SI': { label: 'IEC Standard Inverse', k: 0.14, alpha: 0.02 },
-  'IEC-VI': { label: 'IEC Very Inverse', k: 13.5, alpha: 1 },
-  'IEC-EI': { label: 'IEC Extremely Inverse', k: 80, alpha: 2 },
-  'IEEE-MI': { label: 'IEEE Moderately Inverse', k: 0.0515, alpha: 0.02 },
-  'IEEE-VI': { label: 'IEEE Very Inverse', k: 19.61, alpha: 1 },
-  'IEEE-EI': { label: 'IEEE Extremely Inverse', k: 28.2, alpha: 2 },
+export const relayCurves: Record<RelayCurve, { label: string; k: number; alpha: number; b: number }> = {
+  'IEC-SI': { label: 'IEC Standard Inverse', k: 0.14, alpha: 0.02, b: 0 },
+  'IEC-VI': { label: 'IEC Very Inverse', k: 13.5, alpha: 1, b: 0 },
+  'IEC-EI': { label: 'IEC Extremely Inverse', k: 80, alpha: 2, b: 0 },
+  'IEEE-MI': { label: 'IEEE Moderately Inverse', k: 0.0515, alpha: 0.02, b: 0.114 },
+  'IEEE-VI': { label: 'IEEE Very Inverse', k: 19.61, alpha: 2, b: 0.491 },
+  'IEEE-EI': { label: 'IEEE Extremely Inverse', k: 28.2, alpha: 2, b: 0.1217 },
 };
 
 export interface RelaySetting {
@@ -34,9 +37,9 @@ export interface RelayCurveResult {
 
 export function relayTripTime(curve: RelayCurve, pickupA: number, timeDial: number, currentA: number): number {
   if (pickupA <= 0 || currentA <= pickupA) return Number.POSITIVE_INFINITY;
-  const { k, alpha } = relayCurves[curve];
+  const { k, alpha, b } = relayCurves[curve];
   const multiple = currentA / pickupA;
-  return (timeDial * k) / (Math.pow(multiple, alpha) - 1);
+  return timeDial * (k / (Math.pow(multiple, alpha) - 1) + b);
 }
 
 export function buildRelayCurve(setting: RelaySetting): RelayCurveResult {

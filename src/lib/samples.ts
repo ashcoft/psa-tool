@@ -3,6 +3,7 @@
  */
 
 import { PowerSystem, Bus, Line, Transformer, Generator, Load, Shunt, BusType } from '@/types';
+import { buildLargeGrid } from './large-samples';
 
 export interface SampleDefinition {
   id: string;
@@ -321,6 +322,18 @@ export const SAMPLE_SYSTEMS: SampleDefinition[] = [
     name: 'Distribution Feeder',
     description: 'Radial feeder with a substation transformer, capacitor bank and DER.',
     build: buildDistributionFeeder,
+  },
+  {
+    id: 'grid1000',
+    name: '1,000-Element Grid',
+    description: 'Ten voltage levels from 220 V to 500 kV with every catalog component; 1,000 elements.',
+    build: () => buildLargeGrid({ elements: 1000 }),
+  },
+  {
+    id: 'grid2000',
+    name: '2,000-Element Grid',
+    description: 'The same ten-level network scaled to 2,000 elements for layout and performance work.',
+    build: () => buildLargeGrid({ elements: 2000 }),
   },
 ];
 

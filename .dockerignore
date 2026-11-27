@@ -37,3 +37,7 @@ coverage
 # Documentation
 *.md
 !README.md
+# Python server tier (built from services/api/Dockerfile)
+services/
+__pycache__
+*.pyc

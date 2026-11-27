@@ -37,6 +37,7 @@ editor, a component palette, a property grid, a study-case history and tabular/c
 
 - [Quick start](#quick-start)
 - [Docker and GHCR](#docker-and-ghcr)
+- [Optional server tier](#optional-server-tier)
 - [GitHub Pages](#github-pages)
 - [Capabilities](#capabilities)
 - [Studies](#studies)
@@ -104,6 +105,27 @@ The workflow uses `GITHUB_TOKEN` with `packages: write`; no extra secret is requ
 is private by default: authenticate with `docker login ghcr.io` using a token that has
 `read:packages`, or make the package public in its package settings for anonymous pulls.
 
+## Optional server tier
+
+`services/api` is a FastAPI service that runs power flow with pandapower and serves a versioned
+cable and relay library from PostgreSQL. It is optional: the static workbench and the offline
+build never call it.
+
+```bash
+# API only, in-memory catalogue
+cd services/api
+pip install -r requirements-dev.txt
+uvicorn psa_api.main:app --port 8000
+
+# Web app, API and PostgreSQL 17
+POSTGRES_PASSWORD=change-me docker compose --profile server up --build
+```
+
+On the IEEE 9-bus case the service reproduces the browser engine's voltages, angles, flows and
+losses to machine precision; `services/api/tests/test_parity.py` keeps it that way. Read
+[services/api/README.md](services/api/README.md) before using it. The API has no authentication, so
+run it behind a trusted network.
+
 ## GitHub Pages
 
 The static workbench is live at **https://ashcoft.github.io/psa-tool/**.
@@ -153,7 +175,8 @@ same build is available locally with `npm run build:pages`.
 
 - `.psa` project save/open (JSON content) with validation and normalization.
 - Close Project returns to an empty workspace; new, open and close remind you about unsaved changes.
-- Sample systems: Demo 4-bus, IEEE 9-bus, IEEE 14-bus and a distribution feeder.
+- Sample systems: Demo 4-bus, IEEE 9-bus, IEEE 14-bus, a distribution feeder, and 1,000- and
+  2,000-element grids covering 220 V to 500 kV with every catalog component.
 - Settings persisted in the browser (solver, tolerances, simulation, overlays).
 - Model check with clickable issues.
 
@@ -249,10 +272,14 @@ src/
 │   ├── component-catalog.ts  # Full PSAT component catalog and defaults
 │   ├── component-utils.ts    # Component anchors and nearest-bus helpers
 │   ├── samples.ts            # Ready-to-run systems
+│   ├── large-samples.ts      # Deterministic 1,000/2,000-element grid generator
 │   ├── settings.ts           # Persisted application settings
 │   └── useProject.ts         # Project state, history and editing actions
 ├── types/               # Shared TypeScript data structures
 └── test/                # Vitest setup
+services/
+├── api/                 # FastAPI + pandapower service and tests
+└── catalog/             # Equipment library notes and provenance
 docs/                    # User, architecture, numerical and deployment guides
 playwright/              # End-to-end specs
 ```
@@ -276,13 +303,15 @@ The full list is in [docs/NUMERICAL-METHODS.md](docs/NUMERICAL-METHODS.md) and `
 
 ## Testing and quality
 
-At v1.3.0 the repository has **272 unit/component tests** and **22 Chromium end-to-end specs**.
-GitHub Actions runs lint, type check, unit tests, coverage, the production build and Playwright on
-pushes and pull requests. Codacy and SonarCloud provide static analysis.
+The repository has **307 unit/component tests**, **33 Chromium end-to-end specs** and **61 server
+tier tests**. GitHub Actions runs lint, type check, unit tests, coverage, the production build and
+Playwright on pushes and pull requests; the `API` workflow runs ruff, pytest with a PostgreSQL
+service container and a container build. Codacy and SonarCloud provide static analysis.
 
 ```bash
 npm run test:coverage   # coverage report
 npm run verify          # lint + typecheck + tests + build
+cd services/api && python -m pytest   # server tier
 ```
 
 ## Releases

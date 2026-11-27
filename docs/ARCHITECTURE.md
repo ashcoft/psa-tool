@@ -3,6 +3,10 @@
 Power System Analysis Tool (PSA) is a Next.js App Router application with a pure TypeScript analysis core. The UI never
 performs power-system mathematics directly; it calls `src/lib` engines and renders the results.
 
+An optional server tier in `services/api` (FastAPI, Pydantic, pandapower, PostgreSQL) runs the
+same studies for scale and batch use and serves the cable and relay library. The browser engines
+stay authoritative: the static export and the offline workbench never call the service.
+
 ```mermaid
 flowchart LR
   UI["App shell<br/>src/app/page.tsx"] --> Canvas["Canvas<br/>one-line diagram"]
@@ -14,6 +18,10 @@ flowchart LR
   Engines --> Model
   Facade --> Run["StudyRun"]
   Run --> Results["ResultsDialog · results-export · reports"]
+  Facade -.->|opt-in study backend| API["services/api<br/>FastAPI · pandapower"]
+  API -.-> Run
+  API --> Catalog["PostgreSQL<br/>cable and relay library"]
+  Catalog -.->|published dataset| Model
 ```
 
 ## Layers
@@ -28,6 +36,10 @@ flowchart LR
 | Engines | `src/lib/*.ts` | Power flow, CPF, OPF, fault, stability, time domain and specialty studies |
 | Export | `src/lib/results-export.ts`, `reports.ts` | Tables, CSV, HTML, JSON and report sections |
 | Model | `src/types/index.ts` | Shared engineering data structures |
+| Server API | `services/api/psa_api/main.py` | Optional FastAPI routes: health, power flow, catalogue |
+| Contract | `services/api/psa_api/contract.py` | Pydantic mirror of the model and `StudyRun`, versioned by `CONTRACT_VERSION` |
+| Server solver | `services/api/psa_api/adapter.py`, `studies.py` | Per-unit to pandapower conversion, result mapping, study log |
+| Library | `services/api/psa_api/catalog.py`, `seed.py` | Postgres schema, dataset versions, cable and relay rows |
 
 ## Model
 
@@ -85,6 +97,27 @@ Palette drag-and-drop uses the `application/x-psat-component` data transfer type
 whether a drop creates a bus, attaches a device to a nearby bus or places a free-standing generic
 component.
 
+## Server tier
+
+`services/api` mounts one route group per concern: `/v1/health`, `/v1/studies/*` and
+`/v1/catalog/*`. Requests and responses use the same camelCase JSON as `src/types/index.ts`, so a
+project file or a `StudyRun` travels between implementations unchanged.
+
+`adapter.py` is the only place where per-unit values become physical units. It resolves bus voltage
+bases (`bus.vbase`, then transformer `vhigh`/`vlow`, then 1 kV), converts branch impedances at that
+base, flips the shunt sign against pandapower's inductive convention, and records every fallback in
+the study `messages`. `studies.py` maps pandapower algorithms (`nr`, `fdxb`, `gs`, `rundcpp`) and
+rebuilds `PowerFlowResult`, including a recomputed bus-balance residual as `maxMismatch`.
+
+The catalogue is versioned data, not project data. `dataset_version` names each published set; a
+project should record the version it was solved against. SQLite is the fallback so tests and local
+runs need no server.
+
+Deliberate differences from the client engine are documented in `services/api/README.md`: line
+`loading` uses the worse end, the slack generator reports solved `pg`, and bus result angles are
+degrees in both implementations. The IEEE 9-bus fixture in
+`services/api/tests/fixtures/ieee9-client-nr.json` pins the rest of the result surface.
+
 ## Persistence
 
 - Projects are `.psa` files (JSON content) produced by `serializeProject` and validated by `deserializeProject` and
@@ -100,6 +133,8 @@ component.
 | State and utilities | Vitest + Testing Library | Hooks, project normalization, export |
 | Components | Vitest + Testing Library | Ribbon, properties, results and specialty dialogs |
 | End-to-end | Playwright (Chromium) | Workbench load, studies, editing, drag-and-drop, mobile layout |
+| Server tier | pytest + ruff | Contract, adapter, parity, HTTP, catalogue and PostgreSQL tests |
 
 `npm run test:coverage` produces the coverage report. CI runs lint, type check, unit tests, build
-and the Playwright suite.
+and the Playwright suite. `services/api` has its own workflow: ruff, pytest, a PostgreSQL service
+container for the catalogue round trip, and a container build.

@@ -1,0 +1,112 @@
+"""Model checks that must run before a study.
+
+The service refuses a system that references a missing bus or repeats an id.
+Everything else degrades to a study-log message, because the point is to solve
+a screening model, not to gate the user behind a validation wizard.
+"""
+
+from __future__ import annotations
+
+from .contract import PowerSystem
+
+
+class SystemValidationError(ValueError):
+    def __init__(self, messages: list[str]) -> None:
+        super().__init__("; ".join(messages))
+        self.messages = messages
+
+
+def _require_bus(owner: str, value: str | None, known: set[str], errors: list[str]) -> None:
+    if value is None:
+        errors.append(f"{owner} has no bus reference")
+    elif value not in known:
+        errors.append(f"{owner} references unknown bus '{value}'")
+
+
+def _check_buses(system: PowerSystem, errors: list[str]) -> set[str]:
+    bus_ids = [bus.id for bus in system.buses]
+    if not bus_ids:
+        errors.append("system has no buses")
+    duplicates = {bus_id for bus_id in bus_ids if bus_ids.count(bus_id) > 1}
+    if duplicates:
+        errors.append(f"duplicate bus ids: {', '.join(sorted(duplicates))}")
+    return set(bus_ids)
+
+
+def _check_duplicates(system: PowerSystem, errors: list[str]) -> None:
+    collections = (
+        ("line", [line.id for line in system.lines]),
+        ("transformer", [txf.id for txf in system.transformers]),
+        ("generator", [gen.id for gen in system.generators]),
+        ("load", [load.id for load in system.loads]),
+        ("shunt", [shunt.id for shunt in system.shunts]),
+        ("component", [component.id for component in system.components]),
+    )
+    for label, ids in collections:
+        duplicates = {value for value in ids if ids.count(value) > 1}
+        if duplicates:
+            errors.append(f"duplicate {label} ids: {', '.join(sorted(duplicates))}")
+
+
+def _check_lines(system: PowerSystem, known: set[str], errors: list[str], warnings: list[str]) -> None:
+    for line in system.lines:
+        _require_bus(f"line {line.id} (fromBus)", line.fromBus, known, errors)
+        _require_bus(f"line {line.id} (toBus)", line.toBus, known, errors)
+        if line.fromBus == line.toBus:
+            errors.append(f"line {line.id} connects a bus to itself")
+        if line.rating <= 0:
+            warnings.append(f"line {line.id} has non-positive rating; loading is reported as 0")
+
+
+def _check_transformers(
+    system: PowerSystem, known: set[str], errors: list[str], warnings: list[str]
+) -> None:
+    for txf in system.transformers:
+        _require_bus(f"transformer {txf.id} (fromBus)", txf.fromBus, known, errors)
+        _require_bus(f"transformer {txf.id} (toBus)", txf.toBus, known, errors)
+        if txf.fromBus == txf.toBus:
+            errors.append(f"transformer {txf.id} connects a bus to itself")
+        if txf.tap <= 0:
+            warnings.append(f"transformer {txf.id} has tap <= 0; 1.0 is used")
+
+
+def _check_attachments(
+    system: PowerSystem, known: set[str], errors: list[str], warnings: list[str]
+) -> None:
+    for gen in system.generators:
+        _require_bus(f"generator {gen.id}", gen.bus, known, errors)
+        if gen.qmax < gen.qmin:
+            warnings.append(f"generator {gen.id} has qmax < qmin; limits ignored")
+    for load in system.loads:
+        _require_bus(f"load {load.id}", load.bus, known, errors)
+    for shunt in system.shunts:
+        _require_bus(f"shunt {shunt.id}", shunt.bus, known, errors)
+
+
+def _check_slack(system: PowerSystem, warnings: list[str]) -> None:
+    slack = [bus for bus in system.buses if bus.type == "slack"]
+    if not slack:
+        warnings.append(
+            "no bus is marked 'slack'; bus 0 is used as the reference, as in the client engine"
+        )
+    elif len(slack) > 1:
+        warnings.append(
+            f"{len(slack)} slack buses found; each becomes an external grid at its own voltage"
+        )
+
+
+def validate_system(system: PowerSystem) -> list[str]:
+    """Return advisory messages or raise on an unusable model."""
+    errors: list[str] = []
+    warnings: list[str] = []
+
+    known = _check_buses(system, errors)
+    _check_duplicates(system, errors)
+    _check_lines(system, known, errors, warnings)
+    _check_transformers(system, known, errors, warnings)
+    _check_attachments(system, known, errors, warnings)
+    _check_slack(system, warnings)
+
+    if errors:
+        raise SystemValidationError(errors)
+    return warnings

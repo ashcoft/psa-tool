@@ -5,7 +5,14 @@ import { solveNewtonRaphson } from './powerflow-methods';
 
 describe('sample systems', () => {
   it('provides the documented sample catalogue', () => {
-    expect(SAMPLE_SYSTEMS.map(sample => sample.id)).toEqual(['demo', 'ieee9', 'ieee14', 'feeder']);
+    expect(SAMPLE_SYSTEMS.map(sample => sample.id)).toEqual([
+      'demo',
+      'ieee9',
+      'ieee14',
+      'feeder',
+      'grid1000',
+      'grid2000',
+    ]);
     expect(getSample('ieee9')?.name).toMatch(/IEEE 9/);
     expect(getSample('missing')).toBeUndefined();
   });
@@ -27,6 +34,7 @@ describe('sample systems', () => {
         expect(bus.v).toBeGreaterThan(0.8);
         expect(bus.v).toBeLessThan(1.2);
       });
-    }
+    },
+    30000
   );
 });
