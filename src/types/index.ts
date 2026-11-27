@@ -176,7 +176,7 @@ export interface PowerSystem {
 export interface BusResult {
   bus: string;
   v: number;
-  angle: number;
+  angle: number;         // degrees (model Bus.angle is radians)
   pg: number;
   qg: number;
   pl: number;

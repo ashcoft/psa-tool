@@ -1,0 +1,42 @@
+{
+  "name": "IEEE 9-Bus Test System",
+  "baseMVA": 100,
+  "baseFreq": 60,
+  "buses": [
+    {"id": "1", "name": "Bus 1 (Slack)", "type": "slack", "voltage": 1.04, "angle": 0, "vmin": 0.9, "vmax": 1.1, "area": 1, "region": 1, "x": 0, "y": 0, "vbase": 345, "active": true},
+    {"id": "2", "name": "Bus 2", "type": "pv", "voltage": 1.025, "angle": 0, "vmin": 0.9, "vmax": 1.1, "area": 1, "region": 1, "x": 2, "y": -1.6, "vbase": 345, "active": true},
+    {"id": "3", "name": "Bus 3", "type": "pv", "voltage": 1.025, "angle": 0, "vmin": 0.9, "vmax": 1.1, "area": 1, "region": 1, "x": 2, "y": 1.6, "vbase": 345, "active": true},
+    {"id": "4", "name": "Bus 4", "type": "pq", "voltage": 1.0, "angle": 0, "vmin": 0.9, "vmax": 1.1, "area": 1, "region": 1, "x": 4, "y": 0, "vbase": 345, "active": true},
+    {"id": "5", "name": "Bus 5", "type": "pq", "voltage": 1.0, "angle": 0, "vmin": 0.9, "vmax": 1.1, "area": 1, "region": 1, "x": 5.4, "y": -1.4, "vbase": 345, "active": true},
+    {"id": "6", "name": "Bus 6", "type": "pq", "voltage": 1.0, "angle": 0, "vmin": 0.9, "vmax": 1.1, "area": 1, "region": 1, "x": 5.4, "y": 1.4, "vbase": 345, "active": true},
+    {"id": "7", "name": "Bus 7", "type": "pq", "voltage": 1.0, "angle": 0, "vmin": 0.9, "vmax": 1.1, "area": 1, "region": 1, "x": 7.4, "y": -1.4, "vbase": 345, "active": true},
+    {"id": "8", "name": "Bus 8", "type": "pq", "voltage": 1.0, "angle": 0, "vmin": 0.9, "vmax": 1.1, "area": 1, "region": 1, "x": 8.8, "y": 0, "vbase": 345, "active": true},
+    {"id": "9", "name": "Bus 9", "type": "pq", "voltage": 1.0, "angle": 0, "vmin": 0.9, "vmax": 1.1, "area": 1, "region": 1, "x": 7.4, "y": 1.4, "vbase": 345, "active": true}
+  ],
+  "lines": [
+    {"id": "L45", "name": "Line 4-5", "fromBus": "4", "toBus": "5", "resistance": 0.017, "reactance": 0.092, "susceptance": 0.158, "rating": 250, "length": 90, "active": true},
+    {"id": "L46", "name": "Line 4-6", "fromBus": "4", "toBus": "6", "resistance": 0.039, "reactance": 0.17, "susceptance": 0.358, "rating": 250, "length": 90, "active": true},
+    {"id": "L57", "name": "Line 5-7", "fromBus": "5", "toBus": "7", "resistance": 0.0085, "reactance": 0.072, "susceptance": 0.149, "rating": 250, "length": 70, "active": true},
+    {"id": "L69", "name": "Line 6-9", "fromBus": "6", "toBus": "9", "resistance": 0.032, "reactance": 0.161, "susceptance": 0.306, "rating": 250, "length": 90, "active": true},
+    {"id": "L78", "name": "Line 7-8", "fromBus": "7", "toBus": "8", "resistance": 0.01, "reactance": 0.085, "susceptance": 0.176, "rating": 250, "length": 70, "active": true},
+    {"id": "L89", "name": "Line 8-9", "fromBus": "8", "toBus": "9", "resistance": 0.011, "reactance": 0.072, "susceptance": 0.149, "rating": 250, "length": 70, "active": true}
+  ],
+  "transformers": [
+    {"id": "T14", "name": "Transformer 1-4", "fromBus": "1", "toBus": "4", "resistance": 0, "reactance": 0.0576, "tap": 1, "shift": 0, "rating": 400, "vhigh": 345, "vlow": 345, "active": true},
+    {"id": "T27", "name": "Transformer 2-7", "fromBus": "2", "toBus": "7", "resistance": 0, "reactance": 0.0625, "tap": 1, "shift": 0, "rating": 400, "vhigh": 345, "vlow": 345, "active": true},
+    {"id": "T39", "name": "Transformer 3-9", "fromBus": "3", "toBus": "9", "resistance": 0, "reactance": 0.0586, "tap": 1, "shift": 0, "rating": 400, "vhigh": 345, "vlow": 345, "active": true}
+  ],
+  "generators": [
+    {"id": "G1", "name": "Generator G1", "bus": "1", "pg": 71.6, "qg": 0, "v": 1.04, "pmax": 300, "pmin": 0, "qmax": 600, "qmin": -600, "active": true},
+    {"id": "G2", "name": "Generator G2", "bus": "2", "pg": 163, "qg": 0, "v": 1.025, "pmax": 300, "pmin": 0, "qmax": 600, "qmin": -600, "active": true},
+    {"id": "G3", "name": "Generator G3", "bus": "3", "pg": 85, "qg": 0, "v": 1.025, "pmax": 250, "pmin": 0, "qmax": 500, "qmin": -500, "active": true}
+  ],
+  "loads": [
+    {"id": "LD5", "name": "Load Bus 5", "bus": "5", "pl": 90, "ql": 30, "demandModel": "constant-power", "active": true},
+    {"id": "LD7", "name": "Load Bus 7", "bus": "7", "pl": 100, "ql": 35, "demandModel": "constant-power", "active": true},
+    {"id": "LD9", "name": "Load Bus 9", "bus": "9", "pl": 125, "ql": 50, "demandModel": "constant-power", "active": true}
+  ],
+  "shunts": [],
+  "components": [],
+  "areas": [{"id": "A1", "name": "Area 1", "slackBus": "1"}]
+}

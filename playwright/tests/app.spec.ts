@@ -198,6 +198,22 @@ test.describe('Power System Analysis Tool workbench', () => {
     await expect(page.getByTestId('statusbar')).toContainText('Generators: 3');
   });
 
+  test('loads the 2,000-element grid sample', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(String(error)));
+
+    await openApp(page);
+    await page.getByTestId('ribbon').getByRole('button', { name: 'Samples' }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByText('Sample Systems')).toBeVisible();
+    await dialog.getByRole('button', { name: 'Load' }).nth(5).click();
+
+    await expect(page.getByTestId('statusbar')).toContainText('Buses: 240', { timeout: 60000 });
+    await expect(page.getByTestId('statusbar')).toContainText('Generators: 55');
+    await expect(page.getByTestId('canvas').locator('canvas')).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+
   test('opens and saves study options', async ({ page }) => {
     await openApp(page);
     await page.getByTestId('ribbon').getByRole('button', { name: 'Options' }).click();

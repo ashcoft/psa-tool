@@ -29,6 +29,17 @@ npm run build
 BASE_URL=http://localhost:3000 npx playwright test
 ```
 
+For the optional server tier in `services/api` (Python 3.13):
+
+```bash
+cd services/api
+pip install -r requirements-dev.txt
+python -m ruff check .
+python -m pytest
+```
+
+The PostgreSQL round trip skips unless `DATABASE_URL` points at a database; CI supplies one.
+
 ## Coding conventions
 
 - TypeScript strict mode is on. Avoid `any`; model new data in `src/types/index.ts`.
@@ -40,6 +51,11 @@ BASE_URL=http://localhost:3000 npx playwright test
 - State updaters in `useProject` must stay pure. StrictMode calls them twice, so history and
   coalescing bookkeeping happens before `setState`.
 - Keep dialogs, tabs and icon-only buttons accessible (`role`, `aria-label`, `title`).
+- `services/api/psa_api/contract.py` mirrors `src/types/index.ts`. Change both in the same pull
+  request and bump `CONTRACT_VERSION` when a field moves. Study results report `BusResult.angle` in
+  degrees; the model `Bus.angle` stays radians.
+- Catalogue rows belong to a dataset version. Publish a new version rather than editing existing
+  rows, and record provenance in `services/catalog/README.md`.
 
 ## Adding or changing a study
 
@@ -51,6 +67,8 @@ BASE_URL=http://localhost:3000 npx playwright test
    `src/app/page.tsx`.
 6. Add an end-to-end path in `playwright/tests/app.spec.ts`.
 7. Document any new assumption in `docs/NUMERICAL-METHODS.md` and `AGENTS.md`.
+8. If the study is also served by `services/api`, add a `StudyKind` variant there, a contract test
+   and a parity assertion against the committed client fixture.
 
 ## Commit messages
 

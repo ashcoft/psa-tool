@@ -7,6 +7,11 @@
 - `npm run verify` runs lint, type check, unit tests and the production build.
 - End-to-end: `BASE_URL=http://localhost:3000 npx playwright test` (Chromium).
 - `npm run build:pages` produces the static export for GitHub Pages with base path `/psa-tool`.
+- Optional server tier in `services/api`: FastAPI + Pydantic v2, numpy/scipy, pandapower, PostgreSQL.
+  `cd services/api && pip install -r requirements-dev.txt`, then `python -m pytest` and
+  `python -m ruff check .`; run with `uvicorn psa_api.main:app --port 8000`.
+- Server mode deployment: `docker compose --profile server up --build` (web, api, db); the default
+  profile still starts only the web app.
 
 ## Architecture
 
@@ -23,6 +28,10 @@
   snap) and edited in the property panel. Dropping a device away from a bus creates a bus at the
   drop point. Model elements keep an optional `symbol` IEC type from the catalog so the palette and
   the diagram render the same symbol.
+- `src/lib/large-samples.ts` deterministically generates the 1,000- and 2,000-element grid samples
+  from ten voltage levels (220 V to 500 kV). It places one of every catalog definition and then
+  fills to an exact element count; keep it deterministic and use it as the large-diagram fixture
+  for rendering and solver work. `src/lib/samples.ts` registers the two samples.
 - `src/lib/useProject.ts` owns the system state, undo/redo history and element editing actions.
   `autoArrange` lays buses out by BFS depth from the slack bus and keeps bus-attached components
   beside their bus.
@@ -39,11 +48,21 @@
   bar. Palette tiles are icon-only, category-coloured and use `title`/`aria-label` for names;
   touch screens show the names under the icons because they have no hover. On narrow screens the
   panes render as overlay drawers and start closed.
+- `services/api/psa_api/contract.py` mirrors `src/types/index.ts` in camelCase and is versioned by
+  `CONTRACT_VERSION`. Change both files in the same pull request and bump the version when a field
+  moves. `services/api/psa_api/adapter.py` converts the per-unit model to pandapower and logs every
+  assumption in the study `messages`; `studies.py` builds the `StudyRun`.
+- The equipment library lives in Postgres (`services/api/psa_api/catalog.py` and `seed.py`), with
+  SQLite as a zero-configuration fallback. Every row belongs to a `dataset_version`; publish a new
+  version instead of editing rows in place.
+- Client and service results are checked against `services/api/tests/fixtures/ieee9-client-nr.json`.
+  Document any intentional difference in `services/api/README.md` instead of hiding it.
 
 ## Conventions
 
 - The model stores MW, Mvar and kV; bus angles are radians and the property panel shows degrees.
-  Solvers convert to per-unit on `system.baseMVA` internally and return MW/Mvar/kA.
+  Solvers convert to per-unit on `system.baseMVA` internally and return MW/Mvar/kA. Study results
+  report `BusResult.angle` in degrees in both implementations.
 - React compiler lint is strict: avoid `setState` synchronously in effects, do not write refs during
   render, and keep hooks unconditional. Prefer deriving state or keyed remounts.
 - Keep `useProject` state updaters pure. StrictMode invokes them twice, so history coalescing and
@@ -77,6 +96,13 @@
   branch overloads are reported rather than optimised away.
 - Specialty studies are screening calculations: Lee arc-flash model, IEEE 519 harmonic limits,
   IEC/IEEE relay curves, and IEEE 80 simplified ground-grid equations.
+- Server tier (pandapower): bus voltage bases come from `bus.vbase`, then transformer `vhigh`/`vlow`,
+  then 1 kV with a study-log message. Line charging is converted from the model susceptance to
+  `c_nf_per_km` at `system.baseFreq`. Ampacity and cable impedance rows in dataset `2026.11` are
+  screening values (IEC 60228 conductor resistance, indicative XLPE ampacity).
+- Result definitions differ in two places by decision: line `loading` uses the worse of the two ends
+  on the server and the sending end in the client; the slack generator reports solved `pg` on the
+  server and scheduled `pg` in the client.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

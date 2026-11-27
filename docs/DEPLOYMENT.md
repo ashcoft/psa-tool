@@ -3,6 +3,16 @@
 Power System Analysis Tool (PSA) is a static Next.js application. It can run locally, as a container, on GitHub Pages or on
 Vercel.
 
+There are two deployment modes:
+
+| Mode | Contents | Server needed |
+|------|----------|---------------|
+| Static (default) | Next.js static export or standalone image | No |
+| Server (`server` compose profile) | The web app plus `services/api` and PostgreSQL | Yes |
+
+The static export and the offline workbench never call the API. Only the server mode adds studies
+and the equipment library over HTTP.
+
 ## Local
 
 Requirements: Node.js 26 (see `.nvmrc`) and npm.
@@ -38,6 +48,38 @@ docker compose up -d
 ```
 
 The Compose service includes a health check against `http://127.0.0.1:3000/`.
+
+## Server mode (API and PostgreSQL)
+
+The optional tier adds `services/api` (FastAPI, pandapower) and a PostgreSQL 17 database. Both are
+behind the `server` profile, so the default `docker compose up` still starts only the web app.
+
+```bash
+POSTGRES_PASSWORD=change-me docker compose --profile server up --build
+curl -s localhost:8000/v1/health
+```
+
+| Service | Port | Notes |
+|---------|------|-------|
+| `psat-web` | 3000 | unchanged Next.js image |
+| `api` | 8000 | seeds the catalogue on first start; `/openapi.json` documents the contract |
+| `db` | 5432 | PostgreSQL 17, data in the `psa-db` volume |
+
+Run it without Docker during development:
+
+```bash
+cd services/api
+python -m venv .venv && . .venv/bin/activate
+pip install -r requirements-dev.txt
+DATABASE_URL=postgresql+psycopg://psa:psa@localhost:5432/psa \
+  uvicorn psa_api.main:app --reload --port 8000
+```
+
+Without `DATABASE_URL` the API seeds an in-memory SQLite catalogue, which is enough to try the
+endpoints but loses data on restart.
+
+The API has no authentication. Do not expose port 8000 to an untrusted network. A shared deployment
+also needs the migrations and backup runbook tracked as PL-10 in `ROADMAP.md`.
 
 ## GitHub Container Registry (GHCR)
 
@@ -114,6 +156,9 @@ Without `VERCEL_TOKEN` the workflow skips the deployment instead of failing.
 | `NEXT_TELEMETRY_DISABLED` | runtime | Disable Next.js telemetry |
 | `PORT` | runtime | Container port, default `3000` |
 | `BASE_URL` | Playwright | Target URL for end-to-end tests |
+| `DATABASE_URL` | API | SQLAlchemy URL; `postgresql+psycopg://user:pass@host/db` in server mode, in-memory SQLite when unset |
+| `PSA_CORS_ORIGINS` | API | Comma-separated allowed origins, default `http://localhost:3000,http://127.0.0.1:3000` |
+| `POSTGRES_PASSWORD` | compose | Database password for the `server` profile (`psa-local-dev` default is for local use only) |
 
 ## Release flow
 
@@ -122,3 +167,5 @@ Without `VERCEL_TOKEN` the workflow skips the deployment instead of failing.
 3. The Docker workflow publishes the image for the new tag.
 4. The Pages workflow rebuilds the static site from `main`.
 5. Vercel deploys if credentials are configured.
+6. The API workflow runs the server tier tests against a PostgreSQL service container. It does not
+   deploy the API; server deployments are manual through the compose profile.

@@ -7,6 +7,10 @@ browser: no account, no server-side database, no upload.
 
 - The app opens with the **Demo 4-Bus System**.
 - Use **Tools → Samples** to load the IEEE 9-bus, IEEE 14-bus or distribution feeder cases.
+- The **1,000-Element Grid** and **2,000-Element Grid** samples are ten-level networks from 220 V to
+  500 kV that include every component in the catalog. They are intended for layout, selection and
+  performance work: each load flow takes a few hundred milliseconds, and the diagram is dense, so
+  use the zoom controls and the component pane rather than hunting for symbols.
 - **Home → New** starts an empty project.
 - **Home → Open** loads a `.psa` project saved by Power System Analysis Tool. Legacy `.json` projects still open.
 - **Home → Close** clears the workspace. New, open and close ask before discarding unsaved changes.

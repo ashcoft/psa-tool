@@ -83,6 +83,26 @@ deviation and angle bounds; `calculateCriticalClearingTime` bisects the fault du
 | Protection | IEC/IEEE inverse-time curves | Coordination is advisory |
 | Ground grid | IEEE 80 simplified equations | Uniform soil, simple grid geometry |
 
+## Server tier (pandapower)
+
+`services/api` runs the same per-unit model through pandapower. Conversions happen once, in
+`psa_api/adapter.py`, and every fallback is written to the study log:
+
+| Item | Rule |
+|------|------|
+| Bus voltage base | `bus.vbase`, else transformer `vhigh`/`vlow`, else 1 kV with a logged warning |
+| Line impedance | `r_ohm_per_km = r_pu * (vbase^2 / baseMVA) / length_km`; `length_km` defaults to 1 |
+| Line charging | `c_nf_per_km` from `b_pu` at `system.baseFreq` |
+| Line rating | `max_i_ka = rating / (sqrt(3) * vbase)` |
+| Transformer | `vk_percent` and `vkr_percent` re-referenced from the system base to the transformer rating, tap on the HV side |
+| Shunt | `q_mvar = -b * baseMVA` (pandapower treats positive `q_mvar` as inductive) |
+| Generators | External grid on slack buses, `gen` on PV buses with Q limits, fixed injection on PQ buses |
+
+Result differences from the client are intentional and documented in `services/api/README.md`:
+line `loading` uses the worse end, the slack generator reports solved `pg`, and bus result angles are
+degrees. Everything else is pinned by `services/api/tests/fixtures/ieee9-client-nr.json`, which the
+client solver generated from the IEEE 9-bus sample.
+
 ## Reproducibility
 
 All engines are deterministic for a fixed model and settings. The test suite uses the demo 4-bus

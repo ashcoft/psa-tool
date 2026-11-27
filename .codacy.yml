@@ -2,6 +2,7 @@
 exclude_paths:
   - 'psat-converted/**'
   - 'playwright/**'
+  - 'services/**'
   - 'public/**'
   - '.next/**'
   - 'node_modules/**'
