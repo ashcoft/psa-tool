@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented in this file. This file is generated automatically by [semantic-release](https://github.com/semantic-release/semantic-release) from the commit history.
 
+# [1.9.0](https://github.com/ashcoft/psa-tool/compare/v1.8.1...v1.9.0) (2026-11-27)
+
+### Bug Fixes
+
+* address Sonar security and maintainability findings ([1121e58](https://github.com/ashcoft/psa-tool/commit/1121e58f926537e0e8fa09242b70f246f6a3dfbe))
+* apply review findings on taps, limits, data and isolation ([2d01a76](https://github.com/ashcoft/psa-tool/commit/2d01a7688650c20315fdc1a50e574f5632fd852a))
+* **ci:** quote the pip install command ([b244c66](https://github.com/ashcoft/psa-tool/commit/b244c6643fac292c55fe37b6aeb685c7a8c2bf1f))
+* exclude every external grid from the bus-balance residual ([1e79d8e](https://github.com/ashcoft/psa-tool/commit/1e79d8ec32ef2718713157c6ae0aa786f97efc75))
+
+### Features
+
+* add optional server tier and large grid samples ([b6a9bf3](https://github.com/ashcoft/psa-tool/commit/b6a9bf3bc86ecc19367fc809d6e5a79368827a0c))
+
 ## [1.8.1](https://github.com/ashcoft/psa-tool/compare/v1.8.0...v1.8.1) (2026-11-26)
 
 ### Bug Fixes
