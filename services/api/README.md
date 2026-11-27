@@ -97,8 +97,9 @@ python -m pytest        # 45 tests; the PostgreSQL round trip skips without DATA
 python -m ruff check .
 ```
 
-`requirements.txt` pins the direct dependencies and `requirements.lock` freezes the
-full runtime resolution used by the container image. The workflow
+`requirements.txt` pins the direct dependencies. `requirements.lock` and
+`requirements-dev.lock` are hash-pinned full resolutions (pip-compile); the image installs the
+runtime lock and CI installs the dev lock, both with `--require-hashes --only-binary :all:`. The workflow
 `.github/workflows/api.yml` supplies a PostgreSQL service container, so the round trip runs in CI.
 
 ## Assumptions
