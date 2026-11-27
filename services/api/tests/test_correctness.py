@@ -70,6 +70,19 @@ def test_missing_slack_bus_falls_back_to_bus_zero() -> None:
 
     assert study.status == "success"
     assert any("used as the reference" in message for message in study.messages)
+    # The fallback reference is a free injection and must not dominate the residual.
+    assert study.data.maxMismatch < 1e-6
+
+
+def test_multiple_slack_buses_are_all_references() -> None:
+    system = _two_bus()
+    system.buses = [
+        bus.model_copy(update={"type": "slack"}) if bus.id == "2" else bus for bus in system.buses
+    ]
+    study = run_power_flow(system, "Newton-Raphson")
+
+    assert study.status == "success"
+    assert study.data.maxMismatch < 1e-6
 
 
 def test_slack_angle_is_converted_from_radians() -> None:

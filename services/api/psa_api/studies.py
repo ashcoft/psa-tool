@@ -263,10 +263,14 @@ def _residual(system: PowerSystem, net: pp.pandapowerNet, mapping: ElementMap) -
     """Recompute the bus balance from the results and return the worst error in p.u."""
     base = system.baseMVA
     bus_p, bus_q = _consumption(system, net, mapping)
-    slack = next((bus.id for bus in system.buses if bus.type == "slack"), None)
+    # Every external grid is a free injection, including the bus-0 fallback and multi-slack systems.
+    references = mapping.references or {
+        gen.bus for gen_id, (kind, _) in mapping.generators.items() if kind == "ext_grid"
+        for gen in system.generators if gen.id == gen_id
+    }
     worst = 0.0
     for bus in system.buses:
-        if bus.type == "isolated" or not bus.active or bus.id == slack:
+        if bus.type == "isolated" or not bus.active or bus.id in references:
             continue
         index = mapping.buses[bus.id]
         worst = max(worst, abs(_num(net.res_bus.at[index, "p_mw"]) - bus_p[bus.id]) / base)

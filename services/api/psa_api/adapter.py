@@ -28,6 +28,7 @@ class ElementMap:
     loads: dict[str, int] = field(default_factory=dict)
     shunts: dict[str, int] = field(default_factory=dict)
     generators: dict[str, tuple[str, int]] = field(default_factory=dict)
+    references: set[str] = field(default_factory=set)
 
 
 @dataclass
@@ -78,6 +79,7 @@ def _create_ext_grid(ctx: BuildContext, bus: Bus, vm_pu: float, seen: set[str]) 
         va_degree=math.degrees(bus.angle or 0.0),
     )
     seen.add(bus.id)
+    ctx.mapping.references.add(bus.id)
     return index
 
 
