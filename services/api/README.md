@@ -109,7 +109,7 @@ client to machine precision; see `tests/test_parity.py` and
 
 ```bash
 cd services/api
-python -m pytest        # 60 tests; the PostgreSQL round trip skips without PSA_TEST_DATABASE_URL
+python -m pytest        # 61 tests; the PostgreSQL round trip skips without PSA_TEST_DATABASE_URL
 python -m ruff check .
 ```
 

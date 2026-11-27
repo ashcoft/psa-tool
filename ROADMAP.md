@@ -76,7 +76,7 @@ Implemented in this review, as evidence that the stack fits the model:
 | Gate | Command | Current result |
 |------|---------|----------------|
 | Unit and component tests | `npm run test:run` | 307 passed, 2 skipped, 22 files |
-| Server tier tests | `cd services/api && python -m pytest` | 60 passed, 1 skipped (PostgreSQL round trip) |
+| Server tier tests | `cd services/api && python -m pytest` | 61 passed, 1 skipped (PostgreSQL round trip) |
 | Server tier lint | `cd services/api && python -m ruff check .` | Pass |
 | Coverage | `npm run test:coverage` | 69.97 % statements, 53.52 % branches, 67.19 % functions, 70.96 % lines |
 | Lint | `npm run lint` | Pass |
@@ -118,7 +118,7 @@ versioned cable and relay library from PostgreSQL.
 ### Delivered since the previous review
 
 - Server tier vertical slice: `services/api` (FastAPI, Pydantic v2, pandapower) with power flow,
-  health, catalogue endpoints, a `StudyRun` contract mirror, 60 tests, a container image, an API
+  health, catalogue endpoints, a `StudyRun` contract mirror, 61 tests, a container image, an API
   workflow with a PostgreSQL service, and a `server` compose profile.
 - Contract parity on IEEE 9: service and client agree to machine precision on bus voltages,
   angles, branch flows, reactive generation and losses; the reference is committed as
