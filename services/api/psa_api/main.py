@@ -30,11 +30,13 @@ SERVICE_NAME = "psa-api"
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     engine = build_engine()
-    catalog = Catalog(engine)
-    catalog.ensure_seeded()
-    app.state.catalog = catalog
-    yield
-    engine.dispose()
+    try:
+        catalog = Catalog(engine)
+        catalog.ensure_seeded()
+        app.state.catalog = catalog
+        yield
+    finally:
+        engine.dispose()
 
 
 app = FastAPI(
@@ -57,7 +59,7 @@ def get_catalog() -> Catalog:
     return app.state.catalog
 
 
-@app.get("/v1/health", response_model=HealthResponse)
+@app.get("/v1/health")
 def health(catalog: Catalog = Depends(get_catalog)) -> HealthResponse:
     datasets = catalog.datasets()
     return HealthResponse(
@@ -73,31 +75,43 @@ def health(catalog: Catalog = Depends(get_catalog)) -> HealthResponse:
     )
 
 
-@app.get("/v1/catalog/datasets", response_model=list[DatasetVersion])
+@app.get("/v1/catalog/datasets")
 def catalog_datasets(catalog: Catalog = Depends(get_catalog)) -> list[DatasetVersion]:
     return catalog.datasets()
 
 
-@app.get("/v1/catalog/cables", response_model=list[CableSize])
+@app.get("/v1/catalog/cables")
 def catalog_cables(
-    voltageClassKv: float | None = Query(default=None, gt=0),
+    voltage_class_kv: float | None = Query(default=None, gt=0, alias="voltageClassKv"),
     conductor: str | None = Query(default=None, max_length=8),
     catalog: Catalog = Depends(get_catalog),
 ) -> list[CableSize]:
-    return catalog.cables(voltage_class_kv=voltageClassKv, conductor=conductor)
+    return catalog.cables(voltage_class_kv=voltage_class_kv, conductor=conductor)
 
 
-@app.get("/v1/catalog/relay-curves", response_model=list[RelayCurve])
+@app.get("/v1/catalog/relay-curves")
 def catalog_relay_curves(catalog: Catalog = Depends(get_catalog)) -> list[RelayCurve]:
     return catalog.relay_curves()
 
 
-@app.get("/v1/catalog/relays", response_model=list[RelayModel])
+@app.get("/v1/catalog/relays")
 def catalog_relays(catalog: Catalog = Depends(get_catalog)) -> list[RelayModel]:
     return catalog.relays()
 
 
-@app.post("/v1/studies/powerflow", response_model=PowerFlowStudy)
+@app.post(
+    "/v1/studies/powerflow",
+    responses={
+        422: {
+            "description": "Model validation failed; messages name the offending element.",
+            "content": {
+                "application/json": {
+                    "example": {"detail": {"messages": ["line L45 references unknown bus '4'"]}}
+                }
+            },
+        }
+    },
+)
 def run_power_flow_study(request: PowerFlowRequest) -> PowerFlowStudy:
     try:
         validate_system(request.system)

@@ -23,7 +23,7 @@ services:
     profiles: ["server"]
     environment:
       POSTGRES_USER: psa
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-psa-local-dev}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       POSTGRES_DB: psa
     volumes:
       - psa-db:/var/lib/postgresql/data
@@ -42,7 +42,7 @@ services:
       dockerfile: Dockerfile
     profiles: ["server"]
     environment:
-      DATABASE_URL: postgresql+psycopg://psa:${POSTGRES_PASSWORD:-psa-local-dev}@db:5432/psa
+      DATABASE_URL: postgresql+psycopg://psa:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/psa
       PSA_CORS_ORIGINS: http://localhost:3000
     ports:
       - "8000:8000"

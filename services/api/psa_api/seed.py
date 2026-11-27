@@ -9,6 +9,10 @@ be replaced by the installation-specific value before any sizing decision.
 
 from __future__ import annotations
 
+IEC_60255_151 = "IEC 60255-151"
+IEEE_C37_112 = "IEEE C37.112"
+GENERIC_MANUFACTURER = "Generic"
+
 DATASET = {
     "id": "2026.11",
     "published_at": "2026-11-26",
@@ -88,7 +92,7 @@ CABLES = _cable_rows("xlpe-cu-lv", _SIZES_LV) + _cable_rows("xlpe-cu-mv", _SIZES
 CURVES = [
     {
         "id": "iec-si",
-        "standard": "IEC 60255-151",
+        "standard": IEC_60255_151,
         "curve": "SI",
         "label": "IEC Standard Inverse",
         "k": 0.14,
@@ -97,7 +101,7 @@ CURVES = [
     },
     {
         "id": "iec-vi",
-        "standard": "IEC 60255-151",
+        "standard": IEC_60255_151,
         "curve": "VI",
         "label": "IEC Very Inverse",
         "k": 13.5,
@@ -106,7 +110,7 @@ CURVES = [
     },
     {
         "id": "iec-ei",
-        "standard": "IEC 60255-151",
+        "standard": IEC_60255_151,
         "curve": "EI",
         "label": "IEC Extremely Inverse",
         "k": 80.0,
@@ -115,7 +119,7 @@ CURVES = [
     },
     {
         "id": "ieee-mi",
-        "standard": "IEEE C37.112",
+        "standard": IEEE_C37_112,
         "curve": "MI",
         "label": "IEEE Moderately Inverse",
         "k": 0.0515,
@@ -124,7 +128,7 @@ CURVES = [
     },
     {
         "id": "ieee-vi",
-        "standard": "IEEE C37.112",
+        "standard": IEEE_C37_112,
         "curve": "VI",
         "label": "IEEE Very Inverse",
         "k": 19.61,
@@ -133,7 +137,7 @@ CURVES = [
     },
     {
         "id": "ieee-ei",
-        "standard": "IEEE C37.112",
+        "standard": IEEE_C37_112,
         "curve": "EI",
         "label": "IEEE Extremely Inverse",
         "k": 28.2,
@@ -145,34 +149,34 @@ CURVES = [
 RELAYS = [
     {
         "id": "feeder-ocr-iec",
-        "manufacturer": "Generic",
+        "manufacturer": GENERIC_MANUFACTURER,
         "model": "Feeder OCR (50/51)",
-        "standard": "IEC 60255-151",
+        "standard": IEC_60255_151,
         "functions": ["50", "51", "50N", "51N"],
         "curves": ["iec-si", "iec-vi", "iec-ei"],
         "notes": "Reference record; replace with the vendor model before coordination",
     },
     {
         "id": "feeder-ocr-ieee",
-        "manufacturer": "Generic",
+        "manufacturer": GENERIC_MANUFACTURER,
         "model": "Feeder OCR (50/51) IEEE",
-        "standard": "IEEE C37.112",
+        "standard": IEEE_C37_112,
         "functions": ["50", "51", "50N", "51N"],
         "curves": ["ieee-mi", "ieee-vi", "ieee-ei"],
         "notes": "Reference record; IEEE curves use the k/alpha form of the client engine",
     },
     {
         "id": "recloser-79",
-        "manufacturer": "Generic",
+        "manufacturer": GENERIC_MANUFACTURER,
         "model": "Recloser (79)",
-        "standard": "IEC 60255-151",
+        "standard": IEC_60255_151,
         "functions": ["79", "50", "51"],
         "curves": ["iec-si", "iec-vi"],
         "notes": "Reference record",
     },
     {
         "id": "distance-21",
-        "manufacturer": "Generic",
+        "manufacturer": GENERIC_MANUFACTURER,
         "model": "Distance relay (21)",
         "standard": "IEC 60255-121",
         "functions": ["21", "27", "59", "50BF"],
@@ -181,7 +185,7 @@ RELAYS = [
     },
     {
         "id": "differential-87",
-        "manufacturer": "Generic",
+        "manufacturer": GENERIC_MANUFACTURER,
         "model": "Differential relay (87)",
         "standard": "IEC 60255-110",
         "functions": ["87T", "87B", "50/51"],

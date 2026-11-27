@@ -71,7 +71,7 @@ Run it without Docker during development:
 cd services/api
 python -m venv .venv && . .venv/bin/activate
 pip install -r requirements-dev.txt
-DATABASE_URL=postgresql+psycopg://psa:psa@localhost:5432/psa \
+DATABASE_URL=postgresql+psycopg://psa:"$POSTGRES_PASSWORD"@localhost:5432/psa \
   uvicorn psa_api.main:app --reload --port 8000
 ```
 
@@ -158,7 +158,7 @@ Without `VERCEL_TOKEN` the workflow skips the deployment instead of failing.
 | `BASE_URL` | Playwright | Target URL for end-to-end tests |
 | `DATABASE_URL` | API | SQLAlchemy URL; `postgresql+psycopg://user:pass@host/db` in server mode, in-memory SQLite when unset |
 | `PSA_CORS_ORIGINS` | API | Comma-separated allowed origins, default `http://localhost:3000,http://127.0.0.1:3000` |
-| `POSTGRES_PASSWORD` | compose | Database password for the `server` profile (`psa-local-dev` default is for local use only) |
+| `POSTGRES_PASSWORD` | compose | Required for the `server` profile; compose fails without it and no default is stored in the repository |
 
 ## Release flow
 

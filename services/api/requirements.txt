@@ -1,8 +1,8 @@
-fastapi>=0.115,<1
-uvicorn[standard]>=0.30
-pydantic>=2.7,<3
-numpy>=1.26
-scipy>=1.11
-pandapower>=3.0
-SQLAlchemy>=2.0
-psycopg[binary]>=3.1
+fastapi==0.165.0
+uvicorn[standard]==0.54.0
+pydantic==2.14.4
+numpy==2.4.6
+scipy==1.18.1
+pandapower==3.5.6
+SQLAlchemy==2.1.9
+psycopg[binary]==3.3.9

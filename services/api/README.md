@@ -25,22 +25,23 @@ The static export and the offline workbench never call it.
 ```bash
 cd services/api
 python -m venv .venv && . .venv/bin/activate
-pip install -r requirements-dev.txt
+pip install -r requirements-dev.txt   # resolves requirements.lock
 uvicorn psa_api.main:app --reload --port 8000
 ```
 
-Without `DATABASE_URL` the service seeds an in-memory SQLite catalogue, so the
-API is usable with no database. Point `DATABASE_URL` at PostgreSQL for a durable
+`POSTGRES_PASSWORD` is required by the `server` profile; compose refuses to start without it and
+the repository stores no default. Without `DATABASE_URL` the service seeds an in-memory SQLite
+catalogue, so the API is usable with no database. Point `DATABASE_URL` at PostgreSQL for a durable
 library:
 
 ```bash
-export DATABASE_URL=postgresql+psycopg://psa:psa-local-dev@localhost:5432/psa
+export DATABASE_URL=postgresql+psycopg://psa:"$POSTGRES_PASSWORD"@localhost:5432/psa
 ```
 
 Or start the whole server mode:
 
 ```bash
-POSTGRES_PASSWORD=psa-local-dev docker compose --profile server up --build
+POSTGRES_PASSWORD=change-me docker compose --profile server up --build
 ```
 
 ## Endpoints
@@ -96,8 +97,9 @@ python -m pytest        # 45 tests; the PostgreSQL round trip skips without DATA
 python -m ruff check .
 ```
 
-The workflow `.github/workflows/api.yml` supplies a PostgreSQL service container,
-so the round trip runs in CI.
+`requirements.txt` pins the direct dependencies and `requirements.lock` freezes the
+full runtime resolution used by the container image. The workflow
+`.github/workflows/api.yml` supplies a PostgreSQL service container, so the round trip runs in CI.
 
 ## Assumptions
 

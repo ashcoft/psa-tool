@@ -16,49 +16,59 @@ class SystemValidationError(ValueError):
         self.messages = messages
 
 
-def validate_system(system: PowerSystem) -> list[str]:
-    """Return advisory messages or raise on an unusable model."""
-    errors: list[str] = []
-    warnings: list[str] = []
+def _require_bus(owner: str, value: str | None, known: set[str], errors: list[str]) -> None:
+    if value is None:
+        errors.append(f"{owner} has no bus reference")
+    elif value not in known:
+        errors.append(f"{owner} references unknown bus '{value}'")
 
+
+def _check_buses(system: PowerSystem, errors: list[str]) -> set[str]:
     bus_ids = [bus.id for bus in system.buses]
     if not bus_ids:
         errors.append("system has no buses")
-    duplicates = {bid for bid in bus_ids if bus_ids.count(bid) > 1}
+    duplicates = {bus_id for bus_id in bus_ids if bus_ids.count(bus_id) > 1}
     if duplicates:
         errors.append(f"duplicate bus ids: {', '.join(sorted(duplicates))}")
+    return set(bus_ids)
 
-    known = set(bus_ids)
 
-    def require_bus(owner: str, value: str | None) -> None:
-        if value is None:
-            errors.append(f"{owner} has no bus reference")
-        elif value not in known:
-            errors.append(f"{owner} references unknown bus '{value}'")
-
+def _check_lines(system: PowerSystem, known: set[str], errors: list[str], warnings: list[str]) -> None:
     for line in system.lines:
-        require_bus(f"line {line.id} (fromBus)", line.fromBus)
-        require_bus(f"line {line.id} (toBus)", line.toBus)
+        _require_bus(f"line {line.id} (fromBus)", line.fromBus, known, errors)
+        _require_bus(f"line {line.id} (toBus)", line.toBus, known, errors)
         if line.fromBus == line.toBus:
             errors.append(f"line {line.id} connects a bus to itself")
         if line.rating <= 0:
             warnings.append(f"line {line.id} has non-positive rating; loading is reported as 0")
+
+
+def _check_transformers(
+    system: PowerSystem, known: set[str], errors: list[str], warnings: list[str]
+) -> None:
     for txf in system.transformers:
-        require_bus(f"transformer {txf.id} (fromBus)", txf.fromBus)
-        require_bus(f"transformer {txf.id} (toBus)", txf.toBus)
+        _require_bus(f"transformer {txf.id} (fromBus)", txf.fromBus, known, errors)
+        _require_bus(f"transformer {txf.id} (toBus)", txf.toBus, known, errors)
         if txf.fromBus == txf.toBus:
             errors.append(f"transformer {txf.id} connects a bus to itself")
         if txf.tap <= 0:
             warnings.append(f"transformer {txf.id} has tap <= 0; 1.0 is used")
+
+
+def _check_attachments(
+    system: PowerSystem, known: set[str], errors: list[str], warnings: list[str]
+) -> None:
     for gen in system.generators:
-        require_bus(f"generator {gen.id}", gen.bus)
+        _require_bus(f"generator {gen.id}", gen.bus, known, errors)
         if gen.qmax < gen.qmin:
             warnings.append(f"generator {gen.id} has qmax < qmin; limits ignored")
     for load in system.loads:
-        require_bus(f"load {load.id}", load.bus)
+        _require_bus(f"load {load.id}", load.bus, known, errors)
     for shunt in system.shunts:
-        require_bus(f"shunt {shunt.id}", shunt.bus)
+        _require_bus(f"shunt {shunt.id}", shunt.bus, known, errors)
 
+
+def _check_slack(system: PowerSystem, warnings: list[str]) -> None:
     slack = [bus for bus in system.buses if bus.type == "slack"]
     if not slack:
         warnings.append(
@@ -68,6 +78,18 @@ def validate_system(system: PowerSystem) -> list[str]:
         warnings.append(
             f"{len(slack)} slack buses found; each becomes an external grid at its own voltage"
         )
+
+
+def validate_system(system: PowerSystem) -> list[str]:
+    """Return advisory messages or raise on an unusable model."""
+    errors: list[str] = []
+    warnings: list[str] = []
+
+    known = _check_buses(system, errors)
+    _check_lines(system, known, errors, warnings)
+    _check_transformers(system, known, errors, warnings)
+    _check_attachments(system, known, errors, warnings)
+    _check_slack(system, warnings)
 
     if errors:
         raise SystemValidationError(errors)

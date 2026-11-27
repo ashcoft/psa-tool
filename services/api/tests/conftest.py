@@ -18,12 +18,12 @@ def ieee9() -> dict:
     return json.loads((FIXTURES / "ieee9.json").read_text())
 
 
-@pytest.fixture()
+@pytest.fixture
 def system(ieee9) -> PowerSystem:
     return PowerSystem.model_validate(ieee9)
 
 
-@pytest.fixture()
+@pytest.fixture
 def catalog() -> Catalog:
     engine = create_engine(
         "sqlite+pysqlite://",

@@ -25,6 +25,8 @@ from sqlalchemy import (
 from . import seed
 from .contract import CableSize, DatasetVersion, RelayCurve, RelayModel
 
+DATASET_VERSION_REF = "dataset_version.id"
+
 metadata = MetaData()
 
 dataset_version = Table(
@@ -45,7 +47,7 @@ cable_family = Table(
     Column("conductor", String(8), nullable=False),
     Column("insulation", String(16), nullable=False),
     Column("cores", Integer, nullable=False),
-    Column("dataset_version", String(32), ForeignKey("dataset_version.id"), nullable=False),
+    Column("dataset_version", String(32), ForeignKey(DATASET_VERSION_REF), nullable=False),
 )
 
 cable_size = Table(
@@ -72,7 +74,7 @@ relay_curve = Table(
     Column("k", Float, nullable=False),
     Column("alpha", Float, nullable=False),
     Column("band", String(16)),
-    Column("dataset_version", String(32), ForeignKey("dataset_version.id"), nullable=False),
+    Column("dataset_version", String(32), ForeignKey(DATASET_VERSION_REF), nullable=False),
 )
 
 relay_model = Table(
@@ -84,7 +86,7 @@ relay_model = Table(
     Column("standard", String(32), nullable=False),
     Column("functions", JSON, nullable=False),
     Column("curves", JSON, nullable=False),
-    Column("dataset_version", String(32), ForeignKey("dataset_version.id"), nullable=False),
+    Column("dataset_version", String(32), ForeignKey(DATASET_VERSION_REF), nullable=False),
     Column("notes", Text),
 )
 

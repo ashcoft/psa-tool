@@ -18,7 +18,7 @@ from psa_api.studies import run_power_flow
 REFERENCE = json.loads((Path(__file__).parent / "fixtures" / "ieee9-client-nr.json").read_text())
 
 
-@pytest.fixture()
+@pytest.fixture
 def study(system: PowerSystem):
     # Same tolerance the client used for the fixture; tighter budgets converge elsewhere.
     return run_power_flow(system, "Newton-Raphson")

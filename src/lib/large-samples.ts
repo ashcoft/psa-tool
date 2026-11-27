@@ -147,24 +147,28 @@ export function buildLargeGrid({ elements, buses: requestedBuses }: LargeGridOpt
     levelBuses.push(ids);
   });
 
+  const lineReactance = (definitionId: string, level: LevelSpec): number => {
+    if (definitionId === 'series-capacitor') return -level.lineX * 0.4;
+    if (definitionId === 'current-limiting-reactor') return level.lineX * 1.8;
+    if (definitionId === 'impedance') return level.lineX * 0.2;
+    return level.lineX;
+  };
+
+  const lineResistance = (definitionId: string, level: LevelSpec): number => {
+    const seriesElement =
+      definitionId === 'series-capacitor' || definitionId === 'current-limiting-reactor';
+    return seriesElement ? level.lineR * 0.1 : level.lineR;
+  };
+
   const addLine = (level: LevelSpec, fromBus: string, toBus: string, name: string): void => {
     const definition = CATALOG.lines[lines.length % CATALOG.lines.length];
-    const isCapacitor = definition.id === 'series-capacitor';
-    const isReactor = definition.id === 'current-limiting-reactor';
-    const isImpedance = definition.id === 'impedance';
     lines.push({
       id: `LN-${pad(lines.length + 1, 4)}`,
       name,
       fromBus,
       toBus,
-      resistance: isCapacitor || isReactor ? level.lineR * 0.1 : level.lineR,
-      reactance: isCapacitor
-        ? -level.lineX * 0.4
-        : isReactor
-          ? level.lineX * 1.8
-          : isImpedance
-            ? level.lineX * 0.2
-            : level.lineX,
+      resistance: lineResistance(definition.id, level),
+      reactance: lineReactance(definition.id, level),
       susceptance: level.lineB,
       rating: level.ratingMVA,
       length: level.lengthKm,
