@@ -18,7 +18,8 @@ DATASET = {
     "published_at": "2026-11-26",
     "source": (
         "IEC 60228 class 2 conductor resistance; IEC 60502-1/-2 cable construction; "
-        "IEC 60255-151 and IEEE C37.112 inverse-time constants; indicative XLPE ampacity"
+        "IEC 60255-151 and IEEE C37.112 inverse-time constants (A, B, p terms); "
+        "indicative XLPE ampacity"
     ),
     "notes": (
         "Screening dataset. Ampacity depends on installation, grouping, ambient "
@@ -97,6 +98,7 @@ CURVES = [
         "label": "IEC Standard Inverse",
         "k": 0.14,
         "alpha": 0.02,
+        "b": 0.0,
         "band": "IEC",
     },
     {
@@ -106,6 +108,7 @@ CURVES = [
         "label": "IEC Very Inverse",
         "k": 13.5,
         "alpha": 1.0,
+        "b": 0.0,
         "band": "IEC",
     },
     {
@@ -115,6 +118,7 @@ CURVES = [
         "label": "IEC Extremely Inverse",
         "k": 80.0,
         "alpha": 2.0,
+        "b": 0.0,
         "band": "IEC",
     },
     {
@@ -124,6 +128,7 @@ CURVES = [
         "label": "IEEE Moderately Inverse",
         "k": 0.0515,
         "alpha": 0.02,
+        "b": 0.1140,
         "band": "IEEE",
     },
     {
@@ -132,7 +137,8 @@ CURVES = [
         "curve": "VI",
         "label": "IEEE Very Inverse",
         "k": 19.61,
-        "alpha": 1.0,
+        "alpha": 2.0,
+        "b": 0.491,
         "band": "IEEE",
     },
     {
@@ -142,6 +148,7 @@ CURVES = [
         "label": "IEEE Extremely Inverse",
         "k": 28.2,
         "alpha": 2.0,
+        "b": 0.1217,
         "band": "IEEE",
     },
 ]

@@ -96,6 +96,9 @@
   branch overloads are reported rather than optimised away.
 - Specialty studies are screening calculations: Lee arc-flash model, IEEE 519 harmonic limits,
   IEC/IEEE relay curves, and IEEE 80 simplified ground-grid equations.
+- Relay curves use the IEC 60255-151 / IEEE C37.112 form `t = TD * (A / (M^p - 1) + B)`. The
+  constants in `src/lib/protection.ts` and the catalogue store `A = k`, `p = alpha`, `B = b`; IEEE
+  very inverse is `p = 2`, not 1.
 - Server tier (pandapower): bus voltage bases come from `bus.vbase`, then transformer `vhigh`/`vlow`,
   then 1 kV with a study-log message. Line charging is converted from the model susceptance to
   `c_nf_per_km` at `system.baseFreq`. Ampacity and cable impedance rows in dataset `2026.11` are
@@ -103,6 +106,10 @@
 - Result definitions differ in two places by decision: line `loading` uses the worse of the two ends
   on the server and the sending end in the client; the slack generator reports solved `pg` on the
   server and scheduled `pg` in the client.
+- Server sidebar behaviours that are easy to regress: transformer taps go through pandapower's
+  `Ratio` changer (`tap_ratio` is ignored), `enforce_q_lims=True` is required for reactive limits,
+  shunt power is read from `res_shunt` (scaled by V squared), out-of-service buses report zeros, and
+  a failed study reports `maxMismatch: null` because NaN cannot be serialized.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

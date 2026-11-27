@@ -13,7 +13,7 @@ from psa_api.studies import run_power_flow
 
 
 def test_contract_version_is_pinned() -> None:
-    assert CONTRACT_VERSION == "1.0.0"
+    assert CONTRACT_VERSION == "1.1.0"
 
 
 def test_fixture_validates_and_preserves_unknown_fields(ieee9: dict) -> None:

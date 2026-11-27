@@ -12,7 +12,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-CONTRACT_VERSION = "1.0.0"
+CONTRACT_VERSION = "1.1.0"
 
 BusType = Literal["slack", "pv", "pq", "isolated"]
 PowerFlowMethod = Literal[
@@ -215,7 +215,9 @@ class GeneratorResult(Model):
 class PowerFlowResult(Model):
     converged: bool
     iterations: int
-    maxMismatch: float
+    # None when no solution exists; the client keeps Number.NaN in memory but never
+    # serialises it, so null is the JSON-safe equivalent.
+    maxMismatch: float | None = None
     losses: dict[str, float]
     busResults: list[BusResult]
     lineResults: list[LineResult]
@@ -291,6 +293,7 @@ class RelayCurve(Model):
     label: str
     k: float
     alpha: float
+    b: float = 0.0
     band: str | None = None
     datasetVersion: str
 

@@ -87,6 +87,8 @@ describe('protection coordination', () => {
   });
 
   it('has faster trips at higher currents', () => {
+    // IEEE C37.112 very inverse: A = 19.61, B = 0.491, p = 2.
+    expect(relayTripTime('IEEE-VI', 100, 1, 1000)).toBeCloseTo(0.6891, 4);
     const t2 = relayTripTime('IEC-VI', 100, 0.2, 200);
     const t10 = relayTripTime('IEC-VI', 100, 0.2, 1000);
     expect(t2).toBeGreaterThan(t10);

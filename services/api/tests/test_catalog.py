@@ -8,12 +8,12 @@ from psa_api.catalog import Catalog
 
 # Copied from src/lib/protection.ts; the catalog must not drift from the calculator.
 CLIENT_CURVES = {
-    "IEC-SI": (0.14, 0.02),
-    "IEC-VI": (13.5, 1.0),
-    "IEC-EI": (80.0, 2.0),
-    "IEEE-MI": (0.0515, 0.02),
-    "IEEE-VI": (19.61, 1.0),
-    "IEEE-EI": (28.2, 2.0),
+    "IEC-SI": (0.14, 0.02, 0.0),
+    "IEC-VI": (13.5, 1.0, 0.0),
+    "IEC-EI": (80.0, 2.0, 0.0),
+    "IEEE-MI": (0.0515, 0.02, 0.114),
+    "IEEE-VI": (19.61, 2.0, 0.491),
+    "IEEE-EI": (28.2, 2.0, 0.1217),
 }
 
 
@@ -29,10 +29,20 @@ def test_curves_match_the_client_calculator(catalog: Catalog) -> None:
     curves = {f"{curve.band}-{curve.curve}": curve for curve in catalog.relay_curves()}
 
     assert set(curves) == set(CLIENT_CURVES)
-    for key, (k, alpha) in CLIENT_CURVES.items():
+    for key, (k, alpha, b) in CLIENT_CURVES.items():
         assert curves[key].k == pytest.approx(k)
         assert curves[key].alpha == pytest.approx(alpha)
+        assert curves[key].b == pytest.approx(b)
         assert curves[key].datasetVersion == "2026.11"
+
+
+def test_ieee_very_inverse_matches_the_standard(catalog: Catalog) -> None:
+    """IEEE C37.112-1996: A = 19.61, B = 0.491, p = 2; at M = 10 and TD = 1, t = 0.689 s."""
+    curve = next(item for item in catalog.relay_curves() if item.id == "ieee-vi")
+    multiple = 10.0
+    trip = 1.0 * (curve.k / (multiple**curve.alpha - 1) + curve.b)
+
+    assert trip == pytest.approx(0.6891, abs=1e-4)
 
 
 def test_curve_ids_are_unique_and_banded(catalog: Catalog) -> None:

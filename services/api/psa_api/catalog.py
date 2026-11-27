@@ -73,6 +73,7 @@ relay_curve = Table(
     Column("label", String(64), nullable=False),
     Column("k", Float, nullable=False),
     Column("alpha", Float, nullable=False),
+    Column("b", Float, nullable=False, server_default="0"),
     Column("band", String(16)),
     Column("dataset_version", String(32), ForeignKey(DATASET_VERSION_REF), nullable=False),
 )
@@ -177,6 +178,7 @@ class Catalog:
                     label=row.label,
                     k=row.k,
                     alpha=row.alpha,
+                    b=row.b or 0.0,
                     band=row.band,
                     datasetVersion=row.dataset_version,
                 )
@@ -201,15 +203,42 @@ class Catalog:
             ]
 
 
+def _component_url():
+    """Build a URL from discrete settings so passwords never need URL escaping."""
+    import os
+
+    host = os.environ.get("POSTGRES_HOST")
+    if not host:
+        return None
+    password = os.environ.get("POSTGRES_PASSWORD")
+    if not password:
+        raise RuntimeError(
+            "POSTGRES_PASSWORD must be set for the server profile; "
+            "the repository intentionally stores no default."
+        )
+    from sqlalchemy import URL
+
+    return URL.create(
+        "postgresql+psycopg",
+        username=os.environ.get("POSTGRES_USER", "psa"),
+        password=password,
+        host=host,
+        port=int(os.environ.get("POSTGRES_PORT", "5432")),
+        database=os.environ.get("POSTGRES_DB", "psa"),
+    )
+
+
 def build_engine(url: str | None = None):
-    """Create an engine from ``DATABASE_URL``; fall back to in-memory SQLite."""
+    """Create an engine from ``DATABASE_URL``, discrete ``POSTGRES_*`` settings, or SQLite."""
     import os
 
     from sqlalchemy import create_engine
     from sqlalchemy.pool import StaticPool
 
-    target = url or os.environ.get("DATABASE_URL") or "sqlite+pysqlite://"
-    if ":memory:" in target or target in {"sqlite+pysqlite://", "sqlite://"}:
+    target = url or os.environ.get("DATABASE_URL") or _component_url() or "sqlite+pysqlite://"
+    if isinstance(target, str) and (
+        ":memory:" in target or target in {"sqlite+pysqlite://", "sqlite://"}
+    ):
         # A plain in-memory database lives per connection; one shared pool keeps the schema.
         return create_engine(target, poolclass=StaticPool, connect_args={"check_same_thread": False})
     return create_engine(target, pool_pre_ping=True)

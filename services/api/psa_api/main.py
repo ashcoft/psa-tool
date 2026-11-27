@@ -103,7 +103,10 @@ def catalog_relays(catalog: Catalog = Depends(get_catalog)) -> list[RelayModel]:
     "/v1/studies/powerflow",
     responses={
         422: {
-            "description": "Model validation failed; messages name the offending element.",
+            "description": (
+                "Malformed request body (FastAPI validation array) or an invalid model "
+                "(detail.messages names the offending element)."
+            ),
             "content": {
                 "application/json": {
                     "example": {"detail": {"messages": ["line L45 references unknown bus '4'"]}}

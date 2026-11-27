@@ -29,14 +29,18 @@ pip install -r requirements-dev.txt   # resolves requirements.lock
 uvicorn psa_api.main:app --reload --port 8000
 ```
 
-`POSTGRES_PASSWORD` is required by the `server` profile; compose refuses to start without it and
-the repository stores no default. Without `DATABASE_URL` the service seeds an in-memory SQLite
-catalogue, so the API is usable with no database. Point `DATABASE_URL` at PostgreSQL for a durable
-library:
+`POSTGRES_PASSWORD` is required by the `server` profile; compose passes it through and the API
+refuses to start without it, and the repository stores no default. Without any database setting the
+service seeds an in-memory SQLite catalogue, so the API is usable with no database. Point it at
+PostgreSQL for a durable library:
 
 ```bash
-export DATABASE_URL=postgresql+psycopg://psa:"$POSTGRES_PASSWORD"@localhost:5432/psa
+export POSTGRES_HOST=localhost POSTGRES_USER=psa POSTGRES_DB=psa
+export POSTGRES_PASSWORD='change-me'   # never committed; URL-escaped by SQLAlchemy
 ```
+
+`DATABASE_URL` still works and takes precedence. When `POSTGRES_HOST` is set the service builds the
+SQLAlchemy URL with `URL.create`, so passwords containing `@`, `:`, `/` or `%` connect correctly.
 
 Or start the whole server mode:
 
@@ -81,7 +85,19 @@ client to machine precision; see `tests/test_parity.py` and
 `tests/fixtures/ieee9-client-nr.json`. Three deliberate differences remain:
 
 - `BusResult.angle` is degrees in both implementations (the model `Bus.angle`
-  is radians).
+  is radians; the adapter converts the slack angle with `math.degrees`).
+- Transformer taps are applied through pandapower's `Ratio` tap changer, because
+  `tap_ratio` is not used by the solver.
+- Generator reactive limits are enforced (`enforce_q_lims=True`); a unit at its
+  limit reports `at limit` and its bus becomes PQ.
+- DC studies report zero reactive quantities (pandapower leaves them unset
+  instead of zero).
+- Shunt reactive power is the solved value, scaled by the square of the bus
+  voltage.
+- Out-of-service and isolated buses report zero voltage, angle and injection,
+  and a study-log message.
+- A failed study reports `maxMismatch: null`; NaN would break JSON. The client
+  keeps `Number.NaN` in memory but never serializes it.
 - Line `loading` uses the worse of the two ends. The client divides only the
   sending-end apparent power by the rating, which understates charging-heavy
   lines. On IEEE 9 bus 6-9 the client reports 7.2 % and the service 16.4 %.
@@ -93,13 +109,15 @@ client to machine precision; see `tests/test_parity.py` and
 
 ```bash
 cd services/api
-python -m pytest        # 45 tests; the PostgreSQL round trip skips without DATABASE_URL
+python -m pytest        # 60 tests; the PostgreSQL round trip skips without PSA_TEST_DATABASE_URL
 python -m ruff check .
 ```
 
 `requirements.txt` pins the direct dependencies. `requirements.lock` and
-`requirements-dev.lock` are hash-pinned full resolutions (pip-compile); the image installs the
-runtime lock and CI installs the dev lock, both with `--require-hashes --only-binary :all:`. The workflow
+`requirements-dev.lock` are hash-pinned full resolutions (pip-compile) for Linux and CPython 3.13;
+the image installs the runtime lock and CI installs the dev lock, both with
+`--require-hashes --only-binary :all:`. Windows developers should install `requirements-dev.txt`,
+because the lock includes `uvloop`, which has no Windows wheel. The workflow
 `.github/workflows/api.yml` supplies a PostgreSQL service container, so the round trip runs in CI.
 
 ## Assumptions

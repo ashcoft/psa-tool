@@ -12,7 +12,7 @@ def test_health(client: TestClient) -> None:
     body = response.json()
     assert body["status"] == "ok"
     assert body["service"] == "psa-api"
-    assert body["contractVersion"] == "1.0.0"
+    assert body["contractVersion"] == "1.1.0"
     assert body["solver"]["engine"] == "pandapower"
     assert body["catalog"]["datasets"] == 1
 
@@ -50,6 +50,19 @@ def test_unknown_bus_returns_422(client: TestClient, ieee9: dict) -> None:
     assert any("nope" in message for message in detail["messages"])
 
 
+def test_failed_study_serializes_with_a_null_mismatch(client: TestClient, ieee9: dict) -> None:
+    response = client.post(
+        "/v1/studies/powerflow",
+        json={"system": ieee9, "method": "Gauss-Seidel", "maxIterations": 1},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "failed"
+    assert body["data"]["maxMismatch"] is None
+    assert body["messages"]
+
+
 def test_malformed_request_returns_422(client: TestClient) -> None:
     response = client.post("/v1/studies/powerflow", json={"system": {"buses": []}, "tolerance": -1})
     assert response.status_code == 422
@@ -79,6 +92,7 @@ def test_catalog_relays_and_curves(client: TestClient) -> None:
         "label": "IEC Standard Inverse",
         "k": 0.14,
         "alpha": 0.02,
+        "b": 0.0,
         "band": "IEC",
         "datasetVersion": "2026.11",
     }

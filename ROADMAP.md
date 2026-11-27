@@ -76,9 +76,9 @@ Implemented in this review, as evidence that the stack fits the model:
 | Gate | Command | Current result |
 |------|---------|----------------|
 | Unit and component tests | `npm run test:run` | 307 passed, 2 skipped, 22 files |
-| Server tier tests | `cd services/api && python -m pytest` | 45 passed, 1 skipped (PostgreSQL round trip) |
+| Server tier tests | `cd services/api && python -m pytest` | 60 passed, 1 skipped (PostgreSQL round trip) |
 | Server tier lint | `cd services/api && python -m ruff check .` | Pass |
-| Coverage | `npm run test:coverage` | 69.91 % statements, 53.46 % branches, 67.14 % functions, 70.92 % lines |
+| Coverage | `npm run test:coverage` | 69.97 % statements, 53.52 % branches, 67.19 % functions, 70.96 % lines |
 | Lint | `npm run lint` | Pass |
 | Type check | `tsc --noEmit` (CI) / `next build` | Pass |
 | Production build | `npm run build` | Pass, static `/` route, Next.js 16 |
@@ -118,13 +118,14 @@ versioned cable and relay library from PostgreSQL.
 ### Delivered since the previous review
 
 - Server tier vertical slice: `services/api` (FastAPI, Pydantic v2, pandapower) with power flow,
-  health, catalogue endpoints, a `StudyRun` contract mirror, 45 tests, a container image, an API
+  health, catalogue endpoints, a `StudyRun` contract mirror, 60 tests, a container image, an API
   workflow with a PostgreSQL service, and a `server` compose profile.
 - Contract parity on IEEE 9: service and client agree to machine precision on bus voltages,
   angles, branch flows, reactive generation and losses; the reference is committed as
   `services/api/tests/fixtures/ieee9-client-nr.json`.
 - Equipment library dataset `2026.11`: IEC 60228/60502 cable sizes, IEC 60255-151 and
-  IEEE C37.112 curve constants, generic relay records, dataset versioning.
+  IEEE C37.112 curve constants (A, B, p form, very inverse corrected to p = 2), generic relay
+  records and dataset versioning.
 - `BusResult.angle` is now documented as degrees in `src/types/index.ts`; both implementations
   emit degrees while the model `Bus.angle` stays radians.
 - Deterministic large-grid samples: `src/lib/large-samples.ts` builds ten-level networks from 220 V
@@ -215,7 +216,7 @@ integration work: a `StudyRun` variant, tables, chart, report section, export an
 
 ### 3.5 Quality and operations
 
-- Coverage is 69.91 % statements and 53.46 % branches, with the largest gaps in `useProject.ts`,
+- Coverage is 69.97 % statements and 53.52 % branches, with the largest gaps in `useProject.ts`,
   `reports.ts`, `symbols/*` and `results-export.ts`.
 - Two skipped tests: Gauss-Seidel finite results and canvas symbol rendering.
 - E2E is Chromium-only; no visual regression, no accessibility assertions, no Firefox/WebKit.

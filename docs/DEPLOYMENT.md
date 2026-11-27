@@ -62,8 +62,8 @@ curl -s localhost:8000/v1/health
 | Service | Port | Notes |
 |---------|------|-------|
 | `psat-web` | 3000 | unchanged Next.js image |
-| `api` | 8000 | seeds the catalogue on first start; `/openapi.json` documents the contract |
-| `db` | 5432 | PostgreSQL 17, data in the `psa-db` volume |
+| `api` | 127.0.0.1:8000 | seeds the catalogue on first start; `/openapi.json` documents the contract |
+| `db` | 127.0.0.1:5432 | PostgreSQL 17, data in the `psa-db` volume |
 
 Run it without Docker during development:
 
@@ -71,15 +71,18 @@ Run it without Docker during development:
 cd services/api
 python -m venv .venv && . .venv/bin/activate
 pip install -r requirements-dev.txt
-DATABASE_URL=postgresql+psycopg://psa:"$POSTGRES_PASSWORD"@localhost:5432/psa \
+POSTGRES_HOST=localhost POSTGRES_USER=psa POSTGRES_DB=psa \
+  POSTGRES_PASSWORD='change-me' \
   uvicorn psa_api.main:app --reload --port 8000
 ```
 
-Without `DATABASE_URL` the API seeds an in-memory SQLite catalogue, which is enough to try the
-endpoints but loses data on restart.
+Without a database setting the API seeds an in-memory SQLite catalogue, which is enough to try the
+endpoints but loses data on restart. `DATABASE_URL` is still accepted and takes precedence.
 
-The API has no authentication. Do not expose port 8000 to an untrusted network. A shared deployment
-also needs the migrations and backup runbook tracked as PL-10 in `ROADMAP.md`.
+Both ports bind to loopback by default. The API has no authentication, so do not expose it to an
+untrusted network; add a compose override that publishes the port only behind a reverse proxy when a
+remote deployment needs it. A shared deployment also needs the migrations and backup runbook tracked
+as PL-10 in `ROADMAP.md`.
 
 ## GitHub Container Registry (GHCR)
 
@@ -156,9 +159,15 @@ Without `VERCEL_TOKEN` the workflow skips the deployment instead of failing.
 | `NEXT_TELEMETRY_DISABLED` | runtime | Disable Next.js telemetry |
 | `PORT` | runtime | Container port, default `3000` |
 | `BASE_URL` | Playwright | Target URL for end-to-end tests |
-| `DATABASE_URL` | API | SQLAlchemy URL; `postgresql+psycopg://user:pass@host/db` in server mode, in-memory SQLite when unset |
+| `DATABASE_URL` | API | SQLAlchemy URL; takes precedence over the discrete settings, in-memory SQLite when nothing is set |
+| `POSTGRES_HOST` | API | Database host; enables the discrete settings and requires a password |
+| `POSTGRES_USER` | API | Database user, default `psa` |
+| `POSTGRES_PASSWORD` | API, compose | Database password. Required for the `server` profile; compose passes it through and the API refuses to start without it |
+| `POSTGRES_DB` | API | Database name, default `psa` |
+| `POSTGRES_PORT` | API | Database port, default `5432` |
+| `PSA_TEST_DATABASE_URL` | API tests | Disposable database for the PostgreSQL round trip; the test creates and drops its own schema |
 | `PSA_CORS_ORIGINS` | API | Comma-separated allowed origins, default `http://localhost:3000,http://127.0.0.1:3000` |
-| `POSTGRES_PASSWORD` | compose | Required for the `server` profile; compose fails without it and no default is stored in the repository |
+
 
 ## Release flow
 

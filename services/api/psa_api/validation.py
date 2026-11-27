@@ -33,6 +33,21 @@ def _check_buses(system: PowerSystem, errors: list[str]) -> set[str]:
     return set(bus_ids)
 
 
+def _check_duplicates(system: PowerSystem, errors: list[str]) -> None:
+    collections = (
+        ("line", [line.id for line in system.lines]),
+        ("transformer", [txf.id for txf in system.transformers]),
+        ("generator", [gen.id for gen in system.generators]),
+        ("load", [load.id for load in system.loads]),
+        ("shunt", [shunt.id for shunt in system.shunts]),
+        ("component", [component.id for component in system.components]),
+    )
+    for label, ids in collections:
+        duplicates = {value for value in ids if ids.count(value) > 1}
+        if duplicates:
+            errors.append(f"duplicate {label} ids: {', '.join(sorted(duplicates))}")
+
+
 def _check_lines(system: PowerSystem, known: set[str], errors: list[str], warnings: list[str]) -> None:
     for line in system.lines:
         _require_bus(f"line {line.id} (fromBus)", line.fromBus, known, errors)
@@ -86,6 +101,7 @@ def validate_system(system: PowerSystem) -> list[str]:
     warnings: list[str] = []
 
     known = _check_buses(system, errors)
+    _check_duplicates(system, errors)
     _check_lines(system, known, errors, warnings)
     _check_transformers(system, known, errors, warnings)
     _check_attachments(system, known, errors, warnings)

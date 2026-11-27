@@ -303,7 +303,7 @@ The full list is in [docs/NUMERICAL-METHODS.md](docs/NUMERICAL-METHODS.md) and `
 
 ## Testing and quality
 
-The repository has **307 unit/component tests**, **33 Chromium end-to-end specs** and **45 server
+The repository has **307 unit/component tests**, **33 Chromium end-to-end specs** and **60 server
 tier tests**. GitHub Actions runs lint, type check, unit tests, coverage, the production build and
 Playwright on pushes and pull requests; the `API` workflow runs ruff, pytest with a PostgreSQL
 service container and a container build. Codacy and SonarCloud provide static analysis.

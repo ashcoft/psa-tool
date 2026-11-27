@@ -70,6 +70,17 @@ def _add_buses(ctx: BuildContext) -> None:
         )
 
 
+def _create_ext_grid(ctx: BuildContext, bus: Bus, vm_pu: float, seen: set[str]) -> int:
+    index = pp.create_ext_grid(
+        ctx.net,
+        ctx.mapping.buses[bus.id],
+        vm_pu=vm_pu,
+        va_degree=math.degrees(bus.angle or 0.0),
+    )
+    seen.add(bus.id)
+    return index
+
+
 def _add_ext_grid(ctx: BuildContext, gen: Generator, bus: Bus, seen: set[str]) -> None:
     if gen.bus in seen:
         ctx.messages.append(
@@ -77,14 +88,20 @@ def _add_ext_grid(ctx: BuildContext, gen: Generator, bus: Bus, seen: set[str]) -
             "its pg is ignored, as in the client engine"
         )
         return
-    index = pp.create_ext_grid(
-        ctx.net,
-        ctx.mapping.buses[gen.bus],
-        vm_pu=gen.v or bus.voltage or 1.0,
-        va_degree=bus.angle or 0.0,
-    )
-    seen.add(gen.bus)
+    index = _create_ext_grid(ctx, bus, gen.v or bus.voltage or 1.0, seen)
     ctx.mapping.generators[gen.id] = ("ext_grid", index)
+
+
+def _slack_buses(ctx: BuildContext) -> set[str]:
+    slack = {bus.id for bus in ctx.system.buses if bus.type == "slack"}
+    if slack or not ctx.system.buses:
+        return slack
+    fallback = ctx.system.buses[0]
+    ctx.messages.append(
+        f"no bus is marked 'slack'; bus {fallback.id} is used as the reference, "
+        "as in the client engine"
+    )
+    return {fallback.id}
 
 
 def _add_pv_generator(ctx: BuildContext, gen: Generator, pp_bus: int) -> None:
@@ -99,7 +116,7 @@ def _add_pv_generator(ctx: BuildContext, gen: Generator, pp_bus: int) -> None:
 
 def _add_generators(ctx: BuildContext) -> None:
     system = ctx.system
-    slack_buses = {bus.id for bus in system.buses if bus.type == "slack"}
+    slack_buses = _slack_buses(ctx)
     ext_grid_seen: set[str] = set()
 
     for gen in system.generators:
@@ -118,6 +135,11 @@ def _add_generators(ctx: BuildContext) -> None:
             )
             index = pp.create_sgen(ctx.net, pp_bus, p_mw=gen.pg, q_mvar=gen.qg, name=gen.id)
             ctx.mapping.generators[gen.id] = ("sgen", index)
+
+    # A slack bus without a generator (or with only inactive ones) still needs a reference.
+    for bus_id in slack_buses - ext_grid_seen:
+        bus = next(item for item in system.buses if item.id == bus_id)
+        _create_ext_grid(ctx, bus, bus.voltage or 1.0, ext_grid_seen)
 
 
 def _create_shunt(ctx: BuildContext, shunt: Shunt) -> int:
@@ -165,8 +187,6 @@ def _line_parameters(ctx: BuildContext, line: Line) -> dict[str, float]:
             f"({ctx.bases[line.fromBus]} kV / {ctx.bases[line.toBus]} kV); "
             "the from-bus base is used"
         )
-    if abs(line.resistance) < 1e-12 and abs(line.reactance) < 1e-12:
-        ctx.messages.append(f"line {line.id} has zero impedance and is modelled as an open branch")
     length = line.length if line.length and line.length > 0 else 1.0
     charging = (line.susceptance or 0.0) / zbase / (2 * math.pi * system.baseFreq) * 1e9
     return {
@@ -180,6 +200,9 @@ def _line_parameters(ctx: BuildContext, line: Line) -> dict[str, float]:
 
 def _add_lines(ctx: BuildContext) -> None:
     for line in ctx.system.lines:
+        if abs(line.resistance) < 1e-12 and abs(line.reactance) < 1e-12:
+            ctx.messages.append(f"line {line.id} has zero impedance and is excluded from the solve")
+            continue
         parameters = _line_parameters(ctx, line)
         ctx.mapping.lines[line.id] = pp.create_line_from_parameters(
             ctx.net,
@@ -214,6 +237,7 @@ def _add_transformers(ctx: BuildContext) -> None:
         parameters = _transformer_parameters(ctx, txf)
         if parameters is None:
             continue
+        tap = txf.tap if txf.tap and txf.tap > 0 else 1.0
         ctx.mapping.transformers[txf.id] = pp.create_transformer_from_parameters(
             ctx.net,
             hv_bus=ctx.mapping.buses[txf.fromBus],
@@ -221,9 +245,13 @@ def _add_transformers(ctx: BuildContext) -> None:
             pfe_kw=0.0,
             i0_percent=0.0,
             shift_degree=txf.shift or 0.0,
+            # pandapower ignores tap_ratio in the solve; the Ratio changer encodes the
+            # model's per-unit tap as 1 + tap_pos * tap_step_percent / 100 on the HV side.
+            tap_changer_type="Ratio" if abs(tap - 1.0) > 1e-9 else None,
             tap_side="hv",
-            tap_neutral=1.0,
-            tap_ratio=txf.tap if txf.tap and txf.tap > 0 else 1.0,
+            tap_neutral=0.0,
+            tap_pos=tap - 1.0,
+            tap_step_percent=100.0,
             name=txf.id,
             in_service=txf.active,
             **parameters,

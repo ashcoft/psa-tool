@@ -158,7 +158,9 @@ def test_shunt_is_capacitive_when_b_is_positive(system: PowerSystem) -> None:
     assert boosted > base_v
 
     qshunt = next(row.qshunt for row in study.data.busResults if row.bus == "9")
-    assert qshunt == pytest.approx(-0.2 * 100, rel=1e-6)
+    solved_v = boosted
+    # qshunt is the reactive injection: positive for a capacitor, scaled by V squared.
+    assert qshunt == pytest.approx(0.2 * 100 * solved_v**2, rel=1e-6)
 
 
 def test_empty_method_mapping_is_explicit(system: PowerSystem) -> None:

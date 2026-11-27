@@ -34,6 +34,12 @@ ALGORITHMS: dict[str, str] = {
 ENGINE = f"pandapower {pp.__version__} on Python {platform.python_version()}"
 
 
+def _num(value, default: float = 0.0) -> float:  # noqa: ANN001 - pandas/numpy scalar
+    """Return a finite float; pandapower leaves NaN in fields a method does not solve."""
+    number = float(value)
+    return number if math.isfinite(number) else default
+
+
 def _now_iso() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
 
@@ -46,7 +52,7 @@ def _empty_result(method: PowerFlowMethod, elapsed: float) -> PowerFlowResult:
     return PowerFlowResult(
         converged=False,
         iterations=0,
-        maxMismatch=float("nan"),
+        maxMismatch=None,
         losses={"real": 0.0, "imag": 0.0},
         busResults=[],
         lineResults=[],
@@ -57,7 +63,25 @@ def _empty_result(method: PowerFlowMethod, elapsed: float) -> PowerFlowResult:
     )
 
 
-def _bus_totals(system: PowerSystem) -> dict[str, dict[str, float]]:
+def _shunt_consumption(
+    system: PowerSystem, net: pp.pandapowerNet, mapping: ElementMap
+) -> dict[str, dict[str, float]]:
+    """Solved shunt consumption per bus; pandapower scales it by the bus voltage squared."""
+    consumption = {bus.id: {"p": 0.0, "q": 0.0} for bus in system.buses}
+    shunts_by_id = {shunt.id: shunt for shunt in system.shunts}
+    for shunt_id, index in mapping.shunts.items():
+        shunt = shunts_by_id.get(shunt_id)
+        if shunt is None:
+            continue
+        row = net.res_shunt.loc[index]
+        consumption[shunt.bus]["p"] += _num(row.p_mw)
+        consumption[shunt.bus]["q"] += _num(row.q_mvar)
+    return consumption
+
+
+def _bus_totals(
+    system: PowerSystem, net: pp.pandapowerNet, mapping: ElementMap
+) -> dict[str, dict[str, float]]:
     totals = {
         bus.id: {"pl": 0.0, "ql": 0.0, "shunt_p": 0.0, "shunt_q": 0.0} for bus in system.buses
     }
@@ -65,10 +89,9 @@ def _bus_totals(system: PowerSystem) -> dict[str, dict[str, float]]:
         if load.bus in totals and load.active:
             totals[load.bus]["pl"] += load.pl
             totals[load.bus]["ql"] += load.ql
-    for shunt in system.shunts:
-        if shunt.bus in totals and shunt.active:
-            totals[shunt.bus]["shunt_p"] += shunt.g * system.baseMVA
-            totals[shunt.bus]["shunt_q"] += -shunt.b * system.baseMVA
+    for bus_id, values in _shunt_consumption(system, net, mapping).items():
+        totals[bus_id]["shunt_p"] = values["p"]
+        totals[bus_id]["shunt_q"] = values["q"]
     return totals
 
 
@@ -83,7 +106,7 @@ def _generator_injections(
             row = net.res_gen.loc[index]
         else:
             row = net.res_sgen.loc[index]
-        injections[gen_id] = (float(row.p_mw), float(row.q_mvar))
+        injections[gen_id] = (_num(row.p_mw), _num(row.q_mvar))
     return injections
 
 
@@ -93,8 +116,8 @@ def _line_loading(row, rating: float) -> float:  # noqa: ANN001 - pandas row
     The client divides only the sending-end flow by the rating, which understates
     charging-heavy lines; the service reports the larger of the two ends.
     """
-    sending = math.hypot(float(row.p_from_mw), float(row.q_from_mvar))
-    receiving = math.hypot(float(row.p_to_mw), float(row.q_to_mvar))
+    sending = math.hypot(_num(row.p_from_mw), _num(row.q_from_mvar))
+    receiving = math.hypot(_num(row.p_to_mw), _num(row.q_to_mvar))
     return max(sending, receiving) * 100.0 / rating
 
 
@@ -112,21 +135,26 @@ def _status(gen_q: float, qmin: float, qmax: float, active: bool) -> str:
 def _bus_results(
     system: PowerSystem, net: pp.pandapowerNet, mapping: ElementMap
 ) -> list[BusResult]:
-    totals = _bus_totals(system)
+    totals = _bus_totals(system, net, mapping)
     results: list[BusResult] = []
     for bus in system.buses:
+        if not bus.active or bus.type == "isolated":
+            results.append(
+                BusResult(bus=bus.id, v=0.0, angle=0.0, pg=0.0, qg=0.0, pl=0.0, ql=0.0, qshunt=0.0)
+            )
+            continue
         row = net.res_bus.loc[mapping.buses[bus.id]]
         values = totals[bus.id]
         results.append(
             BusResult(
                 bus=bus.id,
-                v=float(row.vm_pu),
-                angle=float(row.va_degree),
-                pg=values["pl"] + values["shunt_p"] - float(row.p_mw),
-                qg=values["ql"] + values["shunt_q"] - float(row.q_mvar),
+                v=_num(row.vm_pu),
+                angle=_num(row.va_degree),
+                pg=values["pl"] + values["shunt_p"] - _num(row.p_mw),
+                qg=values["ql"] + values["shunt_q"] - _num(row.q_mvar),
                 pl=values["pl"],
                 ql=values["ql"],
-                qshunt=values["shunt_q"],
+                qshunt=-values["shunt_q"],
             )
         )
     return results
@@ -144,12 +172,12 @@ def _line_results(system: PowerSystem, net: pp.pandapowerNet, mapping: ElementMa
                 line=line.id,
                 fromBus=line.fromBus,
                 toBus=line.toBus,
-                pFrom=float(row.p_from_mw),
-                qFrom=float(row.q_from_mvar),
-                pTo=float(row.p_to_mw),
-                qTo=float(row.q_to_mvar),
-                ploss=float(row.pl_mw),
-                qloss=float(row.ql_mvar),
+                pFrom=_num(row.p_from_mw),
+                qFrom=_num(row.q_from_mvar),
+                pTo=_num(row.p_to_mw),
+                qTo=_num(row.q_to_mvar),
+                ploss=_num(row.pl_mw),
+                qloss=_num(row.ql_mvar),
                 loading=_line_loading(row, line.rating) if rated else 0.0,
             )
         )
@@ -169,11 +197,11 @@ def _transformer_results(
                 transformer=txf.id,
                 fromBus=txf.fromBus,
                 toBus=txf.toBus,
-                pFrom=float(row.p_hv_mw),
-                qFrom=float(row.q_hv_mvar),
-                pTo=float(row.p_lv_mw),
-                qTo=float(row.q_lv_mvar),
-                loading=float(row.loading_percent),
+                pFrom=_num(row.p_hv_mw),
+                qFrom=_num(row.q_hv_mvar),
+                pTo=_num(row.p_lv_mw),
+                qTo=_num(row.q_lv_mvar),
+                loading=_num(row.loading_percent),
                 tap=txf.tap,
             )
         )
@@ -193,7 +221,7 @@ def _generator_results(
                 bus=gen.bus,
                 pg=pg,
                 qg=qg,
-                v=float(net.res_bus.at[mapping.buses[gen.bus], "vm_pu"]),
+                v=_num(net.res_bus.at[mapping.buses[gen.bus], "vm_pu"]),
                 status=_status(qg, gen.qmin, gen.qmax, gen.active),
             )
         )
@@ -201,10 +229,10 @@ def _generator_results(
 
 
 def _branch_losses(net: pp.pandapowerNet) -> tuple[float, float]:
-    real = sum(float(row.pl_mw) for row in net.res_line.itertuples())
-    reactive = sum(float(row.ql_mvar) for row in net.res_line.itertuples())
-    real += sum(float(row.pl_mw) for row in net.res_trafo.itertuples())
-    reactive += sum(float(row.ql_mvar) for row in net.res_trafo.itertuples())
+    real = sum(_num(row.pl_mw) for row in net.res_line.itertuples())
+    reactive = sum(_num(row.ql_mvar) for row in net.res_line.itertuples())
+    real += sum(_num(row.pl_mw) for row in net.res_trafo.itertuples())
+    reactive += sum(_num(row.ql_mvar) for row in net.res_trafo.itertuples())
     return real, reactive
 
 
@@ -218,17 +246,16 @@ def _consumption(
         if load.active:
             bus_p[load.bus] += load.pl
             bus_q[load.bus] += load.ql
-    for shunt in system.shunts:
-        if shunt.active:
-            bus_p[shunt.bus] += shunt.g * system.baseMVA
-            bus_q[shunt.bus] += -shunt.b * system.baseMVA
+    for bus_id, values in _shunt_consumption(system, net, mapping).items():
+        bus_p[bus_id] += values["p"]
+        bus_q[bus_id] += values["q"]
     for gen_id, (kind, index) in mapping.generators.items():
         gen = next(item for item in system.generators if item.id == gen_id)
         if not gen.active or kind == "ext_grid":
             continue
         row = net.res_gen.loc[index] if kind == "gen" else net.res_sgen.loc[index]
-        bus_p[gen.bus] -= float(row.p_mw)
-        bus_q[gen.bus] -= float(row.q_mvar)
+        bus_p[gen.bus] -= _num(row.p_mw)
+        bus_q[gen.bus] -= _num(row.q_mvar)
     return bus_p, bus_q
 
 
@@ -242,9 +269,9 @@ def _residual(system: PowerSystem, net: pp.pandapowerNet, mapping: ElementMap) -
         if bus.type == "isolated" or not bus.active or bus.id == slack:
             continue
         index = mapping.buses[bus.id]
-        worst = max(worst, abs(float(net.res_bus.at[index, "p_mw"]) - bus_p[bus.id]) / base)
+        worst = max(worst, abs(_num(net.res_bus.at[index, "p_mw"]) - bus_p[bus.id]) / base)
         if bus.type == "pq":
-            worst = max(worst, abs(float(net.res_bus.at[index, "q_mvar"]) - bus_q[bus.id]) / base)
+            worst = max(worst, abs(_num(net.res_bus.at[index, "q_mvar"]) - bus_q[bus.id]) / base)
     return worst
 
 
@@ -262,10 +289,21 @@ def _solve(
                 tolerance_mva=tolerance * base_mva,
                 max_iteration=max_iterations,
                 numba=False,
+                enforce_q_lims=True,
             )
         return True, int(net._ppc.get("iterations", 0)), None
     except Exception as error:  # pandapower raises several unrelated exception types
         return False, 0, f"{type(error).__name__}: {error}"
+
+
+def _service_messages(system: PowerSystem, messages: list[str]) -> None:
+    out_of_service = [
+        bus.id for bus in system.buses if not bus.active or bus.type == "isolated"
+    ]
+    if out_of_service:
+        messages.append(
+            f"{len(out_of_service)} bus(es) out of service report zero voltage and no injection"
+        )
 
 
 def _profile_messages(
@@ -330,6 +368,7 @@ def run_power_flow(
     elapsed = (time.perf_counter() - started) * 1000
     bus_results = _bus_results(system, net, mapping)
     loss_p, loss_q = _branch_losses(net)
+    _service_messages(system, messages)
     _profile_messages(system, bus_results, algorithm, messages)
     messages.append(f"{ENGINE}; method {method} solved as '{algorithm}'")
 
