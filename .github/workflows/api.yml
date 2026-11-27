@@ -48,7 +48,8 @@ jobs:
 
       - name: Install dependencies
         working-directory: services/api
-        run: pip install --only-binary :all: --require-hashes --no-deps -r requirements-dev.lock
+        run: >-
+          pip install --only-binary :all: --require-hashes --no-deps -r requirements-dev.lock
 
       - name: Lint
         working-directory: services/api
